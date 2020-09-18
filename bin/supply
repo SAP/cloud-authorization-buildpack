@@ -1,0 +1,95 @@
+#!/bin/bash
+# This script provides dependencies for an app
+
+set -euo pipefail
+
+BUILD_DIR=$1
+#CACHE_DIR=$2
+DEPS_DIR=$3
+DEPS_IDX=$4
+
+export BUILDPACK_DIR=`dirname $(readlink -f ${BASH_SOURCE%/*})`
+
+binary_file="opa"
+config_file="opa_config.yml"
+start_file="start_opa.sh"
+
+rt_deps="../deps/$DEPS_IDX/"
+dt_deps="$DEPS_DIR/$DEPS_IDX/"
+opa_binary="$dt_deps$binary_file"
+opa_config="$dt_deps$config_file"
+log_level="debug"
+opa_start="$dt_deps$start_file"
+opa_port="9888"
+
+wget https://github.com/open-policy-agent/opa/releases/download/v0.16.2/opa_linux_amd64 -q -O "$opa_binary"
+chmod +x "$opa_binary"
+
+cp "$BUILDPACK_DIR/scripts/start_opa.sh" "$opa_start"
+chmod +x "$opa_start"
+
+
+if [ -n "${VCAP_SERVICES+x}" ] && ams_creds=$(echo "$VCAP_SERVICES"|jq -e '.ams[0].credentials' ) ; then
+
+mkdir -p "$BUILD_DIR/.profile.d"
+echo "creating $BUILD_DIR/.profile.d/0000_opa_env.sh"
+
+cat <<- eof > "$BUILD_DIR/.profile.d/0000_opa_env.sh"
+export AWS_ACCESS_KEY_ID=$(echo "$ams_creds" | jq -r '.object_store.access_key_id' )
+export AWS_SECRET_ACCESS_KEY=$(echo "$ams_creds" | jq -r '.object_store.secret_access_key' )
+export AWS_REGION=$(echo "$ams_creds" | jq -r '.object_store.region' )
+export opa_binary=$rt_deps$binary_file
+export opa_config=$rt_deps$config_file
+export log_level=$log_level 
+export OPA_URL=http://localhost:$opa_port/
+export OPA_PORT=$opa_port
+eof
+
+cat "$BUILD_DIR/.profile.d/0000_opa_env.sh"
+chmod +x "$BUILD_DIR/.profile.d/0000_opa_env.sh"
+
+if cas_files=$(find $BUILD_DIR$BUNDLE_PATH/cas -mindepth 1 ) ; then
+  echo "uploading cas folder with $cas_files"
+  if curl --fail --location --request POST "$(echo "$ams_creds" | jq -r '.url' )sap/cas/v1/bundles/SAP.tar.gz" --cert "$CF_INSTANCE_CERT" --key "$CF_INSTANCE_KEY" $(find $BUILD_DIR$BUNDLE_PATH/cas -mindepth 1 -printf "--form data=@%p ") ; then
+    echo "upload success"
+  else
+    curl --location --request POST "$(echo "$ams_creds" | jq -r '.url' )sap/cas/v1/bundles/SAP.tar.gz" --cert "$CF_INSTANCE_CERT" --key "$CF_INSTANCE_KEY" $(find $BUILD_DIR$BUNDLE_PATH/cas -mindepth 1 -printf "--form data=@%p ")
+    exit 1
+  fi
+else
+  >&2 echo "**WARNING** No cas folder found"
+fi
+ 
+cat <<- eof > "$opa_config"
+---
+services:
+  s3:
+    url: https://$(echo "$ams_creds" | jq -r '.object_store.host' )/$(echo "$ams_creds" | jq -r '.object_store.bucket' )/
+    credentials:
+      s3_signing:
+        environment_credentials: {}
+bundles:
+  SAP:
+    service: s3
+    resource: SAP.tar.gz
+eof
+
+else
+
+>&2 echo "No ams service found."
+exit 1
+fi
+
+echo "writing launch.yml"
+
+cat <<- eof > "$dt_deps/launch.yml"
+---
+processes:
+- type: "opa"
+  command: "$rt_deps$start_file"
+  limits:
+    memory: 100
+  platforms:
+    cloudfoundry:
+      sidecar_for: [ "web" ]
+eof
