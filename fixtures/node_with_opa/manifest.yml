@@ -13,7 +13,8 @@ applications:
     AMS_DATA:  >
             {
               "root": "/",
-              "directories": ["cas/"]
+              "directories": ["cas/"],
+              "ams_app_name": "ams_node_example"
             }
   routes:
   
