@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2020 2020 SAP SE or an SAP affiliate company and Cloud Security Client Go contributors
+#
+# SPDX-License-Identifier: Apache-2.0
+
 sha:
   .envrc: 1d5d07136fb2f6b0832e2b77d4337facca55d6af95fa2fe1bb76d5af80c40d3f
   .gitignore: 383b9263a4a3e48a89a78e85f4a2d1343a22646a08665f60ca465fb7c8071edf
