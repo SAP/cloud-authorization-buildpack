@@ -8,7 +8,7 @@ applications:
   memory: 128M
   instances: 1
   buildpacks:
-    - https://github.com/sap-staging/cloud-authorization-buildpack
+    - https://github.com/SAP/cloud-authorization-buildpack.git
     - nodejs_buildpack
   services:
     - ams
