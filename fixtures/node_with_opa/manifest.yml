@@ -20,5 +20,5 @@ applications:
               "directories": ["cas/"],
               "ams_app_name": "ams_node_example"
             }
-  routes:
+  no-route: true
   
