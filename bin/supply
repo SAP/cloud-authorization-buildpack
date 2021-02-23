@@ -72,7 +72,7 @@ else
 
   tar -vczf "$CACHE_DIR/auth.tar.gz" -C "$BUILD_DIR$ams_root" "$ams_dirs"
 
-  if ! curl -d --fail --location --header 'Content-Type: application/gzip' --header "X-Ams-App-Name: $ams_app_name" --request POST "$(echo "$ams_creds" | jq -r '.url' )sap/cas/v1/bundles/SAP.tar.gz" --cert "$CF_INSTANCE_CERT" --key "$CF_INSTANCE_KEY" --data-binary "@$CACHE_DIR/auth.tar.gz" ; then
+  if ! curl --fail --location --header 'Content-Type: application/gzip' --header "X-Ams-App-Name: $ams_app_name" --request POST "$(echo "$ams_creds" | jq -r '.url' )sap/cas/v1/bundles/SAP.tar.gz" --cert "$CF_INSTANCE_CERT" --key "$CF_INSTANCE_KEY" --data-binary "@$CACHE_DIR/auth.tar.gz" ; then
     curl --location --header 'Content-Type: application/gzip' --header "X-Ams-App-Name: $ams_app_name" --request POST "$(echo "$ams_creds" | jq -r '.url' )sap/cas/v1/bundles/SAP.tar.gz" --cert "$CF_INSTANCE_CERT" --key "$CF_INSTANCE_KEY" --data-binary "@$CACHE_DIR/auth.tar.gz"
     exit 1
   fi
