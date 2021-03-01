@@ -46,7 +46,7 @@ export OPA_PORT=$opa_port
 export ADC_URL=http://localhost:$opa_port/
 eof
 
-cat "$BUILD_DIR/.profile.d/0000_opa_env.sh"
+
 chmod +x "$BUILD_DIR/.profile.d/0000_opa_env.sh"
 
 if [[ -z "${AMS_DATA}" ]] ; then
