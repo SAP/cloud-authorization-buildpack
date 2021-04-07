@@ -8,7 +8,7 @@ CACHE_DIR=$2
 DEPS_DIR=$3
 DEPS_IDX=$4
 
-export BUILDPACK_DIR=`dirname $(readlink -f ${BASH_SOURCE%/*})`
+export BUILDPACK_DIR=$(dirname $(readlink -f ${BASH_SOURCE%/*}))
 
 binary_file="opa"
 config_file="opa_config.yml"
@@ -22,22 +22,23 @@ log_level="debug"
 opa_start="$dt_deps$start_file"
 opa_port="9888"
 
+
+vars=$(cat "$BUILDPACK_DIR/vars.json")
+service_name="$(echo "$vars" | jq -r '.service_name')"
+
 wget https://github.com/open-policy-agent/opa/releases/download/v0.23.2/opa_linux_amd64 -q -O "$opa_binary"
 chmod +x "$opa_binary"
 
 cp "$BUILDPACK_DIR/scripts/start_opa.sh" "$opa_start"
 chmod +x "$opa_start"
 
-
-if [ -n "${VCAP_SERVICES+x}" ] && ams_creds=$(echo "$VCAP_SERVICES"|jq -e '.["authorization"][0].credentials' ) ; then
-
 mkdir -p "$BUILD_DIR/.profile.d"
 echo "creating $BUILD_DIR/.profile.d/0000_opa_env.sh"
 
-cat <<- eof > "$BUILD_DIR/.profile.d/0000_opa_env.sh"
-export AWS_ACCESS_KEY_ID=$(echo "$ams_creds" | jq -r '.object_store.access_key_id' )
-export AWS_SECRET_ACCESS_KEY=$(echo "$ams_creds" | jq -r '.object_store.secret_access_key' )
-export AWS_REGION=$(echo "$ams_creds" | jq -r '.object_store.region' )
+cat <<-eof >"$BUILD_DIR/.profile.d/0000_opa_env.sh"
+export AWS_ACCESS_KEY_ID=$(echo "$ams_creds" | jq -r '.object_store.access_key_id')
+export AWS_SECRET_ACCESS_KEY=$(echo "$ams_creds" | jq -r '.object_store.secret_access_key')
+export AWS_REGION=$(echo "$ams_creds" | jq -r '.object_store.region')
 export opa_binary=$rt_deps$binary_file
 export opa_config=$rt_deps$config_file
 export log_level=$log_level 
@@ -46,40 +47,59 @@ export OPA_PORT=$opa_port
 export ADC_URL=http://localhost:$opa_port/
 eof
 
-
 chmod +x "$BUILD_DIR/.profile.d/0000_opa_env.sh"
 
-if [[ -z "${AMS_DATA}" ]] ; then
-  >&2 echo "WARNING: This app will upload no authorization data"
+if [ -z "${VCAP_SERVICES+x}" ]; then
+  echo >&2 "ERROR: No VCAP_SERVICES found."
+  exit 1
+fi
+
+if echo "$VCAP_SERVICES" | jq -e '.["user-provided"]' >/dev/null && ams_creds=$(echo "$VCAP_SERVICES" | jq -e '.["user-provided"][] | select(.tags | index("authorization") > -1) | .credentials'); then
+  echo "Detected user-provided authorization service $(echo "$VCAP_SERVICES" | jq '.["user-provided"][] | select(.tags | index("authorization") > -1) | .name') "
+
 else
-  if ! ams_root=$(echo "$AMS_DATA" | jq -e -r '.root' ) ; then
-    >&2 echo "ERROR: Could not parse 'root' attribute from env variable AMS_DATA"
-    exit 1
-  fi
-  if ! ams_dirs=$(echo "$AMS_DATA" | jq -e -r '.directories[]' ) ; then
-    >&2 echo "ERROR: Could not parse 'directories' attribute from env variable AMS_DATA"
-    exit 1
-  fi
-  if ! echo "$AMS_DATA" | jq -e -r '.directories[0]' > /dev/null ; then
-    >&2 echo "ERROR: 'directories' attribute in env variable AMS_DATA must contain at least one string"
+  if (($(echo "$VCAP_SERVICES" | jq -e --arg s "$service_name" '.[$s]|length') > 1)); then
+    echo >&2 "ERROR: More than one service $service_name found."
     exit 1
   fi
 
-
-  tar -vczf "$CACHE_DIR/auth.tar.gz" -C "$BUILD_DIR$ams_root" $ams_dirs
-
-  if ! curl --fail --location --header 'Content-Type: application/gzip' --request POST "$(echo "$ams_creds" | jq -r '.url' )sap/cas/v1/bundles/SAP.tar.gz" --cert "$CF_INSTANCE_CERT" --key "$CF_INSTANCE_KEY" --data-binary "@$CACHE_DIR/auth.tar.gz" ; then
-    curl --location --header 'Content-Type: application/gzip' --request POST "$(echo "$ams_creds" | jq -r '.url' )sap/cas/v1/bundles/SAP.tar.gz" --cert "$CF_INSTANCE_CERT" --key "$CF_INSTANCE_KEY" --data-binary "@$CACHE_DIR/auth.tar.gz"
+  if ! ams_creds=$(echo "$VCAP_SERVICES" | jq -e --arg s "$service_name" '.[$s][0].credentials'); then
+    echo >&2 "ERROR: No service $service_name found."
     exit 1
   fi
 
 fi
- 
-cat <<- eof > "$opa_config"
+
+if [[ -z "${AMS_DATA}" ]]; then
+  echo >&2 "WARNING: This app will upload no authorization data"
+else
+  if ! ams_root=$(echo "$AMS_DATA" | jq -e -r '.root'); then
+    echo >&2 "ERROR: Could not parse 'root' attribute from env variable AMS_DATA"
+    exit 1
+  fi
+  if ! ams_dirs=$(echo "$AMS_DATA" | jq -e -r '.directories[]'); then
+    echo >&2 "ERROR: Could not parse 'directories' attribute from env variable AMS_DATA"
+    exit 1
+  fi
+  if ! echo "$AMS_DATA" | jq -e -r '.directories[0]' >/dev/null; then
+    echo >&2 "ERROR: 'directories' attribute in env variable AMS_DATA must contain at least one string"
+    exit 1
+  fi
+
+  tar -vczf "$CACHE_DIR/auth.tar.gz" -C "$BUILD_DIR$ams_root" $ams_dirs
+
+  if ! curl --fail --location --header 'Content-Type: application/gzip' --request POST "$(echo "$ams_creds" | jq -r '.url')sap/cas/v1/bundles/SAP.tar.gz" --cert "$CF_INSTANCE_CERT" --key "$CF_INSTANCE_KEY" --data-binary "@$CACHE_DIR/auth.tar.gz"; then
+    curl --location --header 'Content-Type: application/gzip' --request POST "$(echo "$ams_creds" | jq -r '.url')sap/cas/v1/bundles/SAP.tar.gz" --cert "$CF_INSTANCE_CERT" --key "$CF_INSTANCE_KEY" --data-binary "@$CACHE_DIR/auth.tar.gz"
+    exit 1
+  fi
+
+fi
+
+cat <<-eof >"$opa_config"
 ---
 services:
   s3:
-    url: https://$(echo "$ams_creds" | jq -r '.object_store.host' )/$(echo "$ams_creds" | jq -r '.object_store.bucket' )/
+    url: https://$(echo "$ams_creds" | jq -r '.object_store.host')/$(echo "$ams_creds" | jq -r '.object_store.bucket')/
     credentials:
       s3_signing:
         environment_credentials: {}
@@ -89,15 +109,9 @@ bundles:
     resource: SAP.tar.gz
 eof
 
-else
-
->&2 echo "No authorization service found."
-exit 1
-fi
-
 echo "writing launch.yml"
 
-cat <<- eof > "$dt_deps/launch.yml"
+cat <<-eof >"$dt_deps/launch.yml"
 ---
 processes:
 - type: "opa"
