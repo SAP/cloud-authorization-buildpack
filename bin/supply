@@ -84,8 +84,15 @@ else
     echo >&2 "ERROR: 'directories' attribute in env variable AMS_DATA must contain at least one string"
     exit 1
   fi
+  
 
-  tar -vczf "$CACHE_DIR/auth.tar.gz" -C "$BUILD_DIR$ams_root" $ams_dirs
+  if test -f "$BUILD_DIR$ams_root/schema.dcl"; then
+    tar -vczf "$CACHE_DIR/auth.tar.gz" -C "$BUILD_DIR$ams_root" $ams_dirs schema.dcl
+  else
+    tar -vczf "$CACHE_DIR/auth.tar.gz" -C "$BUILD_DIR$ams_root" $ams_dirs
+  fi
+
+  
 
   if ! curl --fail --location --header 'Content-Type: application/gzip' --request POST "$(echo "$ams_creds" | jq -r '.url')sap/ams/v1/bundles/SAP.tar.gz" --cert "$CF_INSTANCE_CERT" --key "$CF_INSTANCE_KEY" --data-binary "@$CACHE_DIR/auth.tar.gz"; then
     curl --location --header 'Content-Type: application/gzip' --request POST "$(echo "$ams_creds" | jq -r '.url')sap/ams/v1/bundles/SAP.tar.gz" --cert "$CF_INSTANCE_CERT" --key "$CF_INSTANCE_KEY" --data-binary "@$CACHE_DIR/auth.tar.gz"
