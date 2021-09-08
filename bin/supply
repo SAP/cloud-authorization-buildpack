@@ -22,10 +22,10 @@ log_level="debug"
 opa_start="$dt_deps$start_file"
 opa_port="9888"
 
-if [[ -z "${AMS_SERVICE}" ]]; then
-  service_name="authorization"
-else
+if [ -n "${AMS_SERVICE}" ]; then
   service_name="$AMS_SERVICE"
+else
+  service_name="authorization"
 fi
 
 if ! service_name=$(echo "$AMS_DATA" | jq -e -r '.service_name'); then
