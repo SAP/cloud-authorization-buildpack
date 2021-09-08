@@ -1,0 +1,7 @@
+{
+    "consumed-services": [
+        {
+            "service-instance-name": "ams-node-opa"
+        }
+    ]
+}
