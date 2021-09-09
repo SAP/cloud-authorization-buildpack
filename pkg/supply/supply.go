@@ -68,6 +68,14 @@ type LaunchData struct {
 
 func (s *Supplier) Run() error {
 	s.Log.BeginStep("Supplying pkg")
+	if err := s.writeLaunchConfig(); err != nil {
+		return fmt.Errorf("could not write launch config: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Supplier) writeLaunchConfig() error {
 	s.Log.Info("writing launch.yml..")
 	launchData := LaunchData{
 		[]Process{
@@ -83,10 +91,10 @@ func (s *Supplier) Run() error {
 	if err != nil {
 		return fmt.Errorf("could not marshal process config: %w", err)
 	}
-	err = os.WriteFile(path.Join(s.Stager.DepDir(), "launch.yml"), launchDataBytes, 0644)
+	filePath := path.Join(s.Stager.DepDir(), "launch.yml")
+	err = os.WriteFile(filePath, launchDataBytes, 0644)
 	if err != nil {
-		return fmt.Errorf("could not write launch.yml: %w", err)
+		return fmt.Errorf("could not write file to '%s': %w", filePath, err)
 	}
-
 	return nil
 }
