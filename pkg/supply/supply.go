@@ -73,13 +73,17 @@ type LaunchData struct {
 
 func (s *Supplier) Run() error {
 	s.Log.BeginStep("Supplying pkg")
+	ams, err := s.loadAMSService()
+	if err != nil {
+		return fmt.Errorf("could not load AMSService: %w", err)
+	}
 	if err := s.writeLaunchConfig(); err != nil {
 		return fmt.Errorf("could not write launch config: %w", err)
 	}
-	if err := s.writeOpaConfig(); err != nil {
+	if err := s.writeOpaConfig(ams.Credentials.ObjectStore); err != nil {
 		return fmt.Errorf("could not write opa config: %w", err)
 	}
-	if err := s.writeEnvFile(); err != nil {
+	if err := s.writeEnvFile(ams); err != nil {
 		return fmt.Errorf("could not write env file: %w", err)
 	}
 
@@ -104,34 +108,15 @@ type Config struct {
 	Services map[string]RestConfig     `json:"services"`
 }
 
-func (s *Supplier) writeEnvFile() error {
+func (s *Supplier) writeEnvFile(ams AMSService) error {
 	s.Log.Info("writing env file..")
 	var b bytes.Buffer
 	b.WriteString("export OPA_URL=http://localhost:9888")
 
-	svcsString := os.Getenv("VCAP_SERVICES")
-	var svcs map[string]interface{}
-	err := json.Unmarshal([]byte(svcsString), &svcs)
-	if err != nil {
-		return fmt.Errorf("could not unmarshal authorization service: %w", err)
-	}
-	var ams []AMSService
-	d, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		Result:  &ams,
-		TagName: "json",
-	})
-	if err != nil {
-		return fmt.Errorf("errr creating decoder: %w", err)
-	}
-	err = d.Decode(svcs["authorization"])
-	if err != nil {
-		return fmt.Errorf("could not decode 'authorization' service: %w", err)
-	}
-
-	b.WriteString(fmt.Sprint("export AWS_ACCESS_KEY_ID=", ams[0].Credentials.ObjectStore.AccessKeyID))
+	b.WriteString(fmt.Sprint("export AWS_ACCESS_KEY_ID=", ams.Credentials.ObjectStore.AccessKeyID))
 
 	dirPath := path.Join(s.Stager.BuildDir(), ".profile.d")
-	err = os.Mkdir(dirPath, 0755)
+	err := os.Mkdir(dirPath, 0755)
 	if err != nil {
 		return fmt.Errorf("could not create profile directory '%s': %w", dirPath, err)
 	}
@@ -144,7 +129,7 @@ func (s *Supplier) writeEnvFile() error {
 	return nil
 }
 
-func (s *Supplier) writeOpaConfig() error {
+func (s *Supplier) writeOpaConfig(osCreds ObjectStoreCredentials) error {
 	s.Log.Info("writing opa config..")
 	serviceKey := "s3"
 	bundles := make(map[string]*bundle.Source)
@@ -160,7 +145,7 @@ func (s *Supplier) writeOpaConfig() error {
 	}
 	services := make(map[string]RestConfig)
 	services[serviceKey] = RestConfig{
-		URL:         "",
+		URL:         fmt.Sprintf("https://%s/%s", osCreds.Host, osCreds.Bucket),
 		Credentials: Credentials{S3Signing{AWSEnvCreds: struct{}{}}},
 	}
 
@@ -203,4 +188,29 @@ func (s *Supplier) writeLaunchConfig() error {
 		return fmt.Errorf("could not write file to '%s': %w", filePath, err)
 	}
 	return nil
+}
+
+func (s *Supplier) loadAMSService() (AMSService, error) {
+	svcsString := os.Getenv("VCAP_SERVICES")
+	var svcs map[string]interface{}
+	err := json.Unmarshal([]byte(svcsString), &svcs)
+	if err != nil {
+		return AMSService{}, fmt.Errorf("could not unmarshal authorization service: %w", err)
+	}
+	var ams []AMSService
+	d, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Result:  &ams,
+		TagName: "json",
+	})
+	if err != nil {
+		return AMSService{}, fmt.Errorf("errr creating decoder: %w", err)
+	}
+	err = d.Decode(svcs["authorization"])
+	if err != nil {
+		return AMSService{}, fmt.Errorf("could not decode 'authorization' service: %w", err)
+	}
+	if len(ams) != 1 {
+		return AMSService{}, fmt.Errorf("expect only one AMS service, but got %d", len(ams))
+	}
+	return ams[0], nil
 }
