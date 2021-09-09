@@ -77,7 +77,9 @@ var _ = Describe("Supply", func() {
 		Expect(err).To(BeNil())
 		Expect(os.Unsetenv("VCAP_APPLICATION")).To(Succeed())
 	})
-
+	BeforeEach(func() {
+		vcapServices = testdata.EnvWithAuthorization
+	})
 	It("creates a valid launch.yml", func() {
 		Expect(supplier.Run()).To(Succeed())
 		launchConfig, err := os.Open(filepath.Join(depDir, "launch.yml"))
@@ -95,7 +97,7 @@ var _ = Describe("Supply", func() {
 			Expect(buffer.String()).To(ContainSubstring("writing launch.yml"))
 		})
 	})
-	It("creates the corrent opa config", func() {
+	It("creates the correct opa config", func() {
 		Expect(supplier.Run()).To(Succeed())
 		Expect(buffer.String()).To(ContainSubstring("writing opa config"))
 
@@ -122,14 +124,10 @@ var _ = Describe("Supply", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(restConfig).To(HaveKey(serviceKey))
 			Expect(restConfig[serviceKey].Credentials.S3Signing).NotTo(BeNil())
-			// TODO: Verify correct URL
-			//Expect(restConfig[serviceKey].URL)
+			Expect(restConfig[serviceKey].URL).To(Equal("https://s3-eu-central-1.amazonaws.com/my-bucket"))
 		})
 	})
-	BeforeEach(func() {
-		vcapServices = testdata.EnvWithAuthorization
-	})
-	It("create the correct env vars", func() {
+	It("creates the correct env vars", func() {
 		Expect(supplier.Run()).To(Succeed())
 		env, err := os.ReadFile(path.Join(buildDir, ".profile.d", "0000_opa_env.sh"))
 		Expect(err).NotTo(HaveOccurred())
