@@ -10,6 +10,7 @@ import (
 
 	"code.cloudfoundry.org/buildpackapplifecycle/buildpackrunner/resources"
 	"github.com/SAP/cloud-authorization-buildpack/pkg/supply"
+	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/testdata"
 	"github.com/cloudfoundry/libbuildpack"
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
@@ -34,6 +35,7 @@ var _ = Describe("Supply", func() {
 		mockCtrl     *gomock.Controller
 		mockManifest *MockManifest
 		buffer       *bytes.Buffer
+		vcapServices string
 	)
 
 	BeforeEach(func() {
@@ -56,6 +58,8 @@ var _ = Describe("Supply", func() {
 	})
 
 	JustBeforeEach(func() {
+		Expect(os.Setenv("VCAP_SERVICES", vcapServices)).To(Succeed())
+
 		args := []string{buildDir, "", depsDir, depsIdx}
 		bps := libbuildpack.NewStager(args, logger, &libbuildpack.Manifest{})
 
@@ -71,6 +75,7 @@ var _ = Describe("Supply", func() {
 
 		err = os.RemoveAll(depsDir)
 		Expect(err).To(BeNil())
+		Expect(os.Unsetenv("VCAP_APPLICATION")).To(Succeed())
 	})
 
 	It("creates a valid launch.yml", func() {
@@ -121,12 +126,15 @@ var _ = Describe("Supply", func() {
 			//Expect(restConfig[serviceKey].URL)
 		})
 	})
+	BeforeEach(func() {
+		vcapServices = testdata.EnvWithAuthorization
+	})
 	It("create the correct env vars", func() {
 		Expect(supplier.Run()).To(Succeed())
 		env, err := os.ReadFile(path.Join(buildDir, ".profile.d", "0000_opa_env.sh"))
 		Expect(err).NotTo(HaveOccurred())
 		Expect(env).To(ContainSubstring(fmt.Sprint(`export OPA_URL=`, "http://localhost:9888")))
-
+		Expect(env).To(ContainSubstring(fmt.Sprintf("export AWS_ACCESS_KEY_ID=myawstestaccesskeyid")))
 		//Expect(env).To(ContainSubstring(fmt.Sprint(`export opa_binary=`, path.Join(depDir,"opa"))))
 		//Expect(env).To(ContainSubstring(fmt.Sprint(`export opa_config=`, path.Join(depDir,"opa_config.yml"))))
 

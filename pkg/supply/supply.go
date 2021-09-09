@@ -10,6 +10,7 @@ import (
 	"path"
 
 	"github.com/cloudfoundry/libbuildpack"
+	"github.com/mitchellh/mapstructure"
 	"github.com/open-policy-agent/opa/download"
 	"github.com/open-policy-agent/opa/plugins/bundle"
 )
@@ -108,8 +109,29 @@ func (s *Supplier) writeEnvFile() error {
 	var b bytes.Buffer
 	b.WriteString("export OPA_URL=http://localhost:9888")
 
+	svcsString := os.Getenv("VCAP_SERVICES")
+	var svcs map[string]interface{}
+	err := json.Unmarshal([]byte(svcsString), &svcs)
+	if err != nil {
+		return fmt.Errorf("could not unmarshal authorization service: %w", err)
+	}
+	var ams []AMSService
+	d, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
+		Result:  &ams,
+		TagName: "json",
+	})
+	if err != nil {
+		return fmt.Errorf("errr creating decoder: %w", err)
+	}
+	err = d.Decode(svcs["authorization"])
+	if err != nil {
+		return fmt.Errorf("could not decode 'authorization' service: %w", err)
+	}
+
+	b.WriteString(fmt.Sprint("export AWS_ACCESS_KEY_ID=", ams[0].Credentials.ObjectStore.AccessKeyID))
+
 	dirPath := path.Join(s.Stager.BuildDir(), ".profile.d")
-	err := os.Mkdir(dirPath, 0755)
+	err = os.Mkdir(dirPath, 0755)
 	if err != nil {
 		return fmt.Errorf("could not create profile directory '%s': %w", dirPath, err)
 	}
