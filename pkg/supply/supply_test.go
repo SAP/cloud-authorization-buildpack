@@ -15,6 +15,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/open-policy-agent/opa/config"
 	"github.com/open-policy-agent/opa/plugins/bundle"
+	"github.com/open-policy-agent/opa/plugins/rest"
 	"gopkg.in/yaml.v2"
 )
 
@@ -91,13 +92,13 @@ var _ = Describe("Supply", func() {
 
 		rawConfig, err := os.ReadFile(filepath.Join(depDir, "opa_config.yml"))
 		Expect(err).NotTo(HaveOccurred())
-		cfg, err := config.ParseConfig(rawConfig,"testId" )
+		cfg, err := config.ParseConfig(rawConfig, "testId")
 		Expect(err).NotTo(HaveOccurred())
 
 		var serviceKey string
 		By("specifying the correct bundle options", func() {
 			var bundleConfig map[string]bundle.Source
-			err = json.Unmarshal(cfg.Bundles,&bundleConfig)
+			err = json.Unmarshal(cfg.Bundles, &bundleConfig)
 			Expect(err).NotTo(HaveOccurred())
 			Expect(bundleConfig).To(HaveKey("SAP"))
 			serviceKey = bundleConfig["SAP"].Service
@@ -105,6 +106,14 @@ var _ = Describe("Supply", func() {
 			Expect(bundleConfig["SAP"].Resource).To(Equal("SAP.tar.gz"))
 			Expect(*bundleConfig["SAP"].Polling.MinDelaySeconds).To(Equal(int64(10)))
 			Expect(*bundleConfig["SAP"].Polling.MaxDelaySeconds).To(Equal(int64(20)))
+		})
+		By("specifying proper s3 rest config", func() {
+			var restConfig map[string]rest.Config
+			err = json.Unmarshal(cfg.Services, &restConfig)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(restConfig).To(HaveKey(serviceKey))
+			Expect(restConfig[serviceKey].Credentials.S3Signing).NotTo(BeNil())
+			Expect(restConfig[serviceKey].URL)
 		})
 	})
 })
