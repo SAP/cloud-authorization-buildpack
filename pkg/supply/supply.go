@@ -1,6 +1,7 @@
 package supply
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -77,6 +78,9 @@ func (s *Supplier) Run() error {
 	if err := s.writeOpaConfig(); err != nil {
 		return fmt.Errorf("could not write opa config: %w", err)
 	}
+	if err := s.writeEnvFile(); err != nil {
+		return fmt.Errorf("could not write env file: %w", err)
+	}
 
 	return nil
 }
@@ -97,6 +101,25 @@ type RestConfig struct {
 type Config struct {
 	Bundles  map[string]*bundle.Source `json:"bundles"`
 	Services map[string]RestConfig     `json:"services"`
+}
+
+func (s *Supplier) writeEnvFile() error {
+	s.Log.Info("writing env file..")
+	var b bytes.Buffer
+	b.WriteString("export OPA_URL=http://localhost:9888")
+
+	dirPath := path.Join(s.Stager.BuildDir(), ".profile.d")
+	err := os.Mkdir(dirPath, 0755)
+	if err != nil {
+		return fmt.Errorf("could not create profile directory '%s': %w", dirPath, err)
+	}
+
+	filePath := path.Join(dirPath, "0000_opa_env.sh")
+	err = os.WriteFile(filePath, b.Bytes(), 0644)
+	if err != nil {
+		return fmt.Errorf("could not write file to '%s': %w", filePath, err)
+	}
+	return nil
 }
 
 func (s *Supplier) writeOpaConfig() error {
