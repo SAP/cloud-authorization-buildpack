@@ -85,22 +85,18 @@ type Config struct {
 	Bundles map[string]*bundle.Source `yaml:"bundles" json:"bundles"`
 }
 
-
 func (s *Supplier) writeOpaConfig() error {
 	s.Log.Info("writing opa config..")
 	bundles := make(map[string]*bundle.Source)
 	bundles["SAP"] = &bundle.Source{
 		Config: download.Config{
 			Polling: download.PollingConfig{
-				MinDelaySeconds:          newInt64P(10),
-				MaxDelaySeconds:          newInt64P(20),
+				MinDelaySeconds: newInt64P(10),
+				MaxDelaySeconds: newInt64P(20),
 			},
 		},
-		//Service:        "",
-		//Resource:       "",
-		//Signing:        nil,
-		//Persist:        false,
-		//SizeLimitBytes: 0,
+		Service:        "s3",
+		Resource:       "SAP.tar.gz",
 	}
 	cfg := Config{
 		Bundles: bundles,
@@ -141,4 +137,3 @@ func (s *Supplier) writeLaunchConfig() error {
 	}
 	return nil
 }
-

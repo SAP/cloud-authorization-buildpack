@@ -2,6 +2,7 @@ package supply_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"path"
 	"path/filepath"
@@ -12,8 +13,8 @@ import (
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"gopkg.in/yaml.v2"
 	"github.com/open-policy-agent/opa/plugins/bundle"
+	"gopkg.in/yaml.v2"
 )
 
 //go:generate mockgen -source=supply.go --destination=mocks_test.go --package=supply_test
@@ -90,9 +91,16 @@ var _ = Describe("Supply", func() {
 		Expect(err).NotTo(HaveOccurred())
 
 		var cfg bundle.Config
-		err = yaml.NewDecoder(opaCfg).Decode(&cfg)
+		err = json.NewDecoder(opaCfg).Decode(&cfg)
 		Expect(err).NotTo(HaveOccurred())
 		Expect(cfg.Bundles).NotTo(BeNil())
+
+		By("specifying proper options", func() {
+			Expect(cfg.Bundles).To(HaveKey("SAP"))
+			Expect(cfg.Bundles["SAP"].Service).To(Equal("s3"))
+			Expect(cfg.Bundles["SAP"].Resource).To(Equal("SAP.tar.gz"))
+			Expect(*cfg.Bundles["SAP"].Polling.MinDelaySeconds).To(Equal(10))
+			Expect(*cfg.Bundles["SAP"].Polling.MaxDelaySeconds).To(Equal(20))
+		})
 	})
-	// TODO: Add tests here to check install dependency functions work
 })
