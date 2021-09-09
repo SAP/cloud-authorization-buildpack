@@ -13,6 +13,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v2"
+	"github.com/open-policy-agent/opa/plugins/bundle"
 )
 
 //go:generate mockgen -source=supply.go --destination=mocks_test.go --package=supply_test
@@ -65,7 +66,7 @@ var _ = Describe("Supply", func() {
 		Expect(err).To(BeNil())
 	})
 
-	It("should create a valid launch.yml", func() {
+	It("creates a valid launch.yml", func() {
 		Expect(supplier.Run()).To(Succeed())
 		launchConfig, err := os.Open(filepath.Join(depDir, "launch.yml"))
 		Expect(err).NotTo(HaveOccurred())
@@ -81,6 +82,17 @@ var _ = Describe("Supply", func() {
 			Expect(ld.Processes[0].Limits.Memory).To(Equal(100))
 			Expect(buffer.String()).To(ContainSubstring("writing launch.yml"))
 		})
+	})
+	It("creates the corrent opa config", func() {
+		Expect(supplier.Run()).To(Succeed())
+		Expect(buffer.String()).To(ContainSubstring("writing opa config"))
+		opaCfg, err := os.Open(filepath.Join(depDir, "opa_config.yml"))
+		Expect(err).NotTo(HaveOccurred())
+
+		var cfg bundle.Config
+		err = yaml.NewDecoder(opaCfg).Decode(&cfg)
+		Expect(err).NotTo(HaveOccurred())
+		Expect(cfg.Bundles).NotTo(BeNil())
 	})
 	// TODO: Add tests here to check install dependency functions work
 })

@@ -4,10 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path"
 
 	"github.com/cloudfoundry/libbuildpack"
+	"github.com/open-policy-agent/opa/download"
+	"github.com/open-policy-agent/opa/plugins/bundle"
 )
 
 type Stager interface {
@@ -71,7 +74,47 @@ func (s *Supplier) Run() error {
 	if err := s.writeLaunchConfig(); err != nil {
 		return fmt.Errorf("could not write launch config: %w", err)
 	}
+	if err := s.writeOpaConfig(); err != nil {
+		return fmt.Errorf("could not write opa config: %w", err)
+	}
 
+	return nil
+}
+
+type Config struct {
+	Bundles map[string]*bundle.Source `yaml:"bundles" json:"bundles"`
+}
+
+
+func (s *Supplier) writeOpaConfig() error {
+	s.Log.Info("writing opa config..")
+	bundles := make(map[string]*bundle.Source)
+	bundles["SAP"] = &bundle.Source{
+		Config: download.Config{
+			Polling: download.PollingConfig{
+				MinDelaySeconds:          newInt64P(10),
+				MaxDelaySeconds:          newInt64P(20),
+			},
+		},
+		//Service:        "",
+		//Resource:       "",
+		//Signing:        nil,
+		//Persist:        false,
+		//SizeLimitBytes: 0,
+	}
+	cfg := Config{
+		Bundles: bundles,
+	}
+	opaConfigBytes, err := json.Marshal(cfg)
+	if err != nil {
+		return fmt.Errorf("could not marshal bundle config: %w", err)
+	}
+	log.Println(string(opaConfigBytes))
+	filePath := path.Join(s.Stager.DepDir(), "opa_config.yml")
+	err = os.WriteFile(filePath, opaConfigBytes, 0644)
+	if err != nil {
+		return fmt.Errorf("could not write file to '%s': %w", filePath, err)
+	}
 	return nil
 }
 
@@ -98,3 +141,4 @@ func (s *Supplier) writeLaunchConfig() error {
 	}
 	return nil
 }
+
