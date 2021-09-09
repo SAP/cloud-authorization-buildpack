@@ -44,11 +44,11 @@ type Supplier struct {
 	Log       *libbuildpack.Logger
 }
 
-type Cloudfoundry struct{
+type Cloudfoundry struct {
 	SidecarFor []string `yaml:"sidecar_for" json:"sidecar_for"`
 }
 
-type Platforms struct{
+type Platforms struct {
 	Cloudfoundry Cloudfoundry `yaml:"cloudfoundry" json:"cloudfoundry"`
 }
 
@@ -57,10 +57,10 @@ type Limits struct {
 }
 
 type Process struct {
-	Type      string `yaml:"type" json:"type"`
-	Command   string `yaml:"command" json:"command"`
+	Type      string    `yaml:"type" json:"type"`
+	Command   string    `yaml:"command" json:"command"`
 	Platforms Platforms `yaml:"platforms" json:"platforms"`
-	Limits Limits `yaml:"limits" json:"limits"`
+	Limits    Limits    `yaml:"limits" json:"limits"`
 }
 type LaunchData struct {
 	Processes []Process `yaml:"processes" json:"processes"`
@@ -68,14 +68,15 @@ type LaunchData struct {
 
 func (s *Supplier) Run() error {
 	s.Log.BeginStep("Supplying pkg")
+	s.Log.Info("writing launch.yml..")
 	launchData := LaunchData{
 		[]Process{
-		{
-			Type:    "opa",
-			Command: path.Join(s.Stager.DepDir(), "start_opa.sh"),
-			Platforms: Platforms{Cloudfoundry{[]string{"web"}}},
-			Limits: Limits{100},
-		},
+			{
+				Type:      "opa",
+				Command:   path.Join(s.Stager.DepDir(), "start_opa.sh"),
+				Platforms: Platforms{Cloudfoundry{[]string{"web"}}},
+				Limits:    Limits{100},
+			},
 		},
 	}
 	launchDataBytes, err := json.Marshal(launchData)
