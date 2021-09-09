@@ -11,6 +11,7 @@ import (
 	"github.com/cloudfoundry/libbuildpack"
 	"github.com/open-policy-agent/opa/download"
 	"github.com/open-policy-agent/opa/plugins/bundle"
+	"github.com/open-policy-agent/opa/plugins/rest"
 )
 
 type Stager interface {
@@ -82,7 +83,8 @@ func (s *Supplier) Run() error {
 }
 
 type Config struct {
-	Bundles map[string]*bundle.Source `yaml:"bundles" json:"bundles"`
+	Bundles map[string]*bundle.Source `json:"bundles"`
+	Services map[string]rest.Config `json:"services"`
 }
 
 func (s *Supplier) writeOpaConfig() error {
@@ -95,8 +97,8 @@ func (s *Supplier) writeOpaConfig() error {
 				MaxDelaySeconds: newInt64P(20),
 			},
 		},
-		Service:        "s3",
-		Resource:       "SAP.tar.gz",
+		Service:  "s3",
+		Resource: "SAP.tar.gz",
 	}
 	cfg := Config{
 		Bundles: bundles,

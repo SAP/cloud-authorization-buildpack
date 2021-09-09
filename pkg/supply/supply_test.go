@@ -13,6 +13,7 @@ import (
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/open-policy-agent/opa/config"
 	"github.com/open-policy-agent/opa/plugins/bundle"
 	"gopkg.in/yaml.v2"
 )
@@ -87,20 +88,23 @@ var _ = Describe("Supply", func() {
 	It("creates the corrent opa config", func() {
 		Expect(supplier.Run()).To(Succeed())
 		Expect(buffer.String()).To(ContainSubstring("writing opa config"))
-		opaCfg, err := os.Open(filepath.Join(depDir, "opa_config.yml"))
+
+		rawConfig, err := os.ReadFile(filepath.Join(depDir, "opa_config.yml"))
+		Expect(err).NotTo(HaveOccurred())
+		cfg, err := config.ParseConfig(rawConfig,"testId" )
 		Expect(err).NotTo(HaveOccurred())
 
-		var cfg bundle.Config
-		err = json.NewDecoder(opaCfg).Decode(&cfg)
-		Expect(err).NotTo(HaveOccurred())
-		Expect(cfg.Bundles).NotTo(BeNil())
-
-		By("specifying proper options", func() {
-			Expect(cfg.Bundles).To(HaveKey("SAP"))
-			Expect(cfg.Bundles["SAP"].Service).To(Equal("s3"))
-			Expect(cfg.Bundles["SAP"].Resource).To(Equal("SAP.tar.gz"))
-			Expect(*cfg.Bundles["SAP"].Polling.MinDelaySeconds).To(Equal(10))
-			Expect(*cfg.Bundles["SAP"].Polling.MaxDelaySeconds).To(Equal(20))
+		var serviceKey string
+		By("specifying the correct bundle options", func() {
+			var bundleConfig map[string]bundle.Source
+			err = json.Unmarshal(cfg.Bundles,&bundleConfig)
+			Expect(err).NotTo(HaveOccurred())
+			Expect(bundleConfig).To(HaveKey("SAP"))
+			serviceKey = bundleConfig["SAP"].Service
+			Expect(serviceKey).NotTo(BeEmpty())
+			Expect(bundleConfig["SAP"].Resource).To(Equal("SAP.tar.gz"))
+			Expect(*bundleConfig["SAP"].Polling.MinDelaySeconds).To(Equal(int64(10)))
+			Expect(*bundleConfig["SAP"].Polling.MaxDelaySeconds).To(Equal(int64(20)))
 		})
 	})
 })
