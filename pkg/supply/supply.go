@@ -11,7 +11,6 @@ import (
 	"github.com/cloudfoundry/libbuildpack"
 	"github.com/open-policy-agent/opa/download"
 	"github.com/open-policy-agent/opa/plugins/bundle"
-	"github.com/open-policy-agent/opa/plugins/rest"
 )
 
 type Stager interface {
@@ -82,13 +81,27 @@ func (s *Supplier) Run() error {
 	return nil
 }
 
+type S3Signing struct {
+	AWSEnvCreds interface{} `json:"environment_credentials,omitempty"`
+}
+
+type Credentials struct {
+	S3Signing S3Signing `json:"s3_signing,omitempty"`
+}
+
+type RestConfig struct {
+	URL         string      `json:"url"`
+	Credentials Credentials `json:"credentials"`
+}
+
 type Config struct {
-	Bundles map[string]*bundle.Source `json:"bundles"`
-	Services map[string]rest.Config `json:"services"`
+	Bundles  map[string]*bundle.Source `json:"bundles"`
+	Services map[string]RestConfig     `json:"services"`
 }
 
 func (s *Supplier) writeOpaConfig() error {
 	s.Log.Info("writing opa config..")
+	serviceKey := "s3"
 	bundles := make(map[string]*bundle.Source)
 	bundles["SAP"] = &bundle.Source{
 		Config: download.Config{
@@ -97,11 +110,18 @@ func (s *Supplier) writeOpaConfig() error {
 				MaxDelaySeconds: newInt64P(20),
 			},
 		},
-		Service:  "s3",
+		Service:  serviceKey,
 		Resource: "SAP.tar.gz",
 	}
+	services := make(map[string]RestConfig)
+	services[serviceKey] = RestConfig{
+		URL:         "",
+		Credentials: Credentials{S3Signing{AWSEnvCreds: struct{}{}}},
+	}
+
 	cfg := Config{
-		Bundles: bundles,
+		Bundles:  bundles,
+		Services: services,
 	}
 	opaConfigBytes, err := json.Marshal(cfg)
 	if err != nil {
