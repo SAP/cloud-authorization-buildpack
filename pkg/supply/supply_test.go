@@ -79,6 +79,7 @@ var _ = Describe("Supply", func() {
 			Expect(ld.Processes[0].Platforms.Cloudfoundry.SidecarFor).To(Equal([]string{"web"}))
 			Expect(ld.Processes[0].Command).To(Equal(path.Join(depDir, "start_opa.sh")))
 			Expect(ld.Processes[0].Limits.Memory).To(Equal(100))
+			Expect(buffer.String()).To(ContainSubstring("writing launch.yml"))
 		})
 	})
 	// TODO: Add tests here to check install dependency functions work
