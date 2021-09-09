@@ -7,7 +7,6 @@ import (
 	"os"
 	"path"
 
-	"code.cloudfoundry.org/buildpackapplifecycle/buildpackrunner/resources"
 	"github.com/cloudfoundry/libbuildpack"
 )
 
@@ -45,17 +44,48 @@ type Supplier struct {
 	Log       *libbuildpack.Logger
 }
 
+type Cloudfoundry struct{
+	SidecarFor []string `yaml:"sidecar_for" json:"sidecar_for"`
+}
+
+type Platforms struct{
+	Cloudfoundry Cloudfoundry `yaml:"cloudfoundry" json:"cloudfoundry"`
+}
+
+type Limits struct {
+	Memory int `yaml:"memory" json:"memory"`
+}
+
+type Process struct {
+	Type      string `yaml:"type" json:"type"`
+	Command   string `yaml:"command" json:"command"`
+	Platforms Platforms `yaml:"platforms" json:"platforms"`
+	Limits Limits `yaml:"limits" json:"limits"`
+}
+type LaunchData struct {
+	Processes []Process `yaml:"processes" json:"processes"`
+}
+
 func (s *Supplier) Run() error {
 	s.Log.BeginStep("Supplying pkg")
-	launchData, err := json.Marshal(resources.LaunchData{})
+	launchData := LaunchData{
+		[]Process{
+		{
+			Type:    "opa",
+			Command: path.Join(s.Stager.DepDir(), "start_opa.sh"),
+			Platforms: Platforms{Cloudfoundry{[]string{"web"}}},
+			Limits: Limits{100},
+		},
+		},
+	}
+	launchDataBytes, err := json.Marshal(launchData)
 	if err != nil {
 		return fmt.Errorf("could not marshal process config: %w", err)
 	}
-	err = os.WriteFile(path.Join(s.Stager.DepDir(), "launch.yml"), launchData, 0644)
+	err = os.WriteFile(path.Join(s.Stager.DepDir(), "launch.yml"), launchDataBytes, 0644)
 	if err != nil {
 		return fmt.Errorf("could not write launch.yml: %w", err)
 	}
-	// TODO: Install any dependencies here...
 
 	return nil
 }

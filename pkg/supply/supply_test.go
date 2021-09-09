@@ -3,6 +3,7 @@ package supply_test
 import (
 	"bytes"
 	"os"
+	"path"
 	"path/filepath"
 
 	"code.cloudfoundry.org/buildpackapplifecycle/buildpackrunner/resources"
@@ -68,9 +69,17 @@ var _ = Describe("Supply", func() {
 		Expect(supplier.Run()).To(Succeed())
 		launchConfig, err := os.Open(filepath.Join(depDir, "launch.yml"))
 		Expect(err).NotTo(HaveOccurred())
-		var launchData resources.LaunchData
-		err = yaml.NewDecoder(launchConfig).Decode(launchData)
+		var ld resources.LaunchData
+		err = yaml.NewDecoder(launchConfig).Decode(&ld)
 		Expect(err).NotTo(HaveOccurred())
+
+		By("specifying proper options", func() {
+			Expect(ld.Processes).To(HaveLen(1))
+			Expect(ld.Processes[0].Type).To(Equal("opa"))
+			Expect(ld.Processes[0].Platforms.Cloudfoundry.SidecarFor).To(Equal([]string{"web"}))
+			Expect(ld.Processes[0].Command).To(Equal(path.Join(depDir, "start_opa.sh")))
+			Expect(ld.Processes[0].Limits.Memory).To(Equal(100))
+		})
 	})
 	// TODO: Add tests here to check install dependency functions work
 })
