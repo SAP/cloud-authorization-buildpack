@@ -3,6 +3,7 @@ package supply_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -24,6 +25,7 @@ import (
 var _ = Describe("Supply", func() {
 	var (
 		err          error
+		buildDir     string
 		depsDir      string
 		depsIdx      string
 		depDir       string
@@ -36,6 +38,8 @@ var _ = Describe("Supply", func() {
 
 	BeforeEach(func() {
 		depsDir, err = os.MkdirTemp("", "test")
+		Expect(err).To(BeNil())
+		buildDir, err = os.MkdirTemp("", "buildDir")
 		Expect(err).To(BeNil())
 
 		depsIdx = "42"
@@ -52,7 +56,7 @@ var _ = Describe("Supply", func() {
 	})
 
 	JustBeforeEach(func() {
-		args := []string{"", "", depsDir, depsIdx}
+		args := []string{buildDir, "", depsDir, depsIdx}
 		bps := libbuildpack.NewStager(args, logger, &libbuildpack.Manifest{})
 
 		supplier = &supply.Supplier{
@@ -113,7 +117,18 @@ var _ = Describe("Supply", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(restConfig).To(HaveKey(serviceKey))
 			Expect(restConfig[serviceKey].Credentials.S3Signing).NotTo(BeNil())
-			Expect(restConfig[serviceKey].URL)
+			// TODO: Verify correct URL
+			//Expect(restConfig[serviceKey].URL)
 		})
+	})
+	It("create the correct env vars", func() {
+		Expect(supplier.Run()).To(Succeed())
+		env, err := os.ReadFile(path.Join(buildDir, ".profile.d", "0000_opa_env.sh"))
+		Expect(err).NotTo(HaveOccurred())
+		Expect(env).To(ContainSubstring(fmt.Sprint(`export OPA_URL=`, "http://localhost:9888")))
+
+		//Expect(env).To(ContainSubstring(fmt.Sprint(`export opa_binary=`, path.Join(depDir,"opa"))))
+		//Expect(env).To(ContainSubstring(fmt.Sprint(`export opa_config=`, path.Join(depDir,"opa_config.yml"))))
+
 	})
 })
