@@ -154,6 +154,15 @@ var _ = Describe("Supply", func() {
 			expectIsExecutable(filepath.Join(depDir, "start_opa.sh"))
 		})
 	})
+	When("VCAP_SERVICES is empty", func() {
+		JustBeforeEach(func() {
+			os.Unsetenv("VCAP_SERVICES")
+		})
+		It("should abort with err", func() {
+			Expect(supplier.Run().Error()).To(ContainSubstring("could not unmarshal VCAP_SERVICES"))
+		})
+	})
+
 })
 
 func expectIsExecutable(fp string) {

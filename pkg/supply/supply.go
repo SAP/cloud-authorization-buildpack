@@ -201,7 +201,7 @@ func (s *Supplier) loadAMSService() (AMSService, error) {
 	var svcs map[string]interface{}
 	err := json.Unmarshal([]byte(svcsString), &svcs)
 	if err != nil {
-		return AMSService{}, fmt.Errorf("could not unmarshal authorization service: %w", err)
+		return AMSService{}, fmt.Errorf("could not unmarshal VCAP_SERVICES: %w", err)
 	}
 	var ams []AMSService
 	d, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
