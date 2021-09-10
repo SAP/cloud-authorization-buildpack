@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/SAP/cloud-authorization-buildpack/pkg/client"
 	"github.com/SAP/cloud-authorization-buildpack/pkg/supply"
 
 	"github.com/cloudfoundry/libbuildpack"
@@ -60,6 +61,11 @@ func main() {
 		os.Exit(14)
 	}
 
+	c, err := client.NewAMSClient()
+	if err != nil {
+		logger.Error("Unable to create AMS client: %s", err)
+		os.Exit(15)
+	}
 	s := supply.Supplier{
 		Manifest:     manifest,
 		Installer:    installer,
@@ -67,6 +73,7 @@ func main() {
 		Command:      &libbuildpack.Command{},
 		Log:          logger,
 		BuildpackDir: buildpackDir,
+		AMSClient:    c,
 	}
 
 	err = s.Run()

@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/http"
+	"net/url"
 	"os"
 	"path"
 
+	"github.com/SAP/cloud-authorization-buildpack/pkg/client"
 	"github.com/cloudfoundry/libbuildpack"
 	"github.com/mitchellh/mapstructure"
 	"github.com/open-policy-agent/opa/download"
@@ -48,6 +51,7 @@ type Supplier struct {
 	Command      Command
 	Log          *libbuildpack.Logger
 	BuildpackDir string
+	AMSClient    client.AMSClient
 }
 
 type Cloudfoundry struct {
@@ -92,7 +96,7 @@ func (s *Supplier) Run() error {
 	if err := s.writeEnvFile(ams); err != nil {
 		return fmt.Errorf("could not write env file: %w", err)
 	}
-	if err := s.uploadAuthzData(ams.Credentials.ObjectStore); err != nil {
+	if err := s.uploadAuthzData(ams); err != nil {
 		return fmt.Errorf("could not upload authz data: %w", err)
 	}
 	return nil
@@ -239,10 +243,29 @@ func (s *Supplier) supplyExecResource(resource string) error {
 	return nil
 }
 
-func (s *Supplier) uploadAuthzData(osCreds ObjectStoreCredentials) error {
+func (s *Supplier) uploadAuthzData(ams AMSService) error {
 	amsData := os.Getenv("AMS_DATA")
 	if amsData == "" {
 		s.Log.Warning("this app will upload no authorization data (AMS_DATA empty or not set)")
 	}
+	url, err := url.Parse(ams.URL)
+	if err != nil {
+		return fmt.Errorf("invalid AMS URL ('%s'): %w", ams.URL, err)
+	}
+	url.Path = path.Join(url.Path, "/sap/ams/v1/bundles/SAP.tar.gz")
+	r, err := http.NewRequest(http.MethodPost, url.String(), nil)
+	if err != nil {
+		return fmt.Errorf("could not create bundle upload request %w", err)
+	}
+	r.Header.Set("Content-Type", "application/gzip")
+	resp, err := s.AMSClient.Do(r)
+	if err != nil {
+		return fmt.Errorf("bundle upload request unsuccessful: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return fmt.Errorf("unexpected response status: '%s'", resp.Status)
+	}
+
 	return nil
 }

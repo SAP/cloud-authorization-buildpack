@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/fs"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -27,17 +29,17 @@ import (
 
 var _ = Describe("Supply", func() {
 	var (
-		err          error
-		buildDir     string
-		depsDir      string
-		depsIdx      string
-		depDir       string
-		supplier     *supply.Supplier
-		logger       *libbuildpack.Logger
-		mockCtrl     *gomock.Controller
-		mockManifest *MockManifest
-		buffer       *bytes.Buffer
-		vcapServices string
+		err           error
+		buildDir      string
+		depsDir       string
+		depsIdx       string
+		depDir        string
+		supplier      *supply.Supplier
+		logger        *libbuildpack.Logger
+		mockCtrl      *gomock.Controller
+		mockAMSClient *MockAMSClient
+		buffer        *bytes.Buffer
+		vcapServices  string
 	)
 
 	BeforeEach(func() {
@@ -57,7 +59,9 @@ var _ = Describe("Supply", func() {
 		logger = libbuildpack.NewLogger(buffer)
 
 		mockCtrl = gomock.NewController(GinkgoT())
-		mockManifest = NewMockManifest(mockCtrl)
+		mockAMSClient = NewMockAMSClient(mockCtrl)
+		mockAMSClient.EXPECT().Do(gomock.Any()).
+			Return(&http.Response{StatusCode: 200, Body: io.NopCloser(nil)}, nil).AnyTimes()
 	})
 
 	JustBeforeEach(func() {
@@ -71,9 +75,10 @@ var _ = Describe("Supply", func() {
 
 		supplier = &supply.Supplier{
 			Stager:       bps,
-			Manifest:     mockManifest,
+			Manifest:     nil,
 			Log:          logger,
 			BuildpackDir: buildpackDir,
+			AMSClient:    mockAMSClient,
 		}
 	})
 

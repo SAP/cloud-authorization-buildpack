@@ -2,7 +2,7 @@ package supply
 
 type Service struct {
 	Name string `json:"name"`
-	Plan string `json:"plan"`
+	URL  string `json:"url"`
 }
 
 type vcapServices map[string]interface{}
