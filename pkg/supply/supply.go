@@ -92,7 +92,9 @@ func (s *Supplier) Run() error {
 	if err := s.writeEnvFile(ams); err != nil {
 		return fmt.Errorf("could not write env file: %w", err)
 	}
-
+	if err := s.uploadAuthzData(ams.Credentials.ObjectStore); err != nil {
+		return fmt.Errorf("could not upload authz data: %w", err)
+	}
 	return nil
 }
 
@@ -233,6 +235,14 @@ func (s *Supplier) supplyExecResource(resource string) error {
 	_, err = io.Copy(dst, src)
 	if err != nil {
 		return fmt.Errorf("could not copy resource: %w", err)
+	}
+	return nil
+}
+
+func (s *Supplier) uploadAuthzData(osCreds ObjectStoreCredentials) error {
+	amsData := os.Getenv("AMS_DATA")
+	if amsData == "" {
+		s.Log.Warning("this app will upload no authorization data (AMS_DATA empty or not set)")
 	}
 	return nil
 }
