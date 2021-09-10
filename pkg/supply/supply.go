@@ -42,11 +42,12 @@ type Command interface {
 }
 
 type Supplier struct {
-	Manifest  Manifest
-	Installer Installer
-	Stager    Stager
-	Command   Command
-	Log       *libbuildpack.Logger
+	Manifest     Manifest
+	Installer    Installer
+	Stager       Stager
+	Command      Command
+	Log          *libbuildpack.Logger
+	BuildpackDir string
 }
 
 type Cloudfoundry struct {
@@ -72,7 +73,10 @@ type LaunchData struct {
 }
 
 func (s *Supplier) Run() error {
-	s.Log.BeginStep("Supplying pkg")
+	s.Log.BeginStep("Supplying OPA binary")
+	if err := s.SupplyOPABinary(); err != nil {
+		return fmt.Errorf("could not supply opa binary: %w", err)
+	}
 	ams, err := s.loadAMSService()
 	if err != nil {
 		return fmt.Errorf("could not load AMSService: %w", err)
@@ -213,4 +217,21 @@ func (s *Supplier) loadAMSService() (AMSService, error) {
 		return AMSService{}, fmt.Errorf("expect only one AMS service, but got %d", len(ams))
 	}
 	return ams[0], nil
+}
+
+func (s *Supplier) SupplyOPABinary() error {
+	s.Log.Info("Supplying OPA binary..")
+	opaSrc, err := os.Open(path.Join(s.BuildpackDir, "resources", "opa"))
+	if err != nil {
+		return fmt.Errorf("could not read opa binary: %w", err)
+	}
+	opaDst, err := os.OpenFile(path.Join(s.Stager.DepDir(), "opa"), os.O_WRONLY|os.O_CREATE, 0755)
+	if err != nil {
+		return fmt.Errorf("could not create file for opa binary: %w", err)
+	}
+	_, err = io.Copy(opaDst, opaSrc)
+	if err != nil {
+		return fmt.Errorf("could not copy opa binary: %w", err)
+	}
+	return nil
 }
