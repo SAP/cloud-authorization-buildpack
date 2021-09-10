@@ -149,4 +149,12 @@ var _ = Describe("Supply", func() {
 		//Check if executable by all
 		Expect(fi.Mode().Perm() & 0111).To(Equal(fs.FileMode(0111)))
 	})
+
+	It("provides the OPA start script", func() {
+		Expect(supplier.Run()).To(Succeed())
+		fi, err := os.Stat(filepath.Join(depDir, "start_opa.sh"))
+		Expect(err).NotTo(HaveOccurred())
+		//Check if executable by all
+		Expect(fi.Mode().Perm() & 0111).To(Equal(fs.FileMode(0111)))
+	})
 })
