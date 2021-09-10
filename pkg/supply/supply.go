@@ -73,9 +73,11 @@ type LaunchData struct {
 }
 
 func (s *Supplier) Run() error {
-	s.Log.BeginStep("Supplying OPA binary")
-	if err := s.SupplyOPABinary(); err != nil {
+	if err := s.SupplyExecResource("opa"); err != nil {
 		return fmt.Errorf("could not supply opa binary: %w", err)
+	}
+	if err := s.SupplyExecResource("start_opa.sh"); err != nil {
+		return fmt.Errorf("could not supply start_opa.sh: %w", err)
 	}
 	ams, err := s.loadAMSService()
 	if err != nil {
@@ -219,19 +221,18 @@ func (s *Supplier) loadAMSService() (AMSService, error) {
 	return ams[0], nil
 }
 
-func (s *Supplier) SupplyOPABinary() error {
-	s.Log.Info("Supplying OPA binary..")
-	opaSrc, err := os.Open(path.Join(s.BuildpackDir, "resources", "opa"))
+func (s *Supplier) SupplyExecResource(resource string) error {
+	src, err := os.Open(path.Join(s.BuildpackDir, "resources", resource))
 	if err != nil {
-		return fmt.Errorf("could not read opa binary: %w", err)
+		return fmt.Errorf("could not read resource: %w", err)
 	}
-	opaDst, err := os.OpenFile(path.Join(s.Stager.DepDir(), "opa"), os.O_WRONLY|os.O_CREATE, 0755)
+	dst, err := os.OpenFile(path.Join(s.Stager.DepDir(), resource), os.O_WRONLY|os.O_CREATE, 0755)
 	if err != nil {
-		return fmt.Errorf("could not create file for opa binary: %w", err)
+		return fmt.Errorf("could not create file for resource: %w", err)
 	}
-	_, err = io.Copy(opaDst, opaSrc)
+	_, err = io.Copy(dst, src)
 	if err != nil {
-		return fmt.Errorf("could not copy opa binary: %w", err)
+		return fmt.Errorf("could not copy resource: %w", err)
 	}
 	return nil
 }
