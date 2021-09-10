@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -59,14 +60,18 @@ var _ = Describe("Supply", func() {
 
 	JustBeforeEach(func() {
 		Expect(os.Setenv("VCAP_SERVICES", vcapServices)).To(Succeed())
+		wd, err := os.Getwd()
+		Expect(err).NotTo(HaveOccurred())
+		buildpackDir := path.Join(filepath.Dir(filepath.Dir(wd)))
 
 		args := []string{buildDir, "", depsDir, depsIdx}
 		bps := libbuildpack.NewStager(args, logger, &libbuildpack.Manifest{})
 
 		supplier = &supply.Supplier{
-			Stager:   bps,
-			Manifest: mockManifest,
-			Log:      logger,
+			Stager:       bps,
+			Manifest:     mockManifest,
+			Log:          logger,
+			BuildpackDir: buildpackDir,
 		}
 	})
 
@@ -136,5 +141,12 @@ var _ = Describe("Supply", func() {
 		//Expect(env).To(ContainSubstring(fmt.Sprint(`export opa_binary=`, path.Join(depDir,"opa"))))
 		//Expect(env).To(ContainSubstring(fmt.Sprint(`export opa_config=`, path.Join(depDir,"opa_config.yml"))))
 
+	})
+	It("provides the OPA executable", func() {
+		Expect(supplier.Run()).To(Succeed())
+		fi, err := os.Stat(filepath.Join(depDir, "opa"))
+		Expect(err).NotTo(HaveOccurred())
+		//Check if executable by all
+		Expect(fi.Mode().Perm() & 0111).To(Equal(fs.FileMode(0111)))
 	})
 })

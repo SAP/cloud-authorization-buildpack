@@ -61,11 +61,12 @@ func main() {
 	}
 
 	s := supply.Supplier{
-		Manifest:  manifest,
-		Installer: installer,
-		Stager:    stager,
-		Command:   &libbuildpack.Command{},
-		Log:       logger,
+		Manifest:     manifest,
+		Installer:    installer,
+		Stager:       stager,
+		Command:      &libbuildpack.Command{},
+		Log:          logger,
+		BuildpackDir: buildpackDir,
 	}
 
 	err = s.Run()
