@@ -82,79 +82,83 @@ var _ = Describe("Supply", func() {
 		Expect(err).To(BeNil())
 		Expect(os.Unsetenv("VCAP_APPLICATION")).To(Succeed())
 	})
-	BeforeEach(func() {
-		vcapServices = testdata.EnvWithAuthorization
-	})
-	It("creates a valid launch.yml", func() {
-		Expect(supplier.Run()).To(Succeed())
-		launchConfig, err := os.Open(filepath.Join(depDir, "launch.yml"))
-		Expect(err).NotTo(HaveOccurred())
-		var ld resources.LaunchData
-		err = yaml.NewDecoder(launchConfig).Decode(&ld)
-		Expect(err).NotTo(HaveOccurred())
-
-		By("specifying proper options", func() {
-			Expect(ld.Processes).To(HaveLen(1))
-			Expect(ld.Processes[0].Type).To(Equal("opa"))
-			Expect(ld.Processes[0].Platforms.Cloudfoundry.SidecarFor).To(Equal([]string{"web"}))
-			Expect(ld.Processes[0].Command).To(Equal(path.Join(depDir, "start_opa.sh")))
-			Expect(ld.Processes[0].Limits.Memory).To(Equal(100))
-			Expect(buffer.String()).To(ContainSubstring("writing launch.yml"))
+	When("VCAP_SERVICES contains a 'authorization' service", func() {
+		BeforeEach(func() {
+			vcapServices = testdata.EnvWithAuthorization
 		})
-	})
-	It("creates the correct opa config", func() {
-		Expect(supplier.Run()).To(Succeed())
-		Expect(buffer.String()).To(ContainSubstring("writing opa config"))
-
-		rawConfig, err := os.ReadFile(filepath.Join(depDir, "opa_config.yml"))
-		Expect(err).NotTo(HaveOccurred())
-		cfg, err := config.ParseConfig(rawConfig, "testId")
-		Expect(err).NotTo(HaveOccurred())
-
-		var serviceKey string
-		By("specifying the correct bundle options", func() {
-			var bundleConfig map[string]bundle.Source
-			err = json.Unmarshal(cfg.Bundles, &bundleConfig)
+		It("creates a valid launch.yml", func() {
+			Expect(supplier.Run()).To(Succeed())
+			launchConfig, err := os.Open(filepath.Join(depDir, "launch.yml"))
 			Expect(err).NotTo(HaveOccurred())
-			Expect(bundleConfig).To(HaveKey("SAP"))
-			serviceKey = bundleConfig["SAP"].Service
-			Expect(serviceKey).NotTo(BeEmpty())
-			Expect(bundleConfig["SAP"].Resource).To(Equal("SAP.tar.gz"))
-			Expect(*bundleConfig["SAP"].Polling.MinDelaySeconds).To(Equal(int64(10)))
-			Expect(*bundleConfig["SAP"].Polling.MaxDelaySeconds).To(Equal(int64(20)))
-		})
-		By("specifying proper s3 rest config", func() {
-			var restConfig map[string]rest.Config
-			err = json.Unmarshal(cfg.Services, &restConfig)
+			var ld resources.LaunchData
+			err = yaml.NewDecoder(launchConfig).Decode(&ld)
 			Expect(err).NotTo(HaveOccurred())
-			Expect(restConfig).To(HaveKey(serviceKey))
-			Expect(restConfig[serviceKey].Credentials.S3Signing).NotTo(BeNil())
-			Expect(restConfig[serviceKey].URL).To(Equal("https://s3-eu-central-1.amazonaws.com/my-bucket"))
+
+			By("specifying proper options", func() {
+				Expect(ld.Processes).To(HaveLen(1))
+				Expect(ld.Processes[0].Type).To(Equal("opa"))
+				Expect(ld.Processes[0].Platforms.Cloudfoundry.SidecarFor).To(Equal([]string{"web"}))
+				Expect(ld.Processes[0].Command).To(Equal(path.Join(depDir, "start_opa.sh")))
+				Expect(ld.Processes[0].Limits.Memory).To(Equal(100))
+				Expect(buffer.String()).To(ContainSubstring("writing launch.yml"))
+			})
 		})
-	})
-	It("creates the correct env vars", func() {
-		Expect(supplier.Run()).To(Succeed())
-		env, err := os.ReadFile(path.Join(buildDir, ".profile.d", "0000_opa_env.sh"))
-		Expect(err).NotTo(HaveOccurred())
-		Expect(env).To(ContainSubstring(fmt.Sprint(`export OPA_URL=`, "http://localhost:9888")))
-		Expect(env).To(ContainSubstring(fmt.Sprintf("export AWS_ACCESS_KEY_ID=myawstestaccesskeyid")))
-		//Expect(env).To(ContainSubstring(fmt.Sprint(`export opa_binary=`, path.Join(depDir,"opa"))))
-		//Expect(env).To(ContainSubstring(fmt.Sprint(`export opa_config=`, path.Join(depDir,"opa_config.yml"))))
+		It("creates the correct opa config", func() {
+			Expect(supplier.Run()).To(Succeed())
+			Expect(buffer.String()).To(ContainSubstring("writing opa config"))
 
-	})
-	It("provides the OPA executable", func() {
-		Expect(supplier.Run()).To(Succeed())
-		fi, err := os.Stat(filepath.Join(depDir, "opa"))
-		Expect(err).NotTo(HaveOccurred())
-		//Check if executable by all
-		Expect(fi.Mode().Perm() & 0111).To(Equal(fs.FileMode(0111)))
-	})
+			rawConfig, err := os.ReadFile(filepath.Join(depDir, "opa_config.yml"))
+			Expect(err).NotTo(HaveOccurred())
+			cfg, err := config.ParseConfig(rawConfig, "testId")
+			Expect(err).NotTo(HaveOccurred())
 
-	It("provides the OPA start script", func() {
-		Expect(supplier.Run()).To(Succeed())
-		fi, err := os.Stat(filepath.Join(depDir, "start_opa.sh"))
-		Expect(err).NotTo(HaveOccurred())
-		//Check if executable by all
-		Expect(fi.Mode().Perm() & 0111).To(Equal(fs.FileMode(0111)))
+			var serviceKey string
+			By("specifying the correct bundle options", func() {
+				var bundleConfig map[string]bundle.Source
+				err = json.Unmarshal(cfg.Bundles, &bundleConfig)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(bundleConfig).To(HaveKey("SAP"))
+				serviceKey = bundleConfig["SAP"].Service
+				Expect(serviceKey).NotTo(BeEmpty())
+				Expect(bundleConfig["SAP"].Resource).To(Equal("SAP.tar.gz"))
+				Expect(*bundleConfig["SAP"].Polling.MinDelaySeconds).To(Equal(int64(10)))
+				Expect(*bundleConfig["SAP"].Polling.MaxDelaySeconds).To(Equal(int64(20)))
+			})
+			By("specifying proper s3 rest config", func() {
+				var restConfig map[string]rest.Config
+				err = json.Unmarshal(cfg.Services, &restConfig)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(restConfig).To(HaveKey(serviceKey))
+				Expect(restConfig[serviceKey].Credentials.S3Signing).NotTo(BeNil())
+				Expect(restConfig[serviceKey].URL).To(Equal("https://s3-eu-central-1.amazonaws.com/my-bucket"))
+			})
+		})
+		It("creates the correct env vars", func() {
+			Expect(supplier.Run()).To(Succeed())
+			env, err := os.ReadFile(path.Join(buildDir, ".profile.d", "0000_opa_env.sh"))
+			Expect(err).NotTo(HaveOccurred())
+			expectIsExecutable(path.Join(buildDir, ".profile.d", "0000_opa_env.sh"))
+			Expect(env).To(ContainSubstring(fmt.Sprint(`export OPA_URL=`, "http://localhost:9888")))
+			Expect(env).To(ContainSubstring(fmt.Sprintf("export AWS_ACCESS_KEY_ID=myawstestaccesskeyid")))
+			//Expect(env).To(ContainSubstring(fmt.Sprint(`export opa_binary=`, path.Join(depDir,"opa"))))
+			//Expect(env).To(ContainSubstring(fmt.Sprint(`export opa_config=`, path.Join(depDir,"opa_config.yml"))))
+
+		})
+		It("provides the OPA executable", func() {
+			Expect(supplier.Run()).To(Succeed())
+			expectIsExecutable(filepath.Join(depDir, "opa"))
+		})
+
+		It("provides the OPA start script", func() {
+			Expect(supplier.Run()).To(Succeed())
+			expectIsExecutable(filepath.Join(depDir, "start_opa.sh"))
+		})
 	})
 })
+
+func expectIsExecutable(fp string) {
+	fi, err := os.Stat(fp)
+	Expect(err).NotTo(HaveOccurred())
+	//Check if executable by all
+	Expect(fi.Mode().Perm() & 0111).To(Equal(fs.FileMode(0111)))
+}

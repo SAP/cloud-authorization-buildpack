@@ -73,10 +73,10 @@ type LaunchData struct {
 }
 
 func (s *Supplier) Run() error {
-	if err := s.SupplyExecResource("opa"); err != nil {
+	if err := s.supplyExecResource("opa"); err != nil {
 		return fmt.Errorf("could not supply opa binary: %w", err)
 	}
-	if err := s.SupplyExecResource("start_opa.sh"); err != nil {
+	if err := s.supplyExecResource("start_opa.sh"); err != nil {
 		return fmt.Errorf("could not supply start_opa.sh: %w", err)
 	}
 	ams, err := s.loadAMSService()
@@ -128,7 +128,7 @@ func (s *Supplier) writeEnvFile(ams AMSService) error {
 	}
 
 	filePath := path.Join(dirPath, "0000_opa_env.sh")
-	err = os.WriteFile(filePath, b.Bytes(), 0644)
+	err = os.WriteFile(filePath, b.Bytes(), 0755)
 	if err != nil {
 		return fmt.Errorf("could not write file to '%s': %w", filePath, err)
 	}
@@ -221,7 +221,7 @@ func (s *Supplier) loadAMSService() (AMSService, error) {
 	return ams[0], nil
 }
 
-func (s *Supplier) SupplyExecResource(resource string) error {
+func (s *Supplier) supplyExecResource(resource string) error {
 	src, err := os.Open(path.Join(s.BuildpackDir, "resources", resource))
 	if err != nil {
 		return fmt.Errorf("could not read resource: %w", err)
