@@ -19,6 +19,7 @@ import (
 	"github.com/open-policy-agent/opa/config"
 	"github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/plugins/rest"
+	"github.com/otiai10/copy"
 	"gopkg.in/yaml.v2"
 )
 
@@ -44,6 +45,7 @@ var _ = Describe("Supply", func() {
 		Expect(err).To(BeNil())
 		buildDir, err = os.MkdirTemp("", "buildDir")
 		Expect(err).To(BeNil())
+		Expect(copy.Copy(path.Join("testdata", "policies"), path.Join(buildDir, "policies"))).To(Succeed())
 
 		depsIdx = "42"
 		depDir = filepath.Join(depsDir, depsIdx)
@@ -81,10 +83,15 @@ var _ = Describe("Supply", func() {
 		err = os.RemoveAll(depsDir)
 		Expect(err).To(BeNil())
 		Expect(os.Unsetenv("VCAP_APPLICATION")).To(Succeed())
+		Expect(os.Unsetenv("AMS_DATA")).To(Succeed())
 	})
 	When("VCAP_SERVICES contains a 'authorization' service", func() {
 		BeforeEach(func() {
 			vcapServices = testdata.EnvWithAuthorization
+			os.Setenv("AMS_DATA", `{
+              "root": "policies",
+              "directories": ["myPolicies0", "myPolicies1"],
+            }`)
 		})
 		It("creates a valid launch.yml", func() {
 			Expect(supplier.Run()).To(Succeed())
@@ -148,10 +155,18 @@ var _ = Describe("Supply", func() {
 			Expect(supplier.Run()).To(Succeed())
 			expectIsExecutable(filepath.Join(depDir, "opa"))
 		})
-
 		It("provides the OPA start script", func() {
 			Expect(supplier.Run()).To(Succeed())
 			expectIsExecutable(filepath.Join(depDir, "start_opa.sh"))
+		})
+		When("AMS_DATA is not set", func() {
+			BeforeEach(func() {
+				Expect(os.Unsetenv("AMS_DATA")).To(Succeed())
+			})
+			It("creates a warning", func() {
+				Expect(supplier.Run()).To(Succeed())
+				Expect(buffer.String()).To(ContainSubstring("upload no authorization data"))
+			})
 		})
 	})
 	When("VCAP_SERVICES is empty", func() {
