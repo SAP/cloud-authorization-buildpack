@@ -28,12 +28,7 @@ if [[ -v AMS_SERVICE ]]; then
 else
   service_name="authorization"
 fi
-
 echo "using service $service_name as authorization service"
-
-if ! service_name=$(echo "$AMS_DATA" | jq -e -r '.service_name'); then
-  service_name="authorization"
-fi
 
 cp "$BUILDPACK_DIR/ressources/opa" "$opa_binary"
 chmod +x "$opa_binary"
