@@ -14,7 +14,6 @@ import (
 	"github.com/SAP/cloud-authorization-buildpack/pkg/compressor"
 	"github.com/cloudfoundry/libbuildpack"
 	"github.com/go-playground/validator/v10"
-	"github.com/mitchellh/mapstructure"
 	"github.com/open-policy-agent/opa/download"
 	"github.com/open-policy-agent/opa/plugins/bundle"
 )
@@ -81,20 +80,20 @@ func (s *Supplier) Run() error {
 	if err != nil {
 		return fmt.Errorf("could not load buildpack config: %w", err)
 	}
-	ams, err := s.loadAMSService(cfg)
+	amsCreds, err := s.loadAMSCredentials(s.Log, cfg)
 	if err != nil {
-		return fmt.Errorf("could not load AMSService: %w", err)
+		return fmt.Errorf("could not load AMSCredentials: %w", err)
 	}
 	if err := s.writeLaunchConfig(); err != nil {
 		return fmt.Errorf("could not write launch config: %w", err)
 	}
-	if err := s.writeOpaConfig(ams.Credentials.ObjectStore); err != nil {
+	if err := s.writeOpaConfig(amsCreds.ObjectStore); err != nil {
 		return fmt.Errorf("could not write opa config: %w", err)
 	}
-	if err := s.writeProfileDFile(ams); err != nil {
+	if err := s.writeProfileDFile(amsCreds); err != nil {
 		return fmt.Errorf("could not write profileD file: %w", err)
 	}
-	if err := s.uploadAuthzData(ams, cfg); err != nil {
+	if err := s.uploadAuthzData(amsCreds, cfg); err != nil {
 		return fmt.Errorf("could not upload authz data: %w", err)
 	}
 	return nil
@@ -118,11 +117,11 @@ type OPAConfig struct {
 	Services map[string]RestConfig     `json:"services"`
 }
 
-func (s *Supplier) writeProfileDFile(ams AMSService) error {
+func (s *Supplier) writeProfileDFile(amsCreds AMSCredentials) error {
 	s.Log.Info("writing profileD file..")
 	var b strings.Builder
 	b.WriteString("export OPA_URL=http://localhost:9888\n")
-	b.WriteString(fmt.Sprintf("export AWS_ACCESS_KEY_ID=%s\n", ams.Credentials.ObjectStore.AccessKeyID))
+	b.WriteString(fmt.Sprintf("export AWS_ACCESS_KEY_ID=%s\n", amsCreds.ObjectStore.AccessKeyID))
 
 	return s.Stager.WriteProfileD("0000_opa_env.sh", b.String())
 }
@@ -172,29 +171,33 @@ func (s *Supplier) writeLaunchConfig() error {
 	return libbuildpack.NewJSON().Write(filePath, launchData)
 }
 
-func (s *Supplier) loadAMSService(cfg Config) (AMSService, error) {
+func (s *Supplier) loadAMSCredentials(log *libbuildpack.Logger, cfg Config) (AMSCredentials, error) {
 	svcsString := os.Getenv("VCAP_SERVICES")
-	var svcs map[string]interface{}
+	var svcs map[string][]Service
 	err := json.Unmarshal([]byte(svcsString), &svcs)
 	if err != nil {
-		return AMSService{}, fmt.Errorf("could not unmarshal VCAP_SERVICES: %w", err)
+		return AMSCredentials{}, fmt.Errorf("could not unmarshal VCAP_SERVICES: %w", err)
 	}
-	var ams []AMSService
-	d, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		Result:  &ams,
-		TagName: "json",
-	})
-	if err != nil {
-		return AMSService{}, fmt.Errorf("errr creating decoder: %w", err)
+	var rawAmsCreds []json.RawMessage
+	if ups, ok := svcs["user-provided"]; ok {
+		for i, up := range ups {
+			for _, t := range up.Tags {
+				if t == "authorization" {
+					log.Info("Detected user-provided authorization service '%s", ups[i].Name)
+					rawAmsCreds = append(rawAmsCreds, ups[i].Credentials)
+				}
+			}
+		}
 	}
-	err = d.Decode(svcs[cfg.ServiceName])
-	if err != nil {
-		return AMSService{}, fmt.Errorf("could not decode 'authorization' service: %w", err)
+	for _, amsSvc := range svcs[cfg.ServiceName] {
+		rawAmsCreds = append(rawAmsCreds, amsSvc.Credentials)
 	}
-	if len(ams) != 1 {
-		return AMSService{}, fmt.Errorf("expect only one service of type %s, but got %d", cfg.ServiceName, len(ams))
+	if len(rawAmsCreds) != 1 {
+		return AMSCredentials{}, fmt.Errorf("expect only one AMS service (type %s or user-provided) but got %d", cfg.ServiceName, len(rawAmsCreds))
 	}
-	return ams[0], nil
+	var amsCreds AMSCredentials
+	err = json.Unmarshal(rawAmsCreds[0], &amsCreds)
+	return amsCreds, err
 }
 
 func (s *Supplier) supplyExecResource(resource string) error {
@@ -207,7 +210,7 @@ type Config struct {
 	ServiceName string   `json:"service_name"`
 }
 
-func (s *Supplier) uploadAuthzData(ams AMSService, cfg Config) error {
+func (s *Supplier) uploadAuthzData(amsCreds AMSCredentials, cfg Config) error {
 	amsDataStr := os.Getenv("AMS_DATA")
 	if amsDataStr == "" {
 		s.Log.Warning("this app will upload no authorization data (AMS_DATA empty or not set)")
@@ -217,9 +220,9 @@ func (s *Supplier) uploadAuthzData(ams AMSService, cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("could not create policy bundle.tar.gz: %w", err)
 	}
-	url, err := url.Parse(ams.URL)
+	url, err := url.Parse(amsCreds.URL)
 	if err != nil {
-		return fmt.Errorf("invalid AMS URL ('%s'): %w", ams.URL, err)
+		return fmt.Errorf("invalid AMS URL ('%s'): %w", amsCreds.URL, err)
 	}
 	url.Path = path.Join(url.Path, "/sap/ams/v1/bundles/SAP.tar.gz")
 	r, err := http.NewRequest(http.MethodPost, url.String(), buf)
