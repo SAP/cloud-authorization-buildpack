@@ -1,7 +1,6 @@
 package supply
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/SAP/cloud-authorization-buildpack/pkg/client"
 	"github.com/SAP/cloud-authorization-buildpack/pkg/compressor"
@@ -26,6 +26,7 @@ type Stager interface {
 	DepDir() string
 	DepsIdx() string
 	DepsDir() string
+	WriteProfileD(string, string) error
 }
 
 type Manifest interface {
@@ -95,8 +96,8 @@ func (s *Supplier) Run() error {
 	if err := s.writeOpaConfig(ams.Credentials.ObjectStore); err != nil {
 		return fmt.Errorf("could not write opa config: %w", err)
 	}
-	if err := s.writeEnvFile(ams); err != nil {
-		return fmt.Errorf("could not write env file: %w", err)
+	if err := s.writeProfileDFile(ams); err != nil {
+		return fmt.Errorf("could not write profileD file: %w", err)
 	}
 	if err := s.uploadAuthzData(ams); err != nil {
 		return fmt.Errorf("could not upload authz data: %w", err)
@@ -122,25 +123,13 @@ type Config struct {
 	Services map[string]RestConfig     `json:"services"`
 }
 
-func (s *Supplier) writeEnvFile(ams AMSService) error {
-	s.Log.Info("writing env file..")
-	var b bytes.Buffer
-	b.WriteString("export OPA_URL=http://localhost:9888")
+func (s *Supplier) writeProfileDFile(ams AMSService) error {
+	s.Log.Info("writing profileD file..")
+	var b strings.Builder
+	b.WriteString("export OPA_URL=http://localhost:9888\n")
+	b.WriteString(fmt.Sprintf("export AWS_ACCESS_KEY_ID=%s\n", ams.Credentials.ObjectStore.AccessKeyID))
 
-	b.WriteString(fmt.Sprint("export AWS_ACCESS_KEY_ID=", ams.Credentials.ObjectStore.AccessKeyID))
-
-	dirPath := path.Join(s.Stager.BuildDir(), ".profile.d")
-	err := os.Mkdir(dirPath, 0755)
-	if err != nil {
-		return fmt.Errorf("could not create profile directory '%s': %w", dirPath, err)
-	}
-
-	filePath := path.Join(dirPath, "0000_opa_env.sh")
-	err = os.WriteFile(filePath, b.Bytes(), 0755)
-	if err != nil {
-		return fmt.Errorf("could not write file to '%s': %w", filePath, err)
-	}
-	return nil
+	return s.Stager.WriteProfileD("0000_opa_env.sh", b.String())
 }
 
 func (s *Supplier) writeOpaConfig(osCreds ObjectStoreCredentials) error {

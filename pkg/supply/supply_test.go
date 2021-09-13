@@ -147,9 +147,9 @@ var _ = Describe("Supply", func() {
 		})
 		It("creates the correct env vars", func() {
 			Expect(supplier.Run()).To(Succeed())
-			env, err := os.ReadFile(path.Join(buildDir, ".profile.d", "0000_opa_env.sh"))
+			env, err := os.ReadFile(path.Join(depDir, "profile.d", "0000_opa_env.sh"))
 			Expect(err).NotTo(HaveOccurred())
-			expectIsExecutable(path.Join(buildDir, ".profile.d", "0000_opa_env.sh"))
+			expectIsExecutable(path.Join(depDir, "profile.d", "0000_opa_env.sh"))
 			Expect(env).To(ContainSubstring(fmt.Sprint(`export OPA_URL=`, "http://localhost:9888")))
 			Expect(env).To(ContainSubstring(fmt.Sprintf("export AWS_ACCESS_KEY_ID=myawstestaccesskeyid")))
 			//Expect(env).To(ContainSubstring(fmt.Sprint(`export opa_binary=`, path.Join(depDir,"opa"))))
