@@ -77,7 +77,11 @@ func (s *Supplier) Run() error {
 	if err := s.supplyExecResource("start_opa.sh"); err != nil {
 		return fmt.Errorf("could not supply start_opa.sh: %w", err)
 	}
-	ams, err := s.loadAMSService()
+	cfg, err := s.loadBuildpackConfig()
+	if err != nil {
+		return fmt.Errorf("could not load buildpack config: %w", err)
+	}
+	ams, err := s.loadAMSService(cfg)
 	if err != nil {
 		return fmt.Errorf("could not load AMSService: %w", err)
 	}
@@ -90,7 +94,7 @@ func (s *Supplier) Run() error {
 	if err := s.writeProfileDFile(ams); err != nil {
 		return fmt.Errorf("could not write profileD file: %w", err)
 	}
-	if err := s.uploadAuthzData(ams); err != nil {
+	if err := s.uploadAuthzData(ams, cfg); err != nil {
 		return fmt.Errorf("could not upload authz data: %w", err)
 	}
 	return nil
@@ -109,7 +113,7 @@ type RestConfig struct {
 	Credentials Credentials `json:"credentials"`
 }
 
-type Config struct {
+type OPAConfig struct {
 	Bundles  map[string]*bundle.Source `json:"bundles"`
 	Services map[string]RestConfig     `json:"services"`
 }
@@ -143,7 +147,7 @@ func (s *Supplier) writeOpaConfig(osCreds ObjectStoreCredentials) error {
 		Credentials: Credentials{S3Signing{AWSEnvCreds: struct{}{}}},
 	}
 
-	cfg := Config{
+	cfg := OPAConfig{
 		Bundles:  bundles,
 		Services: services,
 	}
@@ -168,7 +172,7 @@ func (s *Supplier) writeLaunchConfig() error {
 	return libbuildpack.NewJSON().Write(filePath, launchData)
 }
 
-func (s *Supplier) loadAMSService() (AMSService, error) {
+func (s *Supplier) loadAMSService(cfg Config) (AMSService, error) {
 	svcsString := os.Getenv("VCAP_SERVICES")
 	var svcs map[string]interface{}
 	err := json.Unmarshal([]byte(svcsString), &svcs)
@@ -183,12 +187,12 @@ func (s *Supplier) loadAMSService() (AMSService, error) {
 	if err != nil {
 		return AMSService{}, fmt.Errorf("errr creating decoder: %w", err)
 	}
-	err = d.Decode(svcs["authorization"])
+	err = d.Decode(svcs[cfg.ServiceName])
 	if err != nil {
 		return AMSService{}, fmt.Errorf("could not decode 'authorization' service: %w", err)
 	}
 	if len(ams) != 1 {
-		return AMSService{}, fmt.Errorf("expect only one AMS service, but got %d", len(ams))
+		return AMSService{}, fmt.Errorf("expect only one service of type %s, but got %d", cfg.ServiceName, len(ams))
 	}
 	return ams[0], nil
 }
@@ -197,27 +201,19 @@ func (s *Supplier) supplyExecResource(resource string) error {
 	return libbuildpack.CopyFile(path.Join(s.BuildpackDir, "resources", resource), path.Join(s.Stager.DepDir(), resource))
 }
 
-type AMSData struct {
+type Config struct {
 	Root        string   `json:"root" validate:"required"`
 	Directories []string `json:"directories" validate:"required,gt=0,dive,required"`
 	ServiceName string   `json:"service_name"`
 }
 
-func (s *Supplier) uploadAuthzData(ams AMSService) error {
+func (s *Supplier) uploadAuthzData(ams AMSService, cfg Config) error {
 	amsDataStr := os.Getenv("AMS_DATA")
 	if amsDataStr == "" {
 		s.Log.Warning("this app will upload no authorization data (AMS_DATA empty or not set)")
 		return nil
 	}
-	var amsData AMSData
-	if err := json.Unmarshal([]byte(amsDataStr), &amsData); err != nil {
-		return fmt.Errorf("could not unmarshal AMS_DATA: %w", err)
-	}
-	v := validator.New()
-	if err := v.Struct(amsData); err != nil {
-		return fmt.Errorf("invalid AMS_DATA: %w", err)
-	}
-	buf, err := compressor.CreateArchive(path.Join(s.BuildpackDir, amsData.Root), amsData.Directories)
+	buf, err := compressor.CreateArchive(path.Join(s.BuildpackDir, cfg.Root), cfg.Directories)
 	if err != nil {
 		return fmt.Errorf("could not create policy bundle.tar.gz: %w", err)
 	}
@@ -241,4 +237,24 @@ func (s *Supplier) uploadAuthzData(ams AMSService) error {
 	}
 
 	return nil
+}
+
+func (s *Supplier) loadBuildpackConfig() (Config, error) {
+	cfgStr := os.Getenv("AMS_DATA")
+	if cfgStr == "" {
+		s.Log.Warning("this app will upload no authorization data (AMS_DATA empty or not set)")
+		return Config{ServiceName: "authorization"}, nil
+	}
+	var cfg Config
+	if err := json.Unmarshal([]byte(cfgStr), &cfg); err != nil {
+		return Config{}, fmt.Errorf("could not unmarshal AMS_DATA: %w", err)
+	}
+	v := validator.New()
+	if err := v.Struct(cfg); err != nil {
+		return Config{}, fmt.Errorf("invalid AMS_DATA: %w", err)
+	}
+	if cfg.ServiceName == "" {
+		cfg.ServiceName = "authorization"
+	}
+	return cfg, nil
 }
