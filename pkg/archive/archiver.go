@@ -1,4 +1,4 @@
-package compressor
+package archive
 
 import (
 	"archive/tar"
@@ -9,18 +9,26 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+
+	"github.com/cloudfoundry/libbuildpack"
 )
 
-func CreateArchive(root string, relativeDirs []string) (io.Reader, error) {
+type archiver struct {
+	tw  *tar.Writer
+	log *libbuildpack.Logger
+}
+
+func CreateArchive(log *libbuildpack.Logger, root string, relativeDirs []string) (io.Reader, error) {
 	var buf bytes.Buffer
 	zr := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(zr)
+	a := archiver{tw, log}
 	for _, dir := range relativeDirs {
-		if err := compressDir(path.Join(root, dir), tw); err != nil {
+		if err := a.compressDir(path.Join(root, dir)); err != nil {
 			return nil, err
 		}
 	}
-	if err := addSchemaDCL(tw, root); err != nil {
+	if err := a.addSchemaDCL(root); err != nil {
 		return nil, err
 	}
 
@@ -33,7 +41,7 @@ func CreateArchive(root string, relativeDirs []string) (io.Reader, error) {
 	return &buf, nil
 }
 
-func addSchemaDCL(tw *tar.Writer, root string) error {
+func (a *archiver) addSchemaDCL(root string) error {
 	fp := path.Join(root, "schema.dcl")
 	fi, err := os.Stat(fp)
 	if err != nil {
@@ -42,19 +50,19 @@ func addSchemaDCL(tw *tar.Writer, root string) error {
 		}
 		return err
 	}
-	return writeFile(tw, fi, fp)
+	return a.writeFile(fi, fp)
 }
 
-func compressDir(dir string, tw *tar.Writer) error {
+func (a *archiver) compressDir(dir string) error {
 	return filepath.Walk(dir, func(file string, fi os.FileInfo, err error) error {
 		if err != nil {
 			return fmt.Errorf("error walking file '%s': %w", file, err)
 		}
-		return writeFile(tw, fi, file)
+		return a.writeFile(fi, file)
 	})
 }
 
-func writeFile(tw *tar.Writer, fi os.FileInfo, file string) error {
+func (a *archiver) writeFile(fi os.FileInfo, file string) error {
 	header, err := tar.FileInfoHeader(fi, file)
 	if err != nil {
 		return err
@@ -64,17 +72,17 @@ func writeFile(tw *tar.Writer, fi os.FileInfo, file string) error {
 	// (see https://golang.org/src/archive/tar/common.go?#L626)
 	header.Name = filepath.ToSlash(file)
 
-	// write header
-	if err := tw.WriteHeader(header); err != nil {
+	a.log.Info("adding file '%s' to policy bundle", file)
+	if err := a.tw.WriteHeader(header); err != nil {
 		return err
 	}
-	// if not a dir, write file content
+
 	if !fi.IsDir() {
 		data, err := os.Open(file)
 		if err != nil {
 			return err
 		}
-		if _, err := io.Copy(tw, data); err != nil {
+		if _, err := io.Copy(a.tw, data); err != nil {
 			return err
 		}
 	}
