@@ -11,8 +11,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/SAP/cloud-authorization-buildpack/pkg/archive"
 	"github.com/SAP/cloud-authorization-buildpack/pkg/client"
-	"github.com/SAP/cloud-authorization-buildpack/pkg/compressor"
 	"github.com/cloudfoundry/libbuildpack"
 	"github.com/go-playground/validator/v10"
 	"github.com/open-policy-agent/opa/download"
@@ -230,7 +230,7 @@ func (s *Supplier) uploadAuthzData(amsCreds AMSCredentials, cfg Config) error {
 		s.Log.Warning("this app will upload no authorization data (AMS_DATA empty or not set)")
 		return nil
 	}
-	buf, err := compressor.CreateArchive(path.Join(s.Stager.BuildDir(), cfg.Root), cfg.Directories)
+	buf, err := archive.CreateArchive(s.Log, path.Join(s.Stager.BuildDir(), cfg.Root), cfg.Directories)
 	if err != nil {
 		return fmt.Errorf("could not create policy bundle.tar.gz: %w", err)
 	}
@@ -249,10 +249,9 @@ func (s *Supplier) uploadAuthzData(amsCreds AMSCredentials, cfg Config) error {
 		return fmt.Errorf("bundle upload request unsuccessful: %w", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNotModified {
 		return fmt.Errorf("unexpected response status: '%s'", resp.Status)
 	}
-
 	return nil
 }
 
