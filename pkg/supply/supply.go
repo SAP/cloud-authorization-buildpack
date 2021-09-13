@@ -224,12 +224,13 @@ type Config struct {
 }
 
 func (s *Supplier) uploadAuthzData(amsCreds AMSCredentials, cfg Config) error {
+	s.Log.Info("creating policy archive..")
 	amsDataStr := os.Getenv("AMS_DATA")
 	if amsDataStr == "" {
 		s.Log.Warning("this app will upload no authorization data (AMS_DATA empty or not set)")
 		return nil
 	}
-	buf, err := compressor.CreateArchive(path.Join(s.BuildpackDir, cfg.Root), cfg.Directories)
+	buf, err := compressor.CreateArchive(path.Join(s.Stager.BuildDir(), cfg.Root), cfg.Directories)
 	if err != nil {
 		return fmt.Errorf("could not create policy bundle.tar.gz: %w", err)
 	}
