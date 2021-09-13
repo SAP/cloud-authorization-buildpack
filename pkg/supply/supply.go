@@ -19,15 +19,6 @@ import (
 	"github.com/open-policy-agent/opa/plugins/bundle"
 )
 
-type Stager interface {
-	//TODO: See more options at https://github.com/cloudfoundry/libbuildpack/blob/master/stager.go
-	BuildDir() string
-	DepDir() string
-	DepsIdx() string
-	DepsDir() string
-	WriteProfileD(string, string) error
-}
-
 type Manifest interface {
 	//TODO: See more options at https://github.com/cloudfoundry/libbuildpack/blob/master/manifest.go
 	AllDependencyVersions(string) []string
@@ -49,7 +40,7 @@ type Command interface {
 type Supplier struct {
 	Manifest     Manifest
 	Installer    Installer
-	Stager       Stager
+	Stager       *libbuildpack.Stager
 	Command      Command
 	Log          *libbuildpack.Logger
 	BuildpackDir string
@@ -79,6 +70,7 @@ type LaunchData struct {
 }
 
 func (s *Supplier) Run() error {
+	s.Log.BeginStep("Supplying OPA")
 	if err := s.supplyExecResource("opa"); err != nil {
 		return fmt.Errorf("could not supply opa binary: %w", err)
 	}
@@ -202,19 +194,7 @@ func (s *Supplier) loadAMSService() (AMSService, error) {
 }
 
 func (s *Supplier) supplyExecResource(resource string) error {
-	src, err := os.Open(path.Join(s.BuildpackDir, "resources", resource))
-	if err != nil {
-		return fmt.Errorf("could not read resource: %w", err)
-	}
-	dst, err := os.OpenFile(path.Join(s.Stager.DepDir(), resource), os.O_WRONLY|os.O_CREATE, 0755)
-	if err != nil {
-		return fmt.Errorf("could not create file for resource: %w", err)
-	}
-	_, err = io.Copy(dst, src)
-	if err != nil {
-		return fmt.Errorf("could not copy resource: %w", err)
-	}
-	return nil
+	return libbuildpack.CopyFile(path.Join(s.BuildpackDir, "resources", resource), path.Join(s.Stager.DepDir(), resource))
 }
 
 type AMSData struct {
