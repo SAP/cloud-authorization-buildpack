@@ -8,10 +8,11 @@ applications:
   memory: 128M
   instances: 1
   buildpacks:
-    - https://github.com/SAP/cloud-authorization-buildpack.git#sap_opa
+    - https://github.com/SAP/cloud-authorization-buildpack.git#rewrite
     - nodejs_buildpack
   services:
-    - ams
+    - ams-node-opa
+    - ias-node-opa
   health-check-type: process
   env:
     AMS_DATA:  >
