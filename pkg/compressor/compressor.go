@@ -20,6 +20,10 @@ func CreateArchive(root string, relativeDirs []string) (io.Reader, error) {
 			return nil, err
 		}
 	}
+	if err := addSchemaDCL(tw, root); err != nil {
+		return nil, err
+	}
+
 	if err := tw.Close(); err != nil {
 		return nil, err
 	}
@@ -29,34 +33,50 @@ func CreateArchive(root string, relativeDirs []string) (io.Reader, error) {
 	return &buf, nil
 }
 
+func addSchemaDCL(tw *tar.Writer, root string) error {
+	fp := path.Join(root, "schema.dcl")
+	fi, err := os.Stat(fp)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	return writeFile(tw, fi, fp)
+}
+
 func compressDir(dir string, tw *tar.Writer) error {
 	return filepath.Walk(dir, func(file string, fi os.FileInfo, err error) error {
 		if err != nil {
 			return fmt.Errorf("error walking file '%s': %w", file, err)
 		}
-		header, err := tar.FileInfoHeader(fi, file)
+		return writeFile(tw, fi, file)
+	})
+}
+
+func writeFile(tw *tar.Writer, fi os.FileInfo, file string) error {
+	header, err := tar.FileInfoHeader(fi, file)
+	if err != nil {
+		return err
+	}
+
+	// must provide real name
+	// (see https://golang.org/src/archive/tar/common.go?#L626)
+	header.Name = filepath.ToSlash(file)
+
+	// write header
+	if err := tw.WriteHeader(header); err != nil {
+		return err
+	}
+	// if not a dir, write file content
+	if !fi.IsDir() {
+		data, err := os.Open(file)
 		if err != nil {
 			return err
 		}
-
-		// must provide real name
-		// (see https://golang.org/src/archive/tar/common.go?#L626)
-		header.Name = filepath.ToSlash(file)
-
-		// write header
-		if err := tw.WriteHeader(header); err != nil {
+		if _, err := io.Copy(tw, data); err != nil {
 			return err
 		}
-		// if not a dir, write file content
-		if !fi.IsDir() {
-			data, err := os.Open(file)
-			if err != nil {
-				return err
-			}
-			if _, err := io.Copy(tw, data); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
+	}
+	return nil
 }
