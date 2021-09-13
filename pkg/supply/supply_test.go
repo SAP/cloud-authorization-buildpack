@@ -21,7 +21,6 @@ import (
 	"github.com/open-policy-agent/opa/config"
 	"github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/plugins/rest"
-	"github.com/otiai10/copy"
 	"gopkg.in/yaml.v2"
 )
 
@@ -47,7 +46,7 @@ var _ = Describe("Supply", func() {
 		Expect(err).To(BeNil())
 		buildDir, err = os.MkdirTemp("", "buildDir")
 		Expect(err).To(BeNil())
-		Expect(copy.Copy(path.Join("testdata", "policies"), path.Join(buildDir, "policies"))).To(Succeed())
+		Expect(libbuildpack.CopyDirectory(path.Join("testdata", "policies"), buildDir)).To(Succeed())
 
 		depsIdx = "42"
 		depDir = filepath.Join(depsDir, depsIdx)
