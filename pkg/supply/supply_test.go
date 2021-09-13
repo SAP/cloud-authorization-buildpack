@@ -175,7 +175,6 @@ var _ = Describe("Supply", func() {
 			files := getTgzFileNames(uploadReqSpy.Body)
 			Expect(files).To(ContainElements("policy0.dcl", "policy1.dcl", "schema.dcl"))
 		})
-
 		When("AMS_DATA is not set", func() {
 			BeforeEach(func() {
 				Expect(os.Unsetenv("AMS_DATA")).To(Succeed())
@@ -185,6 +184,20 @@ var _ = Describe("Supply", func() {
 				Expect(buffer.String()).To(ContainSubstring("upload no authorization data"))
 			})
 		})
+	})
+	When("service_name is set differently", func() {
+		BeforeEach(func() {
+			vcapServices = testdata.EnvWithAuthorizationDev
+			os.Setenv("AMS_DATA", `{
+				"root": "pkg/supply/testdata/policies",
+				"directories": ["myPolicies0", "myPolicies1"],
+				"service_name": "authorization-dev"
+            }`)
+		})
+		It("should succeed", func() {
+			Expect(supplier.Run()).To(Succeed())
+		})
+
 	})
 	When("VCAP_SERVICES is empty", func() {
 		JustBeforeEach(func() {
