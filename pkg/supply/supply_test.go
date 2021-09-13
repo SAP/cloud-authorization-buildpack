@@ -155,8 +155,8 @@ var _ = Describe("Supply", func() {
 			env, err := os.ReadFile(path.Join(depDir, "profile.d", "0000_opa_env.sh"))
 			Expect(err).NotTo(HaveOccurred())
 			expectIsExecutable(path.Join(depDir, "profile.d", "0000_opa_env.sh"))
-			Expect(env).To(ContainSubstring(fmt.Sprint(`export OPA_URL=`, "http://localhost:9888")))
-			Expect(env).To(ContainSubstring(fmt.Sprintf("export AWS_ACCESS_KEY_ID=myawstestaccesskeyid")))
+			Expect(string(env)).To(ContainSubstring(fmt.Sprint(`export OPA_URL=`, "http://localhost:9888")))
+			Expect(string(env)).To(ContainSubstring(fmt.Sprintf("export AWS_ACCESS_KEY_ID=myawstestaccesskeyid")))
 			//Expect(env).To(ContainSubstring(fmt.Sprint(`export opa_binary=`, path.Join(depDir,"opa"))))
 			//Expect(env).To(ContainSubstring(fmt.Sprint(`export opa_config=`, path.Join(depDir,"opa_config.yml"))))
 
@@ -185,13 +185,26 @@ var _ = Describe("Supply", func() {
 			})
 		})
 	})
-	When("service_name is set differently", func() {
+	When("service_name is set", func() {
 		BeforeEach(func() {
 			vcapServices = testdata.EnvWithAuthorizationDev
 			os.Setenv("AMS_DATA", `{
 				"root": "pkg/supply/testdata/policies",
 				"directories": ["myPolicies0", "myPolicies1"],
 				"service_name": "authorization-dev"
+            }`)
+		})
+		It("should succeed", func() {
+			Expect(supplier.Run()).To(Succeed())
+		})
+
+	})
+	When("the bound AMS service is user-provided", func() {
+		BeforeEach(func() {
+			vcapServices = testdata.EnvWithUserProvidedAuthorization
+			os.Setenv("AMS_DATA", `{
+				"root": "pkg/supply/testdata/policies",
+				"directories": ["myPolicies0", "myPolicies1"]
             }`)
 		})
 		It("should succeed", func() {

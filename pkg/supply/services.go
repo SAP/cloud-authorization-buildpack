@@ -1,8 +1,11 @@
 package supply
 
+import "encoding/json"
+
 type Service struct {
-	Name string `json:"name"`
-	URL  string `json:"url"`
+	Name        string          `json:"name"`
+	Tags        []string        `json:"tags"`
+	Credentials json.RawMessage `json"credentials"`
 }
 
 type vcapServices map[string]interface{}
@@ -29,14 +32,11 @@ type ObjectStoreCredentials struct {
 //	Subject     string                 `json:"authorization_value_help_certificate_subject"`
 //}
 
-type AMSCredentialsOld struct {
+// This is the old way of marshaling creds
+type AMSCredentials struct {
 	UIURL       string                 `json:"ui_url"`
 	ObjectStore ObjectStoreCredentials `json:"object_store"`
 	Issuer      string                 `json:"value_help_certificate_issuer"`
 	Subject     string                 `json:"value_help_certificate_subject"`
-}
-
-type AMSService struct {
-	Service
-	Credentials AMSCredentialsOld `json:"credentials"`
+	URL         string                 `json:"url"`
 }

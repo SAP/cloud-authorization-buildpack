@@ -7,7 +7,6 @@ require (
 	github.com/cloudfoundry/libbuildpack v0.0.0-20210726164432-80929621d448
 	github.com/go-playground/validator/v10 v10.9.0
 	github.com/golang/mock v1.6.0
-	github.com/mitchellh/mapstructure v1.4.1
 	github.com/onsi/ginkgo v1.16.4
 	github.com/onsi/gomega v1.16.0
 	github.com/open-policy-agent/opa v0.32.0
