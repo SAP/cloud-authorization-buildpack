@@ -173,7 +173,7 @@ var _ = Describe("Supply", func() {
 			Expect(supplier.Run()).To(Succeed())
 			Expect(uploadReqSpy.Body).NotTo(BeNil())
 			files := getTgzFileNames(uploadReqSpy.Body)
-			Expect(files).To(ContainElements("policy0.dcl", "policy1.dcl"))
+			Expect(files).To(ContainElements("policy0.dcl", "policy1.dcl", "schema.dcl"))
 		})
 
 		When("AMS_DATA is not set", func() {
