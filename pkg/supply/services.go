@@ -5,15 +5,8 @@ import "encoding/json"
 type Service struct {
 	Name        string          `json:"name"`
 	Tags        []string        `json:"tags"`
-	Credentials json.RawMessage `json"credentials"`
+	Credentials json.RawMessage `json:"credentials"`
 }
-
-type vcapServices map[string]interface{}
-
-//struct {
-//	Identity env.Identity `json:"identity",omitempty`
-//	AMS	AMS `json:`
-//}
 
 type ObjectStoreCredentials struct {
 	AccessKeyID     string `json:"access_key_id"`
