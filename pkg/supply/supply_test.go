@@ -6,7 +6,6 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"io/fs"
 	"net/http"
@@ -156,11 +155,8 @@ var _ = Describe("Supply", func() {
 			env, err := os.ReadFile(path.Join(depDir, "profile.d", "0000_opa_env.sh"))
 			Expect(err).NotTo(HaveOccurred())
 			expectIsExecutable(path.Join(depDir, "profile.d", "0000_opa_env.sh"))
-			Expect(string(env)).To(ContainSubstring(fmt.Sprint(`export OPA_URL=`, "http://localhost:9888")))
-			Expect(string(env)).To(ContainSubstring(fmt.Sprintf("export AWS_ACCESS_KEY_ID=myawstestaccesskeyid")))
-			//Expect(env).To(ContainSubstring(fmt.Sprint(`export opa_binary=`, path.Join(depDir,"opa"))))
-			//Expect(env).To(ContainSubstring(fmt.Sprint(`export opa_config=`, path.Join(depDir,"opa_config.yml"))))
-
+			Expect(string(env)).To(ContainSubstring(`export OPA_URL=http://localhost:9888`))
+			Expect(string(env)).To(ContainSubstring("export AWS_ACCESS_KEY_ID=myawstestaccesskeyid"))
 		})
 		It("provides the OPA executable", func() {
 			Expect(supplier.Run()).To(Succeed())

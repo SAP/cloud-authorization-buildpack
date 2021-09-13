@@ -19,6 +19,8 @@ import (
 	"github.com/open-policy-agent/opa/plugins/bundle"
 )
 
+const ServiceName = "authorization"
+
 type Manifest interface {
 	//TODO: See more options at https://github.com/cloudfoundry/libbuildpack/blob/master/manifest.go
 	AllDependencyVersions(string) []string
@@ -195,7 +197,7 @@ func (s *Supplier) loadAMSCredentials(log *libbuildpack.Logger, cfg Config) (AMS
 	if ups, ok := svcs["user-provided"]; ok {
 		for i, up := range ups {
 			for _, t := range up.Tags {
-				if t == "authorization" {
+				if t == ServiceName {
 					log.Info("Detected user-provided authorization service '%s", ups[i].Name)
 					rawAmsCreds = append(rawAmsCreds, ups[i].Credentials)
 				}
@@ -234,12 +236,12 @@ func (s *Supplier) uploadAuthzData(amsCreds AMSCredentials, cfg Config) error {
 	if err != nil {
 		return fmt.Errorf("could not create policy bundle.tar.gz: %w", err)
 	}
-	url, err := url.Parse(amsCreds.URL)
+	u, err := url.Parse(amsCreds.URL)
 	if err != nil {
 		return fmt.Errorf("invalid AMS URL ('%s'): %w", amsCreds.URL, err)
 	}
-	url.Path = path.Join(url.Path, "/sap/ams/v1/bundles/SAP.tar.gz")
-	r, err := http.NewRequest(http.MethodPost, url.String(), buf)
+	u.Path = path.Join(u.Path, "/sap/ams/v1/bundles/SAP.tar.gz")
+	r, err := http.NewRequest(http.MethodPost, u.String(), buf)
 	if err != nil {
 		return fmt.Errorf("could not create bundle upload request %w", err)
 	}
@@ -259,7 +261,7 @@ func (s *Supplier) loadBuildpackConfig() (Config, error) {
 	cfgStr := os.Getenv("AMS_DATA")
 	if cfgStr == "" {
 		s.Log.Warning("this app will upload no authorization data (AMS_DATA empty or not set)")
-		return Config{ServiceName: "authorization"}, nil
+		return Config{ServiceName: ServiceName}, nil
 	}
 	var cfg Config
 	if err := json.Unmarshal([]byte(cfgStr), &cfg); err != nil {
@@ -270,7 +272,7 @@ func (s *Supplier) loadBuildpackConfig() (Config, error) {
 		return Config{}, fmt.Errorf("invalid AMS_DATA: %w", err)
 	}
 	if cfg.ServiceName == "" {
-		cfg.ServiceName = "authorization"
+		cfg.ServiceName = ServiceName
 	}
 	return cfg, nil
 }
