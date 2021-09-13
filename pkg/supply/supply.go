@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -156,17 +155,9 @@ func (s *Supplier) writeOpaConfig(osCreds ObjectStoreCredentials) error {
 		Bundles:  bundles,
 		Services: services,
 	}
-	opaConfigBytes, err := json.Marshal(cfg)
-	if err != nil {
-		return fmt.Errorf("could not marshal bundle config: %w", err)
-	}
-	log.Println(string(opaConfigBytes))
+
 	filePath := path.Join(s.Stager.DepDir(), "opa_config.yml")
-	err = os.WriteFile(filePath, opaConfigBytes, 0644)
-	if err != nil {
-		return fmt.Errorf("could not write file to '%s': %w", filePath, err)
-	}
-	return nil
+	return libbuildpack.NewJSON().Write(filePath, cfg)
 }
 
 func (s *Supplier) writeLaunchConfig() error {
@@ -181,16 +172,8 @@ func (s *Supplier) writeLaunchConfig() error {
 			},
 		},
 	}
-	launchDataBytes, err := json.Marshal(launchData)
-	if err != nil {
-		return fmt.Errorf("could not marshal process config: %w", err)
-	}
 	filePath := path.Join(s.Stager.DepDir(), "launch.yml")
-	err = os.WriteFile(filePath, launchDataBytes, 0644)
-	if err != nil {
-		return fmt.Errorf("could not write file to '%s': %w", filePath, err)
-	}
-	return nil
+	return libbuildpack.NewJSON().Write(filePath, launchData)
 }
 
 func (s *Supplier) loadAMSService() (AMSService, error) {
