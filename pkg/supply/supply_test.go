@@ -1,8 +1,11 @@
 package supply_test
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -28,6 +31,7 @@ import (
 
 var _ = Describe("Supply", func() {
 	var (
+		uploadReqSpy  *http.Request
 		err           error
 		buildDir      string
 		depsDir       string
@@ -59,8 +63,10 @@ var _ = Describe("Supply", func() {
 
 		mockCtrl = gomock.NewController(GinkgoT())
 		mockAMSClient = NewMockAMSClient(mockCtrl)
-		mockAMSClient.EXPECT().Do(gomock.Any()).
-			Return(&http.Response{StatusCode: 200, Body: io.NopCloser(nil)}, nil).AnyTimes()
+		mockAMSClient.EXPECT().Do(gomock.Any()).DoAndReturn(func(req *http.Request) (*http.Response, error) {
+			uploadReqSpy = req
+			return &http.Response{StatusCode: 200, Body: io.NopCloser(nil)}, nil
+		}).AnyTimes()
 	})
 
 	JustBeforeEach(func() {
@@ -163,19 +169,11 @@ var _ = Describe("Supply", func() {
 			Expect(supplier.Run()).To(Succeed())
 			expectIsExecutable(filepath.Join(depDir, "start_opa.sh"))
 		})
-		Context("policy bundle", func() {
-			var amsRequestSpy *http.Request
-			BeforeEach(func() {
-				mockAMSClient = NewMockAMSClient(mockCtrl)
-				mockAMSClient.EXPECT().Do(gomock.Any()).DoAndReturn(func(req *http.Request) (*http.Response, error) {
-					amsRequestSpy = req
-					return &http.Response{StatusCode: 200, Body: io.NopCloser(nil)}, nil
-				}).AnyTimes()
-			})
-			It("uploads files in a bundle", func() {
-				Expect(supplier.Run()).To(Succeed())
-				Expect(amsRequestSpy.Body).NotTo(BeNil())
-			})
+		It("uploads files in a bundle", func() {
+			Expect(supplier.Run()).To(Succeed())
+			Expect(uploadReqSpy.Body).NotTo(BeNil())
+			files := getTgzFileNames(uploadReqSpy.Body)
+			Expect(files).To(ContainElements("policy0.dcl", "policy1.dcl"))
 		})
 
 		When("AMS_DATA is not set", func() {
@@ -204,4 +202,28 @@ func expectIsExecutable(fp string) {
 	Expect(err).NotTo(HaveOccurred())
 	//Check if executable by all
 	Expect(fi.Mode().Perm() & 0111).To(Equal(fs.FileMode(0111)))
+}
+
+func getTgzFileNames(r io.Reader) []string {
+	var files []string
+	gzReader, err := gzip.NewReader(r)
+	Expect(err).NotTo(HaveOccurred())
+	defer gzReader.Close()
+	tarGzReader := tar.NewReader(gzReader)
+	for {
+		header, err := tarGzReader.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		Expect(err).NotTo(HaveOccurred())
+		switch header.Typeflag {
+		case tar.TypeReg:
+			files = append(files, path.Base(header.Name))
+			Expect(err).NotTo(HaveOccurred())
+		case tar.TypeDir:
+		default:
+			Expect(err).NotTo(HaveOccurred())
+		}
+	}
+	return files
 }
