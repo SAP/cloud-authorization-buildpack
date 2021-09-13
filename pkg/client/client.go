@@ -12,10 +12,6 @@ type AMSClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-//type client struct {
-//	http.Client
-//}
-
 func NewAMSClient() (AMSClient, error) {
 	crt, err := tls.LoadX509KeyPair(os.Getenv("CF_INSTANCE_CERT"), os.Getenv("CF_INSTANCE_KEY"))
 	if err != nil {

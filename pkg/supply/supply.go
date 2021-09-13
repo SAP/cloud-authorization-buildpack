@@ -12,7 +12,9 @@ import (
 	"path"
 
 	"github.com/SAP/cloud-authorization-buildpack/pkg/client"
+	"github.com/SAP/cloud-authorization-buildpack/pkg/compressor"
 	"github.com/cloudfoundry/libbuildpack"
+	"github.com/go-playground/validator/v10"
 	"github.com/mitchellh/mapstructure"
 	"github.com/open-policy-agent/opa/download"
 	"github.com/open-policy-agent/opa/plugins/bundle"
@@ -243,17 +245,36 @@ func (s *Supplier) supplyExecResource(resource string) error {
 	return nil
 }
 
+type AMSData struct {
+	Root        string   `json:"root" validate:"required"`
+	Directories []string `json:"directories" validate:"required,gt=0,dive,required"`
+	ServiceName string   `json:"service_name"`
+}
+
 func (s *Supplier) uploadAuthzData(ams AMSService) error {
-	amsData := os.Getenv("AMS_DATA")
-	if amsData == "" {
+	amsDataStr := os.Getenv("AMS_DATA")
+	if amsDataStr == "" {
 		s.Log.Warning("this app will upload no authorization data (AMS_DATA empty or not set)")
+		return nil
+	}
+	var amsData AMSData
+	if err := json.Unmarshal([]byte(amsDataStr), &amsData); err != nil {
+		return fmt.Errorf("could not unmarshal AMS_DATA: %w", err)
+	}
+	v := validator.New()
+	if err := v.Struct(amsData); err != nil {
+		return fmt.Errorf("invalid AMS_DATA: %w", err)
+	}
+	buf, err := compressor.CreateArchive(path.Join(s.BuildpackDir, amsData.Root), amsData.Directories)
+	if err != nil {
+		return fmt.Errorf("could not create policy bundle.tar.gz: %w", err)
 	}
 	url, err := url.Parse(ams.URL)
 	if err != nil {
 		return fmt.Errorf("invalid AMS URL ('%s'): %w", ams.URL, err)
 	}
 	url.Path = path.Join(url.Path, "/sap/ams/v1/bundles/SAP.tar.gz")
-	r, err := http.NewRequest(http.MethodPost, url.String(), nil)
+	r, err := http.NewRequest(http.MethodPost, url.String(), buf)
 	if err != nil {
 		return fmt.Errorf("could not create bundle upload request %w", err)
 	}
