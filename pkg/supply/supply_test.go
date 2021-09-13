@@ -50,7 +50,8 @@ var _ = Describe("Supply", func() {
 		Expect(err).To(BeNil())
 		buildDir, err = os.MkdirTemp("", "buildDir")
 		Expect(err).To(BeNil())
-		Expect(libbuildpack.CopyDirectory(path.Join("testdata", "policies"), buildDir)).To(Succeed())
+		Expect(os.MkdirAll(path.Join(buildDir, "policies"), os.ModePerm)).To(Succeed())
+		Expect(libbuildpack.CopyDirectory(path.Join("testdata", "policies"), path.Join(buildDir, "policies"))).To(Succeed())
 
 		depsIdx = "42"
 		depDir = filepath.Join(depsDir, depsIdx)
@@ -99,7 +100,7 @@ var _ = Describe("Supply", func() {
 		BeforeEach(func() {
 			vcapServices = testdata.EnvWithAuthorization
 			os.Setenv("AMS_DATA", `{
-              "root": "pkg/supply/testdata/policies",
+              "root": "policies",
               "directories": ["myPolicies0", "myPolicies1"]
             }`)
 		})
@@ -189,7 +190,7 @@ var _ = Describe("Supply", func() {
 		BeforeEach(func() {
 			vcapServices = testdata.EnvWithAuthorizationDev
 			os.Setenv("AMS_DATA", `{
-				"root": "pkg/supply/testdata/policies",
+				"root": "/policies",
 				"directories": ["myPolicies0", "myPolicies1"],
 				"service_name": "authorization-dev"
             }`)
@@ -203,7 +204,7 @@ var _ = Describe("Supply", func() {
 		BeforeEach(func() {
 			vcapServices = testdata.EnvWithUserProvidedAuthorization
 			os.Setenv("AMS_DATA", `{
-				"root": "pkg/supply/testdata/policies",
+				"root": "/policies",
 				"directories": ["myPolicies0", "myPolicies1"]
             }`)
 		})
