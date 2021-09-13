@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"os"
@@ -31,13 +32,14 @@ func CreateArchive(log *libbuildpack.Logger, root string, relativeDirs []string)
 	if err := a.addSchemaDCL(root); err != nil {
 		return nil, err
 	}
-
 	if err := tw.Close(); err != nil {
 		return nil, err
 	}
 	if err := zr.Close(); err != nil {
 		return nil, err
 	}
+
+	a.log.Debug("uploaded tar: ", base64.StdEncoding.EncodeToString(buf.Bytes()))
 	return &buf, nil
 }
 
@@ -72,12 +74,12 @@ func (a *archiver) writeFile(fi os.FileInfo, file string) error {
 	// (see https://golang.org/src/archive/tar/common.go?#L626)
 	header.Name = filepath.ToSlash(file)
 
-	a.log.Info("adding file '%s' to policy bundle", file)
 	if err := a.tw.WriteHeader(header); err != nil {
 		return err
 	}
 
 	if !fi.IsDir() {
+		a.log.Info("adding file '%s' to policy bundle", file)
 		data, err := os.Open(file)
 		if err != nil {
 			return err
