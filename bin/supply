@@ -13,6 +13,8 @@ output_dir=$(mktemp -d -t supplyXXX)
 echo "-----> Running go build supply"
 pushd $BUILDPACK_DIR
 GOROOT=$GoInstallDir $GoInstallDir/bin/go build -o $output_dir/supply ./cmd/supply
-
+echo "Finished compilation"
+ls -la
+pwd
+echo "running supply"
 $output_dir/supply "$BUILD_DIR" "$CACHE_DIR" "$DEPS_DIR" "$DEPS_IDX"
-chmod +x
