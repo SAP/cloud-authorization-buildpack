@@ -94,8 +94,8 @@ var _ = Describe("Supply", func() {
 		BeforeEach(func() {
 			vcapServices = testdata.EnvWithAuthorization
 			os.Setenv("AMS_DATA", `{
-              "root": "policies",
-              "directories": ["myPolicies0", "myPolicies1"],
+              "root": "pkg/supply/testdata/policies",
+              "directories": ["myPolicies0", "myPolicies1"]
             }`)
 		})
 		It("creates a valid launch.yml", func() {
@@ -164,6 +164,21 @@ var _ = Describe("Supply", func() {
 			Expect(supplier.Run()).To(Succeed())
 			expectIsExecutable(filepath.Join(depDir, "start_opa.sh"))
 		})
+		Context("policy bundle", func() {
+			var amsRequestSpy *http.Request
+			BeforeEach(func() {
+				mockAMSClient = NewMockAMSClient(mockCtrl)
+				mockAMSClient.EXPECT().Do(gomock.Any()).DoAndReturn(func(req *http.Request) (*http.Response, error) {
+					amsRequestSpy = req
+					return &http.Response{StatusCode: 200, Body: io.NopCloser(nil)}, nil
+				}).AnyTimes()
+			})
+			It("uploads files in a bundle", func() {
+				Expect(supplier.Run()).To(Succeed())
+				Expect(amsRequestSpy.Body).NotTo(BeNil())
+			})
+		})
+
 		When("AMS_DATA is not set", func() {
 			BeforeEach(func() {
 				Expect(os.Unsetenv("AMS_DATA")).To(Succeed())
