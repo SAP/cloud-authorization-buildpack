@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 
 	"github.com/SAP/cloud-authorization-buildpack/pkg/client"
@@ -119,10 +120,22 @@ type OPAConfig struct {
 
 func (s *Supplier) writeProfileDFile(amsCreds AMSCredentials) error {
 	s.Log.Info("writing profileD file..")
+	opaPort := 9888
+	//TODO: I removed setting log level to DEbug, because why do it
+	values := map[string]string{
+		"AWS_ACCESS_KEY_ID":     amsCreds.ObjectStore.AccessKeyID,
+		"AWS_SECRET_ACCESS_KEY": amsCreds.ObjectStore.SecretAccessKey,
+		"AWS_REGION":            amsCreds.ObjectStore.Region,
+		"opa_binary":            path.Join(s.Stager.DepDir(), "opa"),
+		"opa_config":            path.Join(s.Stager.DepDir(), "opa_config.yml"),
+		"OPA_URL":               fmt.Sprintf("http://localhost:%d/", opaPort),
+		"OPA_PORT":              strconv.Itoa(opaPort),
+		"ADC_URL":               fmt.Sprintf("http://localhost:%d/", opaPort),
+	}
 	var b strings.Builder
-	b.WriteString("export OPA_URL=http://localhost:9888\n")
-	b.WriteString(fmt.Sprintf("export AWS_ACCESS_KEY_ID=%s\n", amsCreds.ObjectStore.AccessKeyID))
-
+	for k, v := range values {
+		b.WriteString(fmt.Sprintf("export %s=%s\n", k, v))
+	}
 	return s.Stager.WriteProfileD("0000_opa_env.sh", b.String())
 }
 
