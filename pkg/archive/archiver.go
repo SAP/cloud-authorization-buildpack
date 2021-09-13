@@ -15,15 +15,16 @@ import (
 )
 
 type archiver struct {
-	tw  *tar.Writer
-	log *libbuildpack.Logger
+	tw   *tar.Writer
+	log  *libbuildpack.Logger
+	root string
 }
 
 func CreateArchive(log *libbuildpack.Logger, root string, relativeDirs []string) (io.Reader, error) {
 	var buf bytes.Buffer
 	zr := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(zr)
-	a := archiver{tw, log}
+	a := archiver{tw, log, root}
 	for _, dir := range relativeDirs {
 		if err := a.compressDir(path.Join(root, dir)); err != nil {
 			return nil, err
@@ -65,14 +66,16 @@ func (a *archiver) compressDir(dir string) error {
 }
 
 func (a *archiver) writeFile(fi os.FileInfo, file string) error {
-	header, err := tar.FileInfoHeader(fi, file)
+	relPath, err := filepath.Rel(a.root, file)
+	if err != nil {
+		return err
+	}
+	header, err := tar.FileInfoHeader(fi, relPath)
 	if err != nil {
 		return err
 	}
 
-	// must provide real name
-	// (see https://golang.org/src/archive/tar/common.go?#L626)
-	header.Name = filepath.ToSlash(file)
+	header.Name = filepath.ToSlash(relPath)
 
 	if err := a.tw.WriteHeader(header); err != nil {
 		return err
