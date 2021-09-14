@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/cloudfoundry/libbuildpack"
 )
@@ -66,6 +67,9 @@ func (a *archiver) compressDir(dir string) error {
 }
 
 func (a *archiver) writeFile(fi os.FileInfo, file string) error {
+	if !fi.IsDir() && !strings.HasSuffix(file, ".dcl") && !strings.HasSuffix(file, ".json") {
+		return nil
+	}
 	relPath, err := filepath.Rel(a.root, file)
 	if err != nil {
 		return err
