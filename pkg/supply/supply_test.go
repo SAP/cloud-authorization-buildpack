@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"code.cloudfoundry.org/buildpackapplifecycle/buildpackrunner/resources"
 	"github.com/SAP/cloud-authorization-buildpack/pkg/supply"
@@ -180,6 +181,21 @@ var _ = Describe("Supply", func() {
 			It("creates a warning", func() {
 				Expect(supplier.Run()).To(Succeed())
 				Expect(buffer.String()).To(ContainSubstring("upload no authorization data"))
+			})
+		})
+		When("the AMS server returns an error", func() {
+			BeforeEach(func() {
+				mockAMSClient = NewMockAMSClient(mockCtrl)
+				mockAMSClient.EXPECT().Do(gomock.Any()).DoAndReturn(func(req *http.Request) (*http.Response, error) {
+					uploadReqSpy = req
+					return &http.Response{StatusCode: 400, Body: io.NopCloser(strings.NewReader("your policy is broken"))}, nil
+				}).AnyTimes()
+
+			})
+			It("should log the response body", func() {
+				err := supplier.Run()
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("your policy is broken"))
 			})
 		})
 	})
