@@ -252,7 +252,7 @@ func (s *Supplier) uploadAuthzData(amsCreds AMSCredentials, cfg Config) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNotModified {
-		return fmt.Errorf("unexpected response status: '%s'", resp.Status)
+		return fmt.Errorf("unexpected response: status(%s) body(%s)", resp.Status, resp.Body)
 	}
 	return nil
 }
