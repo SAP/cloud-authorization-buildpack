@@ -220,9 +220,8 @@ func (s *Supplier) supplyExecResource(resource string) error {
 }
 
 type Config struct {
-	Root        string   `json:"root" validate:"required"`
-	Directories []string `json:"directories" validate:"required,gt=0,dive,required"`
-	ServiceName string   `json:"service_name"`
+	Root        string `json:"root" validate:"required"`
+	ServiceName string `json:"service_name"`
 }
 
 func (s *Supplier) uploadAuthzData(amsCreds AMSCredentials, cfg Config) error {
@@ -232,7 +231,7 @@ func (s *Supplier) uploadAuthzData(amsCreds AMSCredentials, cfg Config) error {
 		s.Log.Warning("this app will upload no authorization data (AMS_DATA empty or not set)")
 		return nil
 	}
-	buf, err := archive.CreateArchive(s.Log, path.Join(s.Stager.BuildDir(), cfg.Root), cfg.Directories)
+	buf, err := archive.CreateArchive(s.Log, path.Join(s.Stager.BuildDir(), cfg.Root))
 	if err != nil {
 		return fmt.Errorf("could not create policy bundle.tar.gz: %w", err)
 	}
