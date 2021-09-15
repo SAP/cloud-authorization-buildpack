@@ -5,12 +5,13 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/base64"
-	"fmt"
 	"io"
+	"strings"
+
+	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
-	"strings"
 
 	"github.com/cloudfoundry/libbuildpack"
 )
@@ -21,18 +22,40 @@ type archiver struct {
 	root string
 }
 
-func CreateArchive(log *libbuildpack.Logger, root string, relativeDirs []string) (io.Reader, error) {
+type archiveContent struct {
+	header *tar.Header
+	file   string
+}
+
+func CreateArchive(log *libbuildpack.Logger, root string) (io.Reader, error) {
 	var buf bytes.Buffer
 	zr := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(zr)
 	a := archiver{tw, log, root}
-	for _, dir := range relativeDirs {
-		if err := a.compressDir(path.Join(root, dir)); err != nil {
+
+	rootInfo, err := os.Lstat(root)
+	if err != nil {
+		return nil, err
+	}
+
+	content, err := a.crawDCLs(rootInfo, root)
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range *content {
+		if err := a.tw.WriteHeader(c.header); err != nil {
 			return nil, err
 		}
-	}
-	if err := a.addSchemaDCL(root); err != nil {
-		return nil, err
+		if c.file != "" {
+			a.log.Info("adding file '%s' to policy bundle", c.file)
+			data, err := os.Open(c.file)
+			if err != nil {
+				return nil, err
+			}
+			if _, err := io.Copy(a.tw, data); err != nil {
+				return nil, err
+			}
+		}
 	}
 	if err := tw.Close(); err != nil {
 		return nil, err
@@ -45,55 +68,53 @@ func CreateArchive(log *libbuildpack.Logger, root string, relativeDirs []string)
 	return &buf, nil
 }
 
-func (a *archiver) addSchemaDCL(root string) error {
-	fp := path.Join(root, "schema.dcl")
-	fi, err := os.Stat(fp)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		return err
-	}
-	return a.writeFile(fi, fp)
-}
-
-func (a *archiver) compressDir(dir string) error {
-	return filepath.Walk(dir, func(file string, fi os.FileInfo, err error) error {
+func (a *archiver) crawDCLs(fi os.FileInfo, file string) (*[]archiveContent, error) {
+	var archive []archiveContent
+	if fi.IsDir() {
+		content, err := ioutil.ReadDir(file)
 		if err != nil {
-			return fmt.Errorf("error walking file '%s': %w", file, err)
+			return nil, err
 		}
-		return a.writeFile(fi, file)
-	})
+		for _, cfi := range content {
+
+			carchive, err := a.crawDCLs(cfi, path.Join(file, cfi.Name()))
+			if err != nil {
+				return nil, err
+			}
+			archive = append(archive, *carchive...)
+		}
+		if len(archive) > 0 && file != a.root {
+			ce, err := a.createContentEntry(fi, file)
+			if err != nil {
+				return nil, err
+			}
+			archive = append(*ce, archive...)
+		}
+		return &archive, nil
+	} else {
+		return a.createContentEntry(fi, file)
+	}
+
 }
 
-func (a *archiver) writeFile(fi os.FileInfo, file string) error {
+func (a *archiver) createContentEntry(fi os.FileInfo, file string) (*[]archiveContent, error) {
+	var resultLine archiveContent
 	if !fi.IsDir() && !strings.HasSuffix(file, ".dcl") && !strings.HasSuffix(file, ".json") {
-		return nil
+		return &[]archiveContent{}, nil
 	}
+
 	relPath, err := filepath.Rel(a.root, file)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	header, err := tar.FileInfoHeader(fi, relPath)
+	resultLine.header, err = tar.FileInfoHeader(fi, relPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	header.Name = filepath.ToSlash(relPath)
-
-	if err := a.tw.WriteHeader(header); err != nil {
-		return err
-	}
-
+	resultLine.header.Name = filepath.ToSlash(relPath)
 	if !fi.IsDir() {
-		a.log.Info("adding file '%s' to policy bundle", file)
-		data, err := os.Open(file)
-		if err != nil {
-			return err
-		}
-		if _, err := io.Copy(a.tw, data); err != nil {
-			return err
-		}
+		resultLine.file = file
 	}
-	return nil
+	return &[]archiveContent{resultLine}, nil
 }

@@ -100,8 +100,7 @@ var _ = Describe("Supply", func() {
 		BeforeEach(func() {
 			vcapServices = testdata.EnvWithAuthorization
 			os.Setenv("AMS_DATA", `{
-              "root": "policies",
-              "directories": ["myPolicies0", "myPolicies1"]
+              "root": "policies"
             }`)
 		})
 		It("creates a valid launch.yml", func() {
