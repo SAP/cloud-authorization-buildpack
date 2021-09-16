@@ -38,7 +38,7 @@ func CreateArchive(log *libbuildpack.Logger, root string) (io.Reader, error) {
 		return nil, err
 	}
 
-	content, err := a.crawDCLs(rootInfo, root)
+	content, err := a.crawlDCLs(rootInfo, root)
 	if err != nil {
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func CreateArchive(log *libbuildpack.Logger, root string) (io.Reader, error) {
 	return &buf, nil
 }
 
-func (a *archiver) crawDCLs(fi os.FileInfo, file string) (*[]archiveContent, error) {
+func (a *archiver) crawlDCLs(fi os.FileInfo, file string) (*[]archiveContent, error) {
 	var archive []archiveContent
 	if fi.IsDir() {
 		content, err := ioutil.ReadDir(file)
@@ -77,7 +77,7 @@ func (a *archiver) crawDCLs(fi os.FileInfo, file string) (*[]archiveContent, err
 		}
 		for _, cfi := range content {
 
-			carchive, err := a.crawDCLs(cfi, path.Join(file, cfi.Name()))
+			carchive, err := a.crawlDCLs(cfi, path.Join(file, cfi.Name()))
 			if err != nil {
 				return nil, err
 			}
@@ -98,7 +98,7 @@ func (a *archiver) crawDCLs(fi os.FileInfo, file string) (*[]archiveContent, err
 }
 
 func (a *archiver) createContentEntry(fi os.FileInfo, file string) (*[]archiveContent, error) {
-	var resultLine archiveContent
+	var result archiveContent
 	if !fi.IsDir() && !strings.HasSuffix(file, ".dcl") && !strings.HasSuffix(file, ".json") {
 		return &[]archiveContent{}, nil
 	}
@@ -107,14 +107,14 @@ func (a *archiver) createContentEntry(fi os.FileInfo, file string) (*[]archiveCo
 	if err != nil {
 		return nil, err
 	}
-	resultLine.header, err = tar.FileInfoHeader(fi, relPath)
+	result.header, err = tar.FileInfoHeader(fi, relPath)
 	if err != nil {
 		return nil, err
 	}
 
-	resultLine.header.Name = filepath.ToSlash(relPath)
+	result.header.Name = filepath.ToSlash(relPath)
 	if !fi.IsDir() {
-		resultLine.file = file
+		result.file = file
 	}
-	return &[]archiveContent{resultLine}, nil
+	return &[]archiveContent{result}, nil
 }
