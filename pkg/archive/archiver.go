@@ -99,7 +99,7 @@ func (a *archiver) crawlDCLs(fi os.FileInfo, file string) (*[]archiveContent, er
 
 func (a *archiver) createContentEntry(fi os.FileInfo, file string) (*[]archiveContent, error) {
 	var result archiveContent
-	if !fi.IsDir() && !strings.HasSuffix(file, ".dcl") && !strings.HasSuffix(file, ".json") {
+	if !fi.IsDir() && !strings.HasSuffix(file, ".dcl") {
 		return &[]archiveContent{}, nil
 	}
 
