@@ -203,7 +203,6 @@ var _ = Describe("Supply", func() {
 			vcapServices = testdata.EnvWithAuthorizationDev
 			os.Setenv("AMS_DATA", `{
 				"root": "/policies",
-				"directories": ["myPolicies0", "myPolicies1"],
 				"service_name": "authorization-dev"
             }`)
 		})
@@ -216,8 +215,7 @@ var _ = Describe("Supply", func() {
 		BeforeEach(func() {
 			vcapServices = testdata.EnvWithUserProvidedAuthorization
 			os.Setenv("AMS_DATA", `{
-				"root": "/policies",
-				"directories": ["myPolicies0", "myPolicies1"]
+				"root": "/policies"
             }`)
 		})
 		It("should succeed", func() {
