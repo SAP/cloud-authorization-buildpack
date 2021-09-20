@@ -47,7 +47,7 @@ func CreateArchive(log *libbuildpack.Logger, root string) (io.Reader, error) {
 			return nil, err
 		}
 		if c.file != "" {
-			a.log.Info("adding file '%s' to policy bundle", c.file)
+			a.log.Info("adding file '%s' to policy bundle", c.header.Name)
 			data, err := os.Open(c.file)
 			if err != nil {
 				return nil, err
