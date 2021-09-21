@@ -226,11 +226,9 @@ type Config struct {
 
 func (s *Supplier) uploadAuthzData(amsCreds AMSCredentials, cfg Config) error {
 	s.Log.Info("creating policy archive..")
-	_, amsDataSet := os.LookupEnv("AMS_DATA")
-	_, amsRootSet := os.LookupEnv("AMS_DCL_ROOT")
 
-	if !amsDataSet && !amsRootSet {
-		s.Log.Warning("this app will upload no authorization data (AMS_DATA empty or not set)")
+	if cfg.Root == "" {
+		s.Log.Warning("this app will upload no authorization data (AMS_DATA.root and AMS_DCL_ROOT empty or not set)")
 		return nil
 	}
 	buf, err := archive.CreateArchive(s.Log, path.Join(s.Stager.BuildDir(), cfg.Root))
