@@ -258,13 +258,14 @@ func (s *Supplier) uploadAuthzData(amsCreds AMSCredentials, cfg Config) error {
 
 func (s *Supplier) loadBuildpackConfig() (Config, error) {
 	var cfg Config
+
+	serviceName := os.Getenv("AMS_SERVICE")
+	if serviceName == "" {
+		serviceName = ServiceName
+	}
 	dclRoot := os.Getenv("AMS_DCL_ROOT")
 	if dclRoot != "" {
 		cfg.Root = dclRoot
-		serviceName := os.Getenv("AMS_SERVICE")
-		if serviceName == "" {
-			serviceName = ServiceName
-		}
 		cfg.ServiceName = serviceName
 		return cfg, nil
 	}
@@ -283,7 +284,7 @@ func (s *Supplier) loadBuildpackConfig() (Config, error) {
 		return Config{}, fmt.Errorf("invalid AMS_DATA: %w", err)
 	}
 	if cfg.ServiceName == "" {
-		cfg.ServiceName = ServiceName
+		cfg.ServiceName = serviceName
 	}
 	return cfg, nil
 }
