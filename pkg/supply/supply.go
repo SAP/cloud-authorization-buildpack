@@ -226,8 +226,10 @@ type Config struct {
 
 func (s *Supplier) uploadAuthzData(amsCreds AMSCredentials, cfg Config) error {
 	s.Log.Info("creating policy archive..")
-	amsDataStr := os.Getenv("AMS_DATA")
-	if amsDataStr == "" {
+	_, amsDataSet := os.LookupEnv("AMS_DATA")
+	_, amsRootSet := os.LookupEnv("AMS_DCL_ROOT")
+
+	if !amsDataSet && !amsRootSet {
 		s.Log.Warning("this app will upload no authorization data (AMS_DATA empty or not set)")
 		return nil
 	}
@@ -273,7 +275,7 @@ func (s *Supplier) loadBuildpackConfig() (Config, error) {
 	cfgStr := os.Getenv("AMS_DATA")
 	if cfgStr == "" {
 		s.Log.Warning("this app will upload no authorization data (AMS_DATA empty or not set)")
-		return Config{ServiceName: ServiceName}, nil
+		return Config{ServiceName: serviceName}, nil
 	}
 
 	if err := json.Unmarshal([]byte(cfgStr), &cfg); err != nil {
