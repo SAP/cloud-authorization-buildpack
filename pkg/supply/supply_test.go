@@ -17,6 +17,7 @@ import (
 	"code.cloudfoundry.org/buildpackapplifecycle/buildpackrunner/resources"
 	"github.com/SAP/cloud-authorization-buildpack/pkg/supply"
 	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/testdata"
+	"github.com/SAP/cloud-authorization-buildpack/pkg/uploader"
 	"github.com/cloudfoundry/libbuildpack"
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
@@ -26,8 +27,6 @@ import (
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"gopkg.in/yaml.v2"
 )
-
-//go:generate mockgen -source=supply.go --destination=mocks_test.go --package=supply_test
 
 var _ = Describe("Supply", func() {
 	var (
@@ -84,7 +83,7 @@ var _ = Describe("Supply", func() {
 			Manifest:     nil,
 			Log:          logger,
 			BuildpackDir: buildpackDir,
-			AMSClient:    mockAMSClient,
+			Uploader:     uploader.NewUploaderWithClient(logger, mockAMSClient),
 		}
 	})
 

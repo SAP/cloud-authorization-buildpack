@@ -4,15 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
-	"net/url"
 	"os"
 	"path"
 	"strconv"
 	"strings"
 
-	"github.com/SAP/cloud-authorization-buildpack/pkg/archive"
-	"github.com/SAP/cloud-authorization-buildpack/pkg/client"
+	"github.com/SAP/cloud-authorization-buildpack/pkg/uploader"
 	"github.com/cloudfoundry/libbuildpack"
 	"github.com/go-playground/validator/v10"
 	"github.com/open-policy-agent/opa/download"
@@ -46,7 +43,7 @@ type Supplier struct {
 	Command      Command
 	Log          *libbuildpack.Logger
 	BuildpackDir string
-	AMSClient    client.AMSClient
+	Uploader     uploader.Uploader
 }
 
 type Cloudfoundry struct {
@@ -96,7 +93,10 @@ func (s *Supplier) Run() error {
 	if err := s.writeProfileDFile(amsCreds); err != nil {
 		return fmt.Errorf("could not write profileD file: %w", err)
 	}
-	if err := s.uploadAuthzData(amsCreds, cfg); err != nil {
+	if cfg.noUpload {
+		return nil
+	}
+	if err := s.Uploader.Upload(path.Join(s.Stager.BuildDir(), cfg.Root), amsCreds.URL); err != nil {
 		return fmt.Errorf("could not upload authz data: %w", err)
 	}
 	return nil
@@ -222,45 +222,14 @@ func (s *Supplier) supplyExecResource(resource string) error {
 type Config struct {
 	Root        string `json:"root" validate:"required"`
 	ServiceName string `json:"service_name"`
-}
-
-func (s *Supplier) uploadAuthzData(amsCreds AMSCredentials, cfg Config) error {
-	s.Log.Info("creating policy archive..")
-	amsDataStr := os.Getenv("AMS_DATA")
-	if amsDataStr == "" {
-		s.Log.Warning("this app will upload no authorization data (AMS_DATA empty or not set)")
-		return nil
-	}
-	buf, err := archive.CreateArchive(s.Log, path.Join(s.Stager.BuildDir(), cfg.Root))
-	if err != nil {
-		return fmt.Errorf("could not create policy bundle.tar.gz: %w", err)
-	}
-	u, err := url.Parse(amsCreds.URL)
-	if err != nil {
-		return fmt.Errorf("invalid AMS URL ('%s'): %w", amsCreds.URL, err)
-	}
-	u.Path = path.Join(u.Path, "/sap/ams/v1/bundles/SAP.tar.gz")
-	r, err := http.NewRequest(http.MethodPost, u.String(), buf)
-	if err != nil {
-		return fmt.Errorf("could not create bundle upload request %w", err)
-	}
-	r.Header.Set("Content-Type", "application/gzip")
-	resp, err := s.AMSClient.Do(r)
-	if err != nil {
-		return fmt.Errorf("bundle upload request unsuccessful: %w", err)
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNotModified {
-		return fmt.Errorf("unexpected response: status(%s) body(%s)", resp.Status, resp.Body)
-	}
-	return nil
+	noUpload    bool
 }
 
 func (s *Supplier) loadBuildpackConfig() (Config, error) {
 	cfgStr := os.Getenv("AMS_DATA")
 	if cfgStr == "" {
 		s.Log.Warning("this app will upload no authorization data (AMS_DATA empty or not set)")
-		return Config{ServiceName: ServiceName}, nil
+		return Config{ServiceName: ServiceName, noUpload: true}, nil
 	}
 	var cfg Config
 	if err := json.Unmarshal([]byte(cfgStr), &cfg); err != nil {
