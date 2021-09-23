@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/SAP/cloud-authorization-buildpack/pkg/client"
 	"github.com/SAP/cloud-authorization-buildpack/pkg/supply"
+	"github.com/SAP/cloud-authorization-buildpack/pkg/uploader"
 
 	"github.com/cloudfoundry/libbuildpack"
 )
@@ -61,9 +61,9 @@ func main() {
 		os.Exit(14)
 	}
 
-	c, err := client.NewAMSClient()
+	uploader, err := uploader.NewUploader(logger, os.Getenv("CF_INSTANCE_CERT"), os.Getenv("CF_INSTANCE_KEY"))
 	if err != nil {
-		logger.Error("Unable to create AMS client: %s", err)
+		logger.Error("Unable to create uploader: %s", err)
 		os.Exit(15)
 	}
 	s := supply.Supplier{
@@ -73,7 +73,7 @@ func main() {
 		Command:      &libbuildpack.Command{},
 		Log:          logger,
 		BuildpackDir: buildpackDir,
-		AMSClient:    c,
+		Uploader:     uploader,
 	}
 
 	err = s.Run()

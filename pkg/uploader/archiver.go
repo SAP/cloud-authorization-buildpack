@@ -1,4 +1,4 @@
-package archive
+package uploader
 
 import (
 	"archive/tar"
@@ -27,7 +27,7 @@ type archiveContent struct {
 	file   string
 }
 
-func CreateArchive(log *libbuildpack.Logger, root string) (io.Reader, error) {
+func createArchive(log *libbuildpack.Logger, root string) (io.Reader, error) {
 	var buf bytes.Buffer
 	zr := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(zr)
