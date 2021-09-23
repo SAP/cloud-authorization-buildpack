@@ -95,7 +95,7 @@ func (s *Supplier) Run() error {
 	if cfg.noUpload {
 		return nil
 	}
-	if err := s.Uploader.Upload(path.Join(s.Stager.BuildDir(), cfg.Root), amsCreds.URL); err != nil {
+	if err := s.Uploader.Upload(path.Join(s.Stager.BuildDir(), cfg.root), amsCreds.URL); err != nil {
 		return fmt.Errorf("could not upload authz data: %w", err)
 	}
 	return nil
@@ -221,7 +221,7 @@ func (s *Supplier) supplyExecResource(resource string) error {
 type config struct {
 	root        string
 	serviceName string
-  noUpload    bool
+	noUpload    bool
 }
 
 func (s *Supplier) loadBuildpackConfig() (config, error) {
@@ -233,14 +233,14 @@ func (s *Supplier) loadBuildpackConfig() (config, error) {
 	if serviceName == "" {
 		serviceName = ServiceName
 	}
-  dclRoot := os.Getenv("AMS_DCL_ROOT")
-  noUpload := dclRoot == ""
+	dclRoot := os.Getenv("AMS_DCL_ROOT")
+	noUpload := dclRoot == ""
 	if noUpload {
 		s.Log.Warning("this app will upload no authorization data (AMS_DCL_ROOT empty or not set)")
 	}
 	return config{
 		serviceName: serviceName,
 		root:        dclRoot,
-    noUpload: noUpload
+		noUpload:    noUpload,
 	}, nil
 }

@@ -181,6 +181,19 @@ var _ = Describe("Supply", func() {
 				Expect(buffer.String()).To(ContainSubstring("upload no authorization data"))
 			})
 		})
+		When("AMS_DATA is set", func() {
+			BeforeEach(func() {
+				os.Setenv("AMS_DATA", "{}")
+			})
+			It("fails with an explanation", func() {
+				err := supplier.Run()
+				Expect(err).To(HaveOccurred())
+				Expect(err.Error()).To(ContainSubstring("AMS_DATA is not supported anymore"))
+			})
+			AfterEach(func() {
+				os.Unsetenv("AMS_DATA")
+			})
+		})
 		When("the AMS server returns an error", func() {
 			BeforeEach(func() {
 				mockAMSClient = NewMockAMSClient(mockCtrl)
