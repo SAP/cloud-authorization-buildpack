@@ -93,14 +93,13 @@ var _ = Describe("Supply", func() {
 		err = os.RemoveAll(depsDir)
 		Expect(err).To(BeNil())
 		Expect(os.Unsetenv("VCAP_APPLICATION")).To(Succeed())
-		Expect(os.Unsetenv("AMS_DATA")).To(Succeed())
+		Expect(os.Unsetenv("AMS_DCL_ROOT")).To(Succeed())
+		Expect(os.Unsetenv("AMS_SERVICE")).To(Succeed())
 	})
 	When("VCAP_SERVICES contains a 'authorization' service", func() {
 		BeforeEach(func() {
 			vcapServices = testdata.EnvWithAuthorization
-			os.Setenv("AMS_DATA", `{
-              "root": "policies"
-            }`)
+			os.Setenv("AMS_DCL_ROOT", "/policies")
 		})
 		It("creates a valid launch.yml", func() {
 			Expect(supplier.Run()).To(Succeed())
@@ -172,9 +171,10 @@ var _ = Describe("Supply", func() {
 			Expect(files).To(ContainElements("myPolicies0/policy0.dcl", "myPolicies1/policy1.dcl", "schema.dcl"))
 			Expect(files).NotTo(ContainElements("data.json.license", "non-dcl-file.xyz", ContainSubstring("data.json")))
 		})
-		When("AMS_DATA is not set", func() {
+		When("AMS_DCL_ROOT is not set", func() {
 			BeforeEach(func() {
-				Expect(os.Unsetenv("AMS_DATA")).To(Succeed())
+				Expect(os.Unsetenv("AMS_DCL_ROOT")).To(Succeed())
+				Expect(os.Unsetenv("AMS_SERVICE")).To(Succeed())
 			})
 			It("creates a warning", func() {
 				Expect(supplier.Run()).To(Succeed())
@@ -200,10 +200,8 @@ var _ = Describe("Supply", func() {
 	When("service_name is set", func() {
 		BeforeEach(func() {
 			vcapServices = testdata.EnvWithAuthorizationDev
-			os.Setenv("AMS_DATA", `{
-				"root": "/policies",
-				"service_name": "authorization-dev"
-            }`)
+			os.Setenv("AMS_DCL_ROOT", "/policies")
+			os.Setenv("AMS_SERVICE", "authorization-dev")
 		})
 		It("should succeed", func() {
 			Expect(supplier.Run()).To(Succeed())
@@ -213,9 +211,7 @@ var _ = Describe("Supply", func() {
 	When("the bound AMS service is user-provided", func() {
 		BeforeEach(func() {
 			vcapServices = testdata.EnvWithUserProvidedAuthorization
-			os.Setenv("AMS_DATA", `{
-				"root": "/policies"
-            }`)
+			os.Setenv("AMS_DCL_ROOT", "/policies")
 		})
 		It("should succeed", func() {
 			Expect(supplier.Run()).To(Succeed())

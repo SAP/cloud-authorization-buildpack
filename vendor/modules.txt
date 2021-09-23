@@ -3,35 +3,19 @@
 code.cloudfoundry.org/buildpackapplifecycle
 code.cloudfoundry.org/buildpackapplifecycle/buildpackrunner/resources
 # github.com/Masterminds/semver v1.5.0
-## explicit
 github.com/Masterminds/semver
 # github.com/OneOfOne/xxhash v1.2.8
-## explicit
 github.com/OneOfOne/xxhash
 # github.com/blang/semver v3.5.1+incompatible
-## explicit
 github.com/blang/semver
 # github.com/cloudfoundry/libbuildpack v0.0.0-20210726164432-80929621d448
 ## explicit
 github.com/cloudfoundry/libbuildpack
 # github.com/fsnotify/fsnotify v1.4.9
-## explicit
 github.com/fsnotify/fsnotify
 # github.com/ghodss/yaml v1.0.0
-## explicit
 github.com/ghodss/yaml
-# github.com/go-playground/locales v0.14.0
-## explicit
-github.com/go-playground/locales
-github.com/go-playground/locales/currency
-# github.com/go-playground/universal-translator v0.18.0
-## explicit
-github.com/go-playground/universal-translator
-# github.com/go-playground/validator/v10 v10.9.0
-## explicit
-github.com/go-playground/validator/v10
 # github.com/gobwas/glob v0.2.3
-## explicit
 github.com/gobwas/glob
 github.com/gobwas/glob/compiler
 github.com/gobwas/glob/match
@@ -43,11 +27,9 @@ github.com/gobwas/glob/util/strings
 # github.com/golang/mock v1.6.0
 ## explicit
 github.com/golang/mock/gomock
-# github.com/leodido/go-urn v1.2.1
+# github.com/kr/pretty v0.3.0
 ## explicit
-github.com/leodido/go-urn
 # github.com/nxadm/tail v1.4.8
-## explicit
 github.com/nxadm/tail
 github.com/nxadm/tail/ratelimiter
 github.com/nxadm/tail/util
@@ -142,39 +124,28 @@ github.com/open-policy-agent/opa/types
 github.com/open-policy-agent/opa/util
 github.com/open-policy-agent/opa/version
 # github.com/pkg/errors v0.9.1
-## explicit
 github.com/pkg/errors
 # github.com/rcrowley/go-metrics v0.0.0-20200313005456-10cdbea86bc0
-## explicit
 github.com/rcrowley/go-metrics
-# github.com/sirupsen/logrus v1.8.1
+# github.com/rogpeppe/go-internal v1.8.0
 ## explicit
+# github.com/sirupsen/logrus v1.8.1
 github.com/sirupsen/logrus
 # github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb
-## explicit
 github.com/xeipuuv/gojsonpointer
 # github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415
-## explicit
 github.com/xeipuuv/gojsonreference
 # github.com/yashtewari/glob-intersection v0.0.0-20180916065949-5c77d914dd0b
-## explicit
 github.com/yashtewari/glob-intersection
-# golang.org/x/crypto v0.0.0-20210711020723-a769d52b0f97
-## explicit
-golang.org/x/crypto/sha3
 # golang.org/x/net v0.0.0-20210825183410-e898025ed96a
-## explicit
 golang.org/x/net/html
 golang.org/x/net/html/atom
 golang.org/x/net/html/charset
 # golang.org/x/sys v0.0.0-20210823070655-63515b42dcdf
-## explicit
-golang.org/x/sys/cpu
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows
 # golang.org/x/text v0.3.6
-## explicit
 golang.org/x/text/encoding
 golang.org/x/text/encoding/charmap
 golang.org/x/text/encoding/htmlindex
@@ -192,8 +163,9 @@ golang.org/x/text/internal/utf8internal
 golang.org/x/text/language
 golang.org/x/text/runes
 golang.org/x/text/transform
-# gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7
+# gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c
 ## explicit
+# gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7
 gopkg.in/tomb.v1
 # gopkg.in/yaml.v2 v2.4.0
 ## explicit

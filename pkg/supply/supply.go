@@ -11,7 +11,6 @@ import (
 
 	"github.com/SAP/cloud-authorization-buildpack/pkg/uploader"
 	"github.com/cloudfoundry/libbuildpack"
-	"github.com/go-playground/validator/v10"
 	"github.com/open-policy-agent/opa/download"
 	"github.com/open-policy-agent/opa/plugins/bundle"
 )
@@ -186,7 +185,7 @@ func (s *Supplier) writeLaunchConfig() error {
 	return libbuildpack.NewJSON().Write(filePath, launchData)
 }
 
-func (s *Supplier) loadAMSCredentials(log *libbuildpack.Logger, cfg Config) (AMSCredentials, error) {
+func (s *Supplier) loadAMSCredentials(log *libbuildpack.Logger, cfg config) (AMSCredentials, error) {
 	svcsString := os.Getenv("VCAP_SERVICES")
 	var svcs map[string][]Service
 	err := json.Unmarshal([]byte(svcsString), &svcs)
@@ -204,11 +203,11 @@ func (s *Supplier) loadAMSCredentials(log *libbuildpack.Logger, cfg Config) (AMS
 			}
 		}
 	}
-	for _, amsSvc := range svcs[cfg.ServiceName] {
+	for _, amsSvc := range svcs[cfg.serviceName] {
 		rawAmsCreds = append(rawAmsCreds, amsSvc.Credentials)
 	}
 	if len(rawAmsCreds) != 1 {
-		return AMSCredentials{}, fmt.Errorf("expect only one AMS service (type %s or user-provided) but got %d", cfg.ServiceName, len(rawAmsCreds))
+		return AMSCredentials{}, fmt.Errorf("expect only one AMS service (type %s or user-provided) but got %d", cfg.serviceName, len(rawAmsCreds))
 	}
 	var amsCreds AMSCredentials
 	err = json.Unmarshal(rawAmsCreds[0], &amsCreds)
@@ -219,28 +218,29 @@ func (s *Supplier) supplyExecResource(resource string) error {
 	return libbuildpack.CopyFile(path.Join(s.BuildpackDir, "resources", resource), path.Join(s.Stager.DepDir(), resource))
 }
 
-type Config struct {
-	Root        string `json:"root" validate:"required"`
-	ServiceName string `json:"service_name"`
-	noUpload    bool
+type config struct {
+	root        string
+	serviceName string
+  noUpload    bool
 }
 
-func (s *Supplier) loadBuildpackConfig() (Config, error) {
-	cfgStr := os.Getenv("AMS_DATA")
-	if cfgStr == "" {
-		s.Log.Warning("this app will upload no authorization data (AMS_DATA empty or not set)")
-		return Config{ServiceName: ServiceName, noUpload: true}, nil
+func (s *Supplier) loadBuildpackConfig() (config, error) {
+	_, amsDataSet := os.LookupEnv("AMS_DATA")
+	if amsDataSet {
+		return config{}, fmt.Errorf("the environment variable AMS_DATA is not supported anymore. Please use $AMS_DCL_ROOT to provide Base DCL application")
 	}
-	var cfg Config
-	if err := json.Unmarshal([]byte(cfgStr), &cfg); err != nil {
-		return Config{}, fmt.Errorf("could not unmarshal AMS_DATA: %w", err)
+	serviceName := os.Getenv("AMS_SERVICE")
+	if serviceName == "" {
+		serviceName = ServiceName
 	}
-	v := validator.New()
-	if err := v.Struct(cfg); err != nil {
-		return Config{}, fmt.Errorf("invalid AMS_DATA: %w", err)
+  dclRoot := os.Getenv("AMS_DCL_ROOT")
+  noUpload := dclRoot == ""
+	if noUpload {
+		s.Log.Warning("this app will upload no authorization data (AMS_DCL_ROOT empty or not set)")
 	}
-	if cfg.ServiceName == "" {
-		cfg.ServiceName = ServiceName
-	}
-	return cfg, nil
+	return config{
+		serviceName: serviceName,
+		root:        dclRoot,
+    noUpload: noUpload
+	}, nil
 }
