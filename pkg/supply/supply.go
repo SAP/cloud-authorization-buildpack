@@ -14,7 +14,6 @@ import (
 	"github.com/SAP/cloud-authorization-buildpack/pkg/archive"
 	"github.com/SAP/cloud-authorization-buildpack/pkg/client"
 	"github.com/cloudfoundry/libbuildpack"
-	"github.com/go-playground/validator/v10"
 	"github.com/open-policy-agent/opa/download"
 	"github.com/open-policy-agent/opa/plugins/bundle"
 )
@@ -228,7 +227,7 @@ func (s *Supplier) uploadAuthzData(amsCreds AMSCredentials, cfg Config) error {
 	s.Log.Info("creating policy archive..")
 
 	if cfg.Root == "" {
-		s.Log.Warning("this app will upload no authorization data (AMS_DATA.root and AMS_DCL_ROOT empty or not set)")
+		s.Log.Warning("this app will upload no authorization data. AMS_DCL_ROOT empty or not set")
 		return nil
 	}
 	buf, err := archive.CreateArchive(s.Log, path.Join(s.Stager.BuildDir(), cfg.Root))
@@ -257,34 +256,17 @@ func (s *Supplier) uploadAuthzData(amsCreds AMSCredentials, cfg Config) error {
 }
 
 func (s *Supplier) loadBuildpackConfig() (Config, error) {
-	var cfg Config
 
+	_, amsDataSet := os.LookupEnv("AMS_DATA")
+	if amsDataSet {
+		return Config{}, fmt.Errorf("the environment variable AMS_DATA is not supported anymore. Please use $AMS_DCL_ROOT to provide Base DCL application")
+	}
 	serviceName := os.Getenv("AMS_SERVICE")
 	if serviceName == "" {
 		serviceName = ServiceName
 	}
-	dclRoot := os.Getenv("AMS_DCL_ROOT")
-	if dclRoot != "" {
-		cfg.Root = dclRoot
-		cfg.ServiceName = serviceName
-		return cfg, nil
-	}
-
-	cfgStr := os.Getenv("AMS_DATA")
-	if cfgStr == "" {
-		s.Log.Warning("this app will upload no authorization data (AMS_DATA empty or not set)")
-		return Config{ServiceName: serviceName}, nil
-	}
-
-	if err := json.Unmarshal([]byte(cfgStr), &cfg); err != nil {
-		return Config{}, fmt.Errorf("could not unmarshal AMS_DATA: %w", err)
-	}
-	v := validator.New()
-	if err := v.Struct(cfg); err != nil {
-		return Config{}, fmt.Errorf("invalid AMS_DATA: %w", err)
-	}
-	if cfg.ServiceName == "" {
-		cfg.ServiceName = serviceName
-	}
-	return cfg, nil
+	return Config{
+		ServiceName: serviceName,
+		Root:        os.Getenv("AMS_DCL_ROOT"),
+	}, nil
 }

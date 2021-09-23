@@ -16,11 +16,6 @@ applications:
   health-check-type: process
   env:
     BP_DEBUG: "true"
-    AMS_DATA:  >
-            {
-              "root": "/",
-              "directories": ["cas/"],
-              "ams_app_name": "ams_node_example"
-            }
+    AMS_DCL_ROOT: "/"
   no-route: true
   

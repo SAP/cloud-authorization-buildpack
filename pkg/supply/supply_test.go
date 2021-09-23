@@ -94,7 +94,6 @@ var _ = Describe("Supply", func() {
 		err = os.RemoveAll(depsDir)
 		Expect(err).To(BeNil())
 		Expect(os.Unsetenv("VCAP_APPLICATION")).To(Succeed())
-		Expect(os.Unsetenv("AMS_DATA")).To(Succeed())
 		Expect(os.Unsetenv("AMS_DCL_ROOT")).To(Succeed())
 		Expect(os.Unsetenv("AMS_SERVICE")).To(Succeed())
 	})
@@ -173,9 +172,8 @@ var _ = Describe("Supply", func() {
 			Expect(files).To(ContainElements("myPolicies0/policy0.dcl", "myPolicies1/policy1.dcl", "schema.dcl"))
 			Expect(files).NotTo(ContainElements("data.json.license", "non-dcl-file.xyz", ContainSubstring("data.json")))
 		})
-		When("AMS_DATA is not set", func() {
+		When("AMS_DCL_ROOT is not set", func() {
 			BeforeEach(func() {
-				Expect(os.Unsetenv("AMS_DATA")).To(Succeed())
 				Expect(os.Unsetenv("AMS_DCL_ROOT")).To(Succeed())
 				Expect(os.Unsetenv("AMS_SERVICE")).To(Succeed())
 			})
