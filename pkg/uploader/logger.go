@@ -33,7 +33,7 @@ const severityWarning = "WARNING"
 func (up *uploader) logResponse(res *http.Response) {
 
 	if res.StatusCode == http.StatusOK || res.StatusCode == http.StatusCreated || res.StatusCode == http.StatusNotModified {
-		up.log.Info("Bundle uploaded and compiled successfully")
+		up.log.Info("Base DCLs uploaded and compiled successfully")
 		return
 	} else if res.StatusCode == http.StatusBadRequest {
 		var ce CompileError

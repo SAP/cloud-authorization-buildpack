@@ -40,7 +40,7 @@ func (up *uploader) createArchive(log *libbuildpack.Logger, root string) (io.Rea
 			return nil, err
 		}
 		if c.file != "" {
-			up.log.Info("adding file '%s' to policy bundle", c.header.Name)
+			up.log.Info("adding file '%s' to policy upload archive", c.header.Name)
 			data, err := os.Open(c.file)
 			if err != nil {
 				return nil, err
