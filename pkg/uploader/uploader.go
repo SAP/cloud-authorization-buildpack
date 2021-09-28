@@ -16,6 +16,7 @@ type Uploader interface {
 
 type uploader struct {
 	log    *libbuildpack.Logger
+	root   string
 	client AMSClient
 }
 
@@ -38,6 +39,7 @@ func NewUploader(log *libbuildpack.Logger, cert, key string) (Uploader, error) {
 		}
 	return &uploader{
 		log,
+		"",
 		amsClient,
 	}, nil
 }
@@ -50,6 +52,7 @@ func NewUploaderWithClient(log *libbuildpack.Logger, client AMSClient) Uploader 
 }
 
 func (up *uploader) Upload(rootDir string, dstURL string) error {
+	up.root = rootDir
 	up.log.Info("creating policy archive..")
 	buf, err := createArchive(up.log, rootDir)
 	if err != nil {
