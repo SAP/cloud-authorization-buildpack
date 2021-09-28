@@ -54,7 +54,7 @@ func NewUploaderWithClient(log *libbuildpack.Logger, client AMSClient) Uploader 
 func (up *uploader) Upload(rootDir string, dstURL string) error {
 	up.root = rootDir
 	up.log.Info("creating policy archive..")
-	buf, err := createArchive(up.log, rootDir)
+	buf, err := up.createArchive(up.log, rootDir)
 	if err != nil {
 		return fmt.Errorf("could not create policy bundle.tar.gz: %w", err)
 	}

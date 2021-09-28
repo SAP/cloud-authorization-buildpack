@@ -16,43 +16,36 @@ import (
 	"github.com/cloudfoundry/libbuildpack"
 )
 
-type archiver struct {
-	tw   *tar.Writer
-	log  *libbuildpack.Logger
-	root string
-}
-
 type archiveContent struct {
 	header *tar.Header
 	file   string
 }
 
-func createArchive(log *libbuildpack.Logger, root string) (io.Reader, error) {
+func (up *uploader) createArchive(log *libbuildpack.Logger, root string) (io.Reader, error) {
 	var buf bytes.Buffer
 	zr := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(zr)
-	a := archiver{tw, log, root}
 
 	rootInfo, err := os.Lstat(root)
 	if err != nil {
 		return nil, err
 	}
 
-	content, err := a.crawlDCLs(rootInfo, root)
+	content, err := up.crawlDCLs(rootInfo, root)
 	if err != nil {
 		return nil, err
 	}
 	for _, c := range *content {
-		if err := a.tw.WriteHeader(c.header); err != nil {
+		if err := tw.WriteHeader(c.header); err != nil {
 			return nil, err
 		}
 		if c.file != "" {
-			a.log.Info("adding file '%s' to policy bundle", c.header.Name)
+			up.log.Info("adding file '%s' to policy bundle", c.header.Name)
 			data, err := os.Open(c.file)
 			if err != nil {
 				return nil, err
 			}
-			if _, err := io.Copy(a.tw, data); err != nil {
+			if _, err := io.Copy(tw, data); err != nil {
 				return nil, err
 			}
 		}
@@ -64,11 +57,11 @@ func createArchive(log *libbuildpack.Logger, root string) (io.Reader, error) {
 		return nil, err
 	}
 
-	a.log.Debug("uploaded tar: %s", base64.StdEncoding.EncodeToString(buf.Bytes()))
+	up.log.Debug("uploaded tar: %s", base64.StdEncoding.EncodeToString(buf.Bytes()))
 	return &buf, nil
 }
 
-func (a *archiver) crawlDCLs(fi os.FileInfo, file string) (*[]archiveContent, error) {
+func (up *uploader) crawlDCLs(fi os.FileInfo, file string) (*[]archiveContent, error) {
 	var archive []archiveContent
 	if fi.IsDir() {
 		content, err := ioutil.ReadDir(file)
@@ -77,14 +70,14 @@ func (a *archiver) crawlDCLs(fi os.FileInfo, file string) (*[]archiveContent, er
 		}
 		for _, cfi := range content {
 
-			carchive, err := a.crawlDCLs(cfi, path.Join(file, cfi.Name()))
+			carchive, err := up.crawlDCLs(cfi, path.Join(file, cfi.Name()))
 			if err != nil {
 				return nil, err
 			}
 			archive = append(archive, *carchive...)
 		}
-		if len(archive) > 0 && file != a.root {
-			ce, err := a.createContentEntry(fi, file)
+		if len(archive) > 0 && file != up.root {
+			ce, err := up.createContentEntry(fi, file)
 			if err != nil {
 				return nil, err
 			}
@@ -92,18 +85,18 @@ func (a *archiver) crawlDCLs(fi os.FileInfo, file string) (*[]archiveContent, er
 		}
 		return &archive, nil
 	} else {
-		return a.createContentEntry(fi, file)
+		return up.createContentEntry(fi, file)
 	}
 
 }
 
-func (a *archiver) createContentEntry(fi os.FileInfo, file string) (*[]archiveContent, error) {
+func (up *uploader) createContentEntry(fi os.FileInfo, file string) (*[]archiveContent, error) {
 	var result archiveContent
 	if !fi.IsDir() && !strings.HasSuffix(file, ".dcl") {
 		return &[]archiveContent{}, nil
 	}
 
-	relPath, err := filepath.Rel(a.root, file)
+	relPath, err := filepath.Rel(up.root, file)
 	if err != nil {
 		return nil, err
 	}
