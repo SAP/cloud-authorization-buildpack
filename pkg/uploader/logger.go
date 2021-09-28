@@ -30,7 +30,7 @@ type CompileError struct {
 const severityError = "ERROR"
 const severityWarning = "WARNING"
 
-func (up *uploader) LogResponse(res http.Response) {
+func (up *uploader) logResponse(res *http.Response) {
 
 	if res.StatusCode == http.StatusOK || res.StatusCode == http.StatusCreated || res.StatusCode == http.StatusNotModified {
 		up.log.Info("Bundle uploaded and compiled successfully")

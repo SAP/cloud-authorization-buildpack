@@ -73,8 +73,9 @@ func (up *uploader) Upload(rootDir string, dstURL string) error {
 		return fmt.Errorf("bundle upload request unsuccessful: %w", err)
 	}
 	defer resp.Body.Close()
+	up.logResponse(resp)
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNotModified {
-		return fmt.Errorf("unexpected response: status(%s) body(%s)", resp.Status, resp.Body)
+		return fmt.Errorf("DCL upload failed")
 	}
 	return nil
 }
