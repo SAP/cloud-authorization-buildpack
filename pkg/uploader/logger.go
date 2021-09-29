@@ -30,22 +30,22 @@ type CompileError struct {
 const severityError = "ERROR"
 const severityWarning = "WARNING"
 
-func (up *uploader) logResponse(res *http.Response) {
+func (up *uploader) logResponse(res *http.Response) error {
 
 	if res.StatusCode == http.StatusOK || res.StatusCode == http.StatusCreated || res.StatusCode == http.StatusNotModified {
 		up.log.Info("Base DCLs uploaded and compiled successfully")
-		return
+		return nil
 	} else if res.StatusCode == http.StatusBadRequest {
 		var ce CompileError
 		err := json.NewDecoder(res.Body).Decode(&ce)
 		if err == nil {
 			err = up.printCompileError(ce)
 			if err == nil {
-				return
+				return fmt.Errorf("dcl upload failed")
 			}
 		}
 	}
-	up.log.Error("unexpected response on DCL upload: status(%s) body(%s)", res.Status, res.Body)
+	return fmt.Errorf("unexpected response on DCL upload: status(%s) body(%s)", res.Status, res.Body)
 
 }
 func (up *uploader) printCompileError(compileError CompileError) error {
