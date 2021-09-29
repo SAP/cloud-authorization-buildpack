@@ -41,7 +41,7 @@ func (up *uploader) logResponse(res *http.Response) error {
 		if err == nil {
 			err = up.printCompileError(ce)
 			if err == nil {
-				return fmt.Errorf("dcl upload failed")
+				return fmt.Errorf("DCL upload failed")
 			}
 		}
 	}
