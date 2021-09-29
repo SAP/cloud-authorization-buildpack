@@ -227,7 +227,7 @@ type config struct {
 func (s *Supplier) loadBuildpackConfig() (config, error) {
 	_, amsDataSet := os.LookupEnv("AMS_DATA")
 	if amsDataSet {
-		return config{}, fmt.Errorf("the environment variable AMS_DATA is not supported anymore. Please use $AMS_DCL_ROOT to provide Base DCL application")
+		return config{}, fmt.Errorf("the environment variable AMS_DATA is not supported anymore. Please use $AMS_DCL_ROOT to provide Base DCL application (see https://github.com/SAP/cloud-authorization-buildpack/blob/master/README.md#base-policy-upload)")
 	}
 	serviceName := os.Getenv("AMS_SERVICE")
 	if serviceName == "" {
