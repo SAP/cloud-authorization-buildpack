@@ -56,7 +56,7 @@ func (up *uploader) Upload(rootDir string, dstURL string) error {
 	up.log.Info("creating policy archive..")
 	buf, err := up.createArchive(up.log, rootDir)
 	if err != nil {
-		return fmt.Errorf("could not create policy dcl.tar.gz: %w", err)
+		return fmt.Errorf("could not create policy DCL.tar.gz: %w", err)
 	}
 	u, err := url.Parse(dstURL)
 	if err != nil {
@@ -65,12 +65,12 @@ func (up *uploader) Upload(rootDir string, dstURL string) error {
 	u.Path = path.Join(u.Path, "/sap/ams/v1/bundles/SAP.tar.gz")
 	r, err := http.NewRequest(http.MethodPost, u.String(), buf)
 	if err != nil {
-		return fmt.Errorf("could not create dcl upload request %w", err)
+		return fmt.Errorf("could not create DCL upload request %w", err)
 	}
 	r.Header.Set("Content-Type", "application/gzip")
 	resp, err := up.client.Do(r)
 	if err != nil {
-		return fmt.Errorf("dcl upload request unsuccessful: %w", err)
+		return fmt.Errorf("DCL upload request unsuccessful: %w", err)
 	}
 	defer resp.Body.Close()
 	return up.logResponse(resp)
