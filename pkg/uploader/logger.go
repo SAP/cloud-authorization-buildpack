@@ -31,7 +31,6 @@ const severityError = "ERROR"
 const severityWarning = "WARNING"
 
 func (up *uploader) logResponse(res *http.Response) error {
-
 	if res.StatusCode == http.StatusOK || res.StatusCode == http.StatusCreated || res.StatusCode == http.StatusNotModified {
 		up.log.Info("Base DCLs uploaded and compiled successfully")
 		return nil
