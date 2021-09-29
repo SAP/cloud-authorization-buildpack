@@ -164,7 +164,7 @@ var _ = Describe("Supply", func() {
 			Expect(supplier.Run()).To(Succeed())
 			expectIsExecutable(filepath.Join(depDir, "start_opa.sh"))
 		})
-		It("uploads dcl and json files in a bundle", func() {
+		It("uploads DCL and json files in a bundle", func() {
 			Expect(supplier.Run()).To(Succeed())
 			Expect(uploadReqSpy.Body).NotTo(BeNil())
 			files := getTgzFileNames(uploadReqSpy.Body)

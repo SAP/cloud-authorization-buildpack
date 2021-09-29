@@ -16,6 +16,7 @@ type Uploader interface {
 
 type uploader struct {
 	log    *libbuildpack.Logger
+	root   string
 	client AMSClient
 }
 
@@ -38,6 +39,7 @@ func NewUploader(log *libbuildpack.Logger, cert, key string) (Uploader, error) {
 		}
 	return &uploader{
 		log,
+		"",
 		amsClient,
 	}, nil
 }
@@ -50,10 +52,11 @@ func NewUploaderWithClient(log *libbuildpack.Logger, client AMSClient) Uploader 
 }
 
 func (up *uploader) Upload(rootDir string, dstURL string) error {
+	up.root = rootDir
 	up.log.Info("creating policy archive..")
-	buf, err := createArchive(up.log, rootDir)
+	buf, err := up.createArchive(up.log, rootDir)
 	if err != nil {
-		return fmt.Errorf("could not create policy bundle.tar.gz: %w", err)
+		return fmt.Errorf("could not create policy DCL.tar.gz: %w", err)
 	}
 	u, err := url.Parse(dstURL)
 	if err != nil {
@@ -62,16 +65,13 @@ func (up *uploader) Upload(rootDir string, dstURL string) error {
 	u.Path = path.Join(u.Path, "/sap/ams/v1/bundles/SAP.tar.gz")
 	r, err := http.NewRequest(http.MethodPost, u.String(), buf)
 	if err != nil {
-		return fmt.Errorf("could not create bundle upload request %w", err)
+		return fmt.Errorf("could not create DCL upload request %w", err)
 	}
 	r.Header.Set("Content-Type", "application/gzip")
 	resp, err := up.client.Do(r)
 	if err != nil {
-		return fmt.Errorf("bundle upload request unsuccessful: %w", err)
+		return fmt.Errorf("DCL upload request unsuccessful: %w", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNotModified {
-		return fmt.Errorf("unexpected response: status(%s) body(%s)", resp.Status, resp.Body)
-	}
-	return nil
+	return up.logResponse(resp)
 }

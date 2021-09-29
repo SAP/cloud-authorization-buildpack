@@ -32,8 +32,12 @@ func main() {
 		os.Exit(11)
 	}
 
-	os.MkdirAll(filepath.Join(stager.DepDir(), "bin"), 0755)
-	os.MkdirAll(filepath.Join(stager.DepDir(), "lib"), 0755)
+	if err := os.MkdirAll(filepath.Join(stager.DepDir(), "bin"), 0755); err != nil {
+		os.Exit(11)
+	}
+	if err := os.MkdirAll(filepath.Join(stager.DepDir(), "lib"), 0755); err != nil {
+		os.Exit(11)
+	}
 
 	if err = installer.SetAppCacheDir(stager.CacheDir()); err != nil {
 		logger.Error("Unable to setup app cache dir: %s", err)
