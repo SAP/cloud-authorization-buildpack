@@ -6,7 +6,6 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"io/fs"
 	"net/http"
@@ -119,7 +118,7 @@ var _ = Describe("Supply", func() {
 				Expect(ld.Processes).To(HaveLen(1))
 				Expect(ld.Processes[0].Type).To(Equal("opa"))
 				Expect(ld.Processes[0].Platforms.Cloudfoundry.SidecarFor).To(Equal([]string{"web"}))
-				cmd := fmt.Sprintf("'%s' run -s -c '%s' -l 'info' -a '[]:9888'", path.Join(depDir, "opa"), path.Join(depDir, "opa_config.yml"))
+				cmd := `"$DEPS_DIR/42/opa" run -s -c "$DEPS_DIR/42/opa_config.yml" -l 'info' -a '[]:9888'`
 				Expect(ld.Processes[0].Command).To(Equal(cmd))
 				Expect(ld.Processes[0].Limits.Memory).To(Equal(100))
 				Expect(buffer.String()).To(ContainSubstring("writing launch.yml"))

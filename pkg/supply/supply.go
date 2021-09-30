@@ -163,8 +163,12 @@ func (s *Supplier) writeOpaConfig(osCreds ObjectStoreCredentials) error {
 
 func (s *Supplier) writeLaunchConfig(cfg config) error {
 	s.Log.Info("writing launch.yml..")
-	opaConfig := path.Join(s.Stager.DepDir(), "opa_config.yml")
-	cmd := fmt.Sprintf("env && sleep 10000 && '%s' run -s -c '%s' -l '%s' -a '[]:%d'", path.Join(s.Stager.DepDir(), "bin","opa"), opaConfig, cfg.logLevel, 9888)
+	cmd := fmt.Sprintf(
+		"\"$DEPS_DIR/%s\" run -s -c \"$DEPS_DIR/%s\" -l '%s' -a '[]:%d'",
+		path.Join(s.Stager.DepsIdx(), "opa"),
+		path.Join(s.Stager.DepsIdx(), "opa_config.yml"),
+		cfg.logLevel,
+		9888)
 	s.Log.Debug("OPA start command: '%s'", cmd)
 	launchData := LaunchData{
 		[]Process{
@@ -214,10 +218,7 @@ func (s *Supplier) supplyOPABinary() error {
 	if err != nil {
 		return err
 	}
-	if err := s.Installer.InstallDependency(opaDep, path.Join(s.Stager.DepDir())); err != nil {
-		return err
-	}
-	return s.Stager.AddBinDependencyLink(path.Join(s.Stager.DepDir(), opaDep.Name), opaDep.Name)
+	return s.Installer.InstallDependency(opaDep, path.Join(s.Stager.DepDir()))
 }
 
 type config struct {
