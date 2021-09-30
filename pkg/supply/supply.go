@@ -1,12 +1,12 @@
 package supply
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path"
-	"strings"
 
 	"github.com/SAP/cloud-authorization-buildpack/pkg/uploader"
 	"github.com/cloudfoundry/libbuildpack"
@@ -123,11 +123,16 @@ func (s *Supplier) writeProfileDFile(cfg config, amsCreds AMSCredentials) error 
 		"OPA_URL":               fmt.Sprintf("http://localhost:%d/", cfg.port),
 		"ADC_URL":               fmt.Sprintf("http://localhost:%d/", cfg.port),
 	}
-	var b strings.Builder
+	var b bytes.Buffer
 	for k, v := range values {
 		b.WriteString(fmt.Sprintf("export %s=%s\n", k, v))
 	}
-	return s.Stager.WriteProfileD("0000_opa_env.sh", b.String())
+	// We do not use libbuildpack.WriteProfileD, because the copy mechanism form deps_dir to build_dir
+	// does not work for sidecar buildpacks (deps_dir/bin and deps_dir/profileD)
+	if err := os.MkdirAll(s.Stager.ProfileDir(), 0755); err != nil {
+		return fmt.Errorf("couldn't create profile dir: %w", err)
+	}
+	return os.WriteFile(path.Join(s.Stager.ProfileDir(), "0000_opa_env.sh"), b.Bytes(), 0755)
 }
 
 func (s *Supplier) writeOpaConfig(osCreds ObjectStoreCredentials) error {
