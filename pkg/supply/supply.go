@@ -92,11 +92,10 @@ func (s *Supplier) Run() error {
 	if err := s.writeProfileDFile(amsCreds); err != nil {
 		return fmt.Errorf("could not write profileD file: %w", err)
 	}
-	if cfg.noUpload {
-		return nil
-	}
+	if cfg.shouldUpload {
 	if err := s.Uploader.Upload(path.Join(s.Stager.BuildDir(), cfg.root), amsCreds.URL); err != nil {
 		return fmt.Errorf("could not upload authz data: %w", err)
+	}
 	}
 	return nil
 }
@@ -219,9 +218,9 @@ func (s *Supplier) supplyExecResource(resource string) error {
 }
 
 type config struct {
-	root        string
-	serviceName string
-	noUpload    bool
+	root         string
+	serviceName  string
+	shouldUpload bool
 }
 
 func (s *Supplier) loadBuildpackConfig() (config, error) {
@@ -234,13 +233,13 @@ func (s *Supplier) loadBuildpackConfig() (config, error) {
 		serviceName = ServiceName
 	}
 	dclRoot := os.Getenv("AMS_DCL_ROOT")
-	noUpload := dclRoot == ""
-	if noUpload {
+	shouldUpload := dclRoot != ""
+	if !shouldUpload {
 		s.Log.Warning("this app will upload no authorization data (AMS_DCL_ROOT empty or not set)")
 	}
 	return config{
-		serviceName: serviceName,
-		root:        dclRoot,
-		noUpload:    noUpload,
+		serviceName:  serviceName,
+		root:         dclRoot,
+		shouldUpload: shouldUpload,
 	}, nil
 }
