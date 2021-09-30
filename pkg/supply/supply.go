@@ -169,7 +169,7 @@ func (s *Supplier) writeOpaConfig(osCreds ObjectStoreCredentials) error {
 func (s *Supplier) writeLaunchConfig(cfg config) error {
 	s.Log.Info("writing launch.yml..")
 	cmd := fmt.Sprintf(
-		"\"$DEPS_DIR/%s\" run -s -c \"$DEPS_DIR/%s\" -l '%s' -a '[]:%d'",
+		"\"$DEPS_DIR/%s\" run -s -c \"$DEPS_DIR/%s\" -l '%s' -a '[]:%d' --skip-version-check",
 		path.Join(s.Stager.DepsIdx(), "opa"),
 		path.Join(s.Stager.DepsIdx(), "opa_config.yml"),
 		cfg.logLevel,
