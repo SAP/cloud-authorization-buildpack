@@ -83,13 +83,13 @@ func (s *Supplier) Run() error {
 	if err != nil {
 		return fmt.Errorf("could not load AMSCredentials: %w", err)
 	}
-	if err := s.writeLaunchConfig(); err != nil {
+	if err := s.writeLaunchConfig(cfg); err != nil {
 		return fmt.Errorf("could not write launch config: %w", err)
 	}
 	if err := s.writeOpaConfig(amsCreds.ObjectStore); err != nil {
 		return fmt.Errorf("could not write opa config: %w", err)
 	}
-	if err := s.writeProfileDFile(amsCreds); err != nil {
+	if err := s.writeProfileDFile(cfg, amsCreds); err != nil {
 		return fmt.Errorf("could not write profileD file: %w", err)
 	}
 	if cfg.shouldUpload {
@@ -118,19 +118,14 @@ type OPAConfig struct {
 	Services map[string]RestConfig     `json:"services"`
 }
 
-func (s *Supplier) writeProfileDFile(amsCreds AMSCredentials) error {
+func (s *Supplier) writeProfileDFile(cfg config, amsCreds AMSCredentials) error {
 	s.Log.Info("writing profileD file..")
-	opaPort := 9888
-	//TODO: I removed setting log level to DEbug, because why do it
 	values := map[string]string{
 		"AWS_ACCESS_KEY_ID":     amsCreds.ObjectStore.AccessKeyID,
 		"AWS_SECRET_ACCESS_KEY": amsCreds.ObjectStore.SecretAccessKey,
 		"AWS_REGION":            amsCreds.ObjectStore.Region,
-		"opa_binary":            path.Join(s.Stager.DepDir(), "opa"),
-		"opa_config":            path.Join(s.Stager.DepDir(), "opa_config.yml"),
-		"OPA_URL":               fmt.Sprintf("http://localhost:%d/", opaPort),
-		"OPA_PORT":              strconv.Itoa(opaPort),
-		"ADC_URL":               fmt.Sprintf("http://localhost:%d/", opaPort),
+		"OPA_URL":               fmt.Sprintf("http://localhost:%d/", cfg.port),
+		"ADC_URL":               fmt.Sprintf("http://localhost:%d/", cfg.port),
 	}
 	var b strings.Builder
 	for k, v := range values {
@@ -165,16 +160,22 @@ func (s *Supplier) writeOpaConfig(osCreds ObjectStoreCredentials) error {
 	}
 
 	filePath := path.Join(s.Stager.DepDir(), "opa_config.yml")
+	bCfg, _ := json.Marshal(cfg)
+	s.Log.Debug("OPA config: '%s'", string(bCfg))
 	return libbuildpack.NewJSON().Write(filePath, cfg)
 }
 
-func (s *Supplier) writeLaunchConfig() error {
+func (s *Supplier) writeLaunchConfig(cfg config) error {
 	s.Log.Info("writing launch.yml..")
+	opaPath := path.Join(s.Stager.DepDir(), "opa")
+	opaConfig := path.Join(s.Stager.DepDir(), "opa_config.yml")
+	cmd := fmt.Sprintf("'%s' run -s -c '%s' -l '%s' -a '[]:%d'", opaPath, opaConfig, cfg.logLevel, 9888)
+	s.Log.Debug("OPA start command: '%s'", cmd)
 	launchData := LaunchData{
 		[]Process{
 			{
 				Type:      "opa",
-				Command:   path.Join(s.Stager.DepDir(), "start_opa.sh"),
+				Command:   cmd,
 				Platforms: Platforms{Cloudfoundry{[]string{"web"}}},
 				Limits:    Limits{100},
 			},
@@ -221,6 +222,8 @@ type config struct {
 	root         string
 	serviceName  string
 	shouldUpload bool
+	logLevel     string
+	port         int
 }
 
 func (s *Supplier) loadBuildpackConfig() (config, error) {
@@ -237,9 +240,15 @@ func (s *Supplier) loadBuildpackConfig() (config, error) {
 	if !shouldUpload {
 		s.Log.Warning("this app will upload no authorization data (AMS_DCL_ROOT empty or not set)")
 	}
+	logLevel := os.Getenv("AMS_LOG_LEVEL")
+	if logLevel == "" {
+		logLevel = "info"
+	}
 	return config{
 		serviceName:  serviceName,
 		root:         dclRoot,
 		shouldUpload: shouldUpload,
+		logLevel:     logLevel,
+		port:         9888,
 	}, nil
 }
