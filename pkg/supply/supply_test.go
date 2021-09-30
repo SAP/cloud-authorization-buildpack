@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"net/http"
@@ -13,6 +14,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"code.cloudfoundry.org/buildpackapplifecycle/buildpackrunner/resources"
 	"github.com/SAP/cloud-authorization-buildpack/pkg/supply"
@@ -71,16 +73,19 @@ var _ = Describe("Supply", func() {
 
 	JustBeforeEach(func() {
 		Expect(os.Setenv("VCAP_SERVICES", vcapServices)).To(Succeed())
+		Expect(os.Setenv("CF_STACK", "cflinuxfs3")).To(Succeed())
 		wd, err := os.Getwd()
 		Expect(err).NotTo(HaveOccurred())
 		buildpackDir := path.Join(filepath.Dir(filepath.Dir(wd)))
 
 		args := []string{buildDir, "", depsDir, depsIdx}
 		bps := libbuildpack.NewStager(args, logger, &libbuildpack.Manifest{})
-
+		m, err := libbuildpack.NewManifest(buildpackDir, logger, time.Now())
+		Expect(err).NotTo(HaveOccurred())
 		supplier = &supply.Supplier{
 			Stager:       bps,
-			Manifest:     nil,
+			Manifest:     m,
+			Installer:    libbuildpack.NewInstaller(m),
 			Log:          logger,
 			BuildpackDir: buildpackDir,
 			Uploader:     uploader.NewUploaderWithClient(logger, mockAMSClient),
@@ -95,6 +100,7 @@ var _ = Describe("Supply", func() {
 		Expect(os.Unsetenv("VCAP_APPLICATION")).To(Succeed())
 		Expect(os.Unsetenv("AMS_DCL_ROOT")).To(Succeed())
 		Expect(os.Unsetenv("AMS_SERVICE")).To(Succeed())
+		Expect(os.Unsetenv("CF_STACK")).To(Succeed())
 	})
 	When("VCAP_SERVICES contains a 'authorization' service", func() {
 		BeforeEach(func() {
@@ -113,7 +119,8 @@ var _ = Describe("Supply", func() {
 				Expect(ld.Processes).To(HaveLen(1))
 				Expect(ld.Processes[0].Type).To(Equal("opa"))
 				Expect(ld.Processes[0].Platforms.Cloudfoundry.SidecarFor).To(Equal([]string{"web"}))
-				Expect(ld.Processes[0].Command).To(Equal(path.Join(depDir, "start_opa.sh")))
+				cmd := fmt.Sprintf("'%s' run -s -c '%s' -l 'info' -a '[]:9888'", path.Join(depDir, "opa"), path.Join(depDir, "opa_config.yml"))
+				Expect(ld.Processes[0].Command).To(Equal(cmd))
 				Expect(ld.Processes[0].Limits.Memory).To(Equal(100))
 				Expect(buffer.String()).To(ContainSubstring("writing launch.yml"))
 			})
@@ -159,10 +166,6 @@ var _ = Describe("Supply", func() {
 		It("provides the OPA executable", func() {
 			Expect(supplier.Run()).To(Succeed())
 			expectIsExecutable(filepath.Join(depDir, "opa"))
-		})
-		It("provides the OPA start script", func() {
-			Expect(supplier.Run()).To(Succeed())
-			expectIsExecutable(filepath.Join(depDir, "start_opa.sh"))
 		})
 		It("uploads DCL and json files in a bundle", func() {
 			Expect(supplier.Run()).To(Succeed())
