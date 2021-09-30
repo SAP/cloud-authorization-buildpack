@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"path"
-	"strconv"
 	"strings"
 
 	"github.com/SAP/cloud-authorization-buildpack/pkg/uploader"
@@ -69,12 +68,6 @@ type LaunchData struct {
 
 func (s *Supplier) Run() error {
 	s.Log.BeginStep("Supplying OPA")
-	if err := s.supplyExecResource("opa"); err != nil {
-		return fmt.Errorf("could not supply opa binary: %w", err)
-	}
-	if err := s.supplyExecResource("start_opa.sh"); err != nil {
-		return fmt.Errorf("could not supply start_opa.sh: %w", err)
-	}
 	cfg, err := s.loadBuildpackConfig()
 	if err != nil {
 		return fmt.Errorf("could not load buildpack config: %w", err)
@@ -82,6 +75,9 @@ func (s *Supplier) Run() error {
 	amsCreds, err := s.loadAMSCredentials(s.Log, cfg)
 	if err != nil {
 		return fmt.Errorf("could not load AMSCredentials: %w", err)
+	}
+	if err := s.supplyOPABinary(); err != nil {
+		return fmt.Errorf("could not supply opa binary: %w", err)
 	}
 	if err := s.writeLaunchConfig(cfg); err != nil {
 		return fmt.Errorf("could not write launch config: %w", err)
@@ -93,9 +89,9 @@ func (s *Supplier) Run() error {
 		return fmt.Errorf("could not write profileD file: %w", err)
 	}
 	if cfg.shouldUpload {
-	if err := s.Uploader.Upload(path.Join(s.Stager.BuildDir(), cfg.root), amsCreds.URL); err != nil {
-		return fmt.Errorf("could not upload authz data: %w", err)
-	}
+		if err := s.Uploader.Upload(path.Join(s.Stager.BuildDir(), cfg.root), amsCreds.URL); err != nil {
+			return fmt.Errorf("could not upload authz data: %w", err)
+		}
 	}
 	return nil
 }
@@ -214,8 +210,12 @@ func (s *Supplier) loadAMSCredentials(log *libbuildpack.Logger, cfg config) (AMS
 	return amsCreds, err
 }
 
-func (s *Supplier) supplyExecResource(resource string) error {
-	return libbuildpack.CopyFile(path.Join(s.BuildpackDir, "resources", resource), path.Join(s.Stager.DepDir(), resource))
+func (s *Supplier) supplyOPABinary() error {
+	opaDep, err := s.Manifest.DefaultVersion("opa")
+	if err != nil {
+		return err
+	}
+	return s.Installer.InstallDependency(opaDep, path.Join(s.Stager.DepDir()))
 }
 
 type config struct {
