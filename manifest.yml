@@ -20,4 +20,5 @@ include_files:
   - VERSION
   - bin/supply
   - manifest.yml
+  - LICENSE
 pre_package: scripts/build.sh

@@ -5,6 +5,15 @@
 ## Usage
 This is a supply/sidecar buildpack. Which can't be used stand-alone. It has two major purposes. It defines a sidecar process which handles the authorization decisions. This sidecar is queried by the security client libraries. And it provides an upload mechanism for the applications base policy definitions to the Authorization Management Service.
 
+## Development
+
+Prerequisites:
+* Go
+* [buildpack-packer](https://github.com/cloudfoundry/libbuildpack/tree/master/packager#installing-the-packager)
+* Make
+
+Run `make test` to run tests. Run `make build` to package the buildpack as a .zip file.
+
 ### Services
 By default this buildpack expect to find an "authorization" service binding in the VCAP_SERVICES.
 It's also possible to bind a user-provided service instead, when it has same structure as the "authorization" binding and is tagged with "authorization". Another way to override this behavior is to provide the environment variable AMS_SERVICE to target another service than "authorization"(e.g. "authorization-dev")

@@ -223,7 +223,11 @@ func (s *Supplier) supplyOPABinary() error {
 	if err != nil {
 		return err
 	}
-	return s.Installer.InstallDependency(opaDep, path.Join(s.Stager.DepDir()))
+	if err = s.Installer.InstallDependency(opaDep, s.Stager.DepDir()); err != nil {
+		return fmt.Errorf("couldn't install OPA dependency: %w", err)
+	}
+	// The packager overwrites the permissions, so we need to make it executable again
+	return os.Chmod(path.Join(s.Stager.DepDir(), opaDep.Name), 0755)
 }
 
 type config struct {
