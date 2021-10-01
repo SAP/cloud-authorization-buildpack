@@ -2,4 +2,4 @@
 scaffold_buildpack-*.zip
 .idea
 *.zip
-bin
+
