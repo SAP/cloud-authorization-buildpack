@@ -1,4 +1,6 @@
 #!/bin/bash
+
+# This file is deleted by the buildpack packager automatically. So it won't be in the packaged release of this buildpack
 set -euo pipefail
 
 BUILD_DIR=$1
