@@ -185,12 +185,18 @@ var _ = Describe("Supply", func() {
 		})
 		When("AMS_DATA is set", func() {
 			BeforeEach(func() {
-				os.Setenv("AMS_DATA", "{}")
+				os.Setenv("AMS_DATA", "{\"root\":\"/policies\"}")
 			})
-			It("fails with an explanation", func() {
-				err := supplier.Run()
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("AMS_DATA is not supported anymore"))
+			It("uploads DCL and json files in a bundle", func() {
+				Expect(supplier.Run()).To(Succeed())
+				Expect(uploadReqSpy.Body).NotTo(BeNil())
+				files := getTgzFileNames(uploadReqSpy.Body)
+				Expect(files).To(ContainElements("myPolicies0/policy0.dcl", "myPolicies1/policy1.dcl", "schema.dcl"))
+				Expect(files).NotTo(ContainElements("data.json.license", "non-dcl-file.xyz", ContainSubstring("data.json")))
+			})
+			It("creates a warning", func() {
+				Expect(supplier.Run()).To(Succeed())
+				Expect(buffer.String()).To(ContainSubstring("the environment variable AMS_DATA is deprecated."))
 			})
 			AfterEach(func() {
 				os.Unsetenv("AMS_DATA")
