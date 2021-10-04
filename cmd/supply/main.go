@@ -124,7 +124,7 @@ func loadAMSClientCert(log *libbuildpack.Logger) (cert []byte, key []byte, err e
 		return cert, key, nil
 	}
 	log.Warning("%v", err)
-	log.Warning("Unable to read client certificate from identity service. Using CloudFoundry client cert instead. This mechanism is deprecated is will be removed soon.")
+	log.Warning("Unable to read client certificate from identity service. Using CloudFoundry client cert instead. This mechanism is deprecated and will be removed soon.")
 	cert, err = os.ReadFile(os.Getenv("CF_INSTANCE_CERT"))
 	if err != nil {
 		return cert, key, err
