@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"unicode"
@@ -31,20 +32,25 @@ const severityError = "ERROR"
 const severityWarning = "WARNING"
 
 func (up *uploader) logResponse(res *http.Response) error {
+	var b []byte
 	if res.StatusCode == http.StatusOK || res.StatusCode == http.StatusCreated || res.StatusCode == http.StatusNotModified {
 		up.log.Info("Base DCLs uploaded and compiled successfully")
 		return nil
 	} else if res.StatusCode == http.StatusBadRequest {
 		var ce CompileError
-		err := json.NewDecoder(res.Body).Decode(&ce)
+		b, err := ioutil.ReadAll(res.Body)
+		if err == nil {
+			return fmt.Errorf("DCL upload failed")
+		}
+		err = json.Unmarshal(b, &ce)
 		if err == nil {
 			err = up.printCompileError(ce)
 			if err == nil {
-				return fmt.Errorf("DCL upload failed")
+				return fmt.Errorf("DCL upload failed: status(%s) body(%s)", res.Status, string(b))
 			}
 		}
 	}
-	return fmt.Errorf("unexpected response on DCL upload: status(%s) body(%s)", res.Status, res.Body)
+	return fmt.Errorf("unexpected response on DCL upload: status(%s) body(%s)", res.Status, string(b))
 
 }
 func (up *uploader) printCompileError(compileError CompileError) error {
