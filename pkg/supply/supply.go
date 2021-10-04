@@ -68,7 +68,9 @@ type LaunchData struct {
 
 func (s *Supplier) Run() error {
 	s.Log.BeginStep("Supplying OPA")
-	cfg, err := s.loadBuildpackConfig()
+
+	// after remove of AMS_DATA, err and logger con be removed from this method
+	cfg, err := s.loadBuildpackConfig(s.Log)
 	if err != nil {
 		return fmt.Errorf("could not load buildpack config: %w", err)
 	}
@@ -219,16 +221,34 @@ type config struct {
 	logLevel     string
 	port         int
 }
+type amsDataDeprecated struct {
+	Root string `json:"root"`
+}
 
-func (s *Supplier) loadBuildpackConfig() (config, error) {
-	_, amsDataSet := os.LookupEnv("AMS_DATA")
-	if amsDataSet {
-		return config{}, fmt.Errorf("the environment variable AMS_DATA is not supported anymore. Please use $AMS_DCL_ROOT to provide Base DCL application (see https://github.com/SAP/cloud-authorization-buildpack/blob/master/README.md#base-policy-upload)")
-	}
+func (s *Supplier) loadBuildpackConfig(log *libbuildpack.Logger) (config, error) {
+
 	serviceName := os.Getenv("AMS_SERVICE")
 	if serviceName == "" {
 		serviceName = ServiceName
 	}
+
+	// Deprecated compatibility coding to support AMS_DATA for now (AMS_DATA.serviceNname will be ignored, because its not supposed to be supported by stakeholders)
+	amsData, amsDataSet := os.LookupEnv("AMS_DATA")
+	if amsDataSet {
+		log.Warning("the environment variable AMS_DATA is deprecated. Please use $AMS_DCL_ROOT to provide Base DCL application (see https://github.com/SAP/cloud-authorization-buildpack/blob/master/README.md#base-policy-upload)")
+		var amsD amsDataDeprecated
+		err := json.Unmarshal([]byte(amsData), &amsD)
+		return config{
+			serviceName:  serviceName,
+			root:         amsD.Root,
+			shouldUpload: amsD.Root != "",
+			logLevel:     "info",
+			port:         9888,
+		}, err
+
+	}
+	// End of Deprecated coding
+
 	dclRoot := os.Getenv("AMS_DCL_ROOT")
 	shouldUpload := dclRoot != ""
 	if !shouldUpload {
