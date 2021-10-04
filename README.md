@@ -9,7 +9,7 @@ This is a supply/sidecar buildpack. Which can't be used stand-alone. It has two 
 By default this buildpack expect to find an "authorization" service binding in the VCAP_SERVICES.
 It's also possible to bind a user-provided service instead, when it has same structure as the "authorization" binding and is tagged with "authorization". Another way to override this behavior is to provide the environment variable AMS_SERVICE to target another service than "authorization"(e.g. "authorization-dev")
 ### Base Policy Upload
-By default this buildpack doesn't upload any policies. To upload the base policies, provide the environment variable AMS_DCL_ROOT with the value of the path that contains the schema.dcl and the DCL packages. (For example in Spring /META-INF/classes; For other main buildpacks just the absolute folder relative to the project root). The buildpack will then upload all DCL files in all subfolders at the app staging.
+By default this buildpack doesn't upload any policies. To upload the base policies, provide the environment variable AMS_DCL_ROOT with the value of the path that contains the schema.dcl and the DCL packages. (For example in Spring /META-INF/classes; For other main buildpacks just the absolute folder relative to the project root). The buildpack will then upload all DCL files in all subfolders at the app staging. This enviromnent variable will be probably be replaced with an AMS config file end of Q4 2021(https://jtrack.wdf.sap.corp/browse/SECAUTH-1534)
 
 ## Development
 
