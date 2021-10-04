@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -64,8 +66,13 @@ func main() {
 		logger.Error("Unable to setup environment variables: %s", err)
 		os.Exit(14)
 	}
+	cert, key, err := loadAMSClientCert(logger)
+	if err != nil {
+		logger.Error("Unable to laod AMS client certificate: %s", err)
+		os.Exit(14)
+	}
 
-	uploader, err := uploader.NewUploader(logger, os.Getenv("CF_INSTANCE_CERT"), os.Getenv("CF_INSTANCE_KEY"))
+	uploader, err := uploader.NewUploader(logger, cert, key)
 	if err != nil {
 		logger.Error("Unable to create uploader: %s", err)
 		os.Exit(15)
@@ -94,4 +101,36 @@ func main() {
 		logger.Error("Unable clean up app cache: %s", err)
 		os.Exit(19)
 	}
+}
+func loadIASClientCert(log *libbuildpack.Logger) (cert []byte, key []byte, err error) {
+	iasCredsRaw, err := supply.LoadServiceCredentials(log, "identity")
+	if err != nil {
+		return cert, key, err
+	}
+	var iasCreds supply.IASCredentials
+	err = json.Unmarshal(iasCredsRaw, &iasCreds)
+	if err != nil {
+		return cert, key, err
+	}
+	if len(iasCreds.Certificate) == 0 {
+		return cert, key, fmt.Errorf("identity service binding does not contain client certificate. Please use binding parameter {\"credential_type\":\"X509_GENERATED\"}")
+	}
+
+	return cert, key, err
+}
+func loadAMSClientCert(log *libbuildpack.Logger) (cert []byte, key []byte, err error) {
+	cert, key, err = loadIASClientCert(log)
+	if err == nil {
+		return cert, key, nil
+	}
+	log.Warning("%v", err)
+	log.Warning("Unable to read client certificate from identity service. Using CloudFoundry client cert instead. This mechanism is deprecated is will be removed soon.")
+	cert, err = os.ReadFile(os.Getenv("CF_INSTANCE_CERT"))
+	if err != nil {
+		return cert, key, err
+	}
+	key, err = os.ReadFile(os.Getenv("CF_INSTANCE_KEY"))
+
+	return cert, key, err
+
 }

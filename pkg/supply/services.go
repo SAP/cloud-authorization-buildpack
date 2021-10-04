@@ -1,6 +1,13 @@
 package supply
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"time"
+
+	"github.com/cloudfoundry/libbuildpack"
+)
 
 type Service struct {
 	Name        string          `json:"name"`
@@ -32,4 +39,44 @@ type AMSCredentials struct {
 	Issuer      string                 `json:"value_help_certificate_issuer"`
 	Subject     string                 `json:"value_help_certificate_subject"`
 	URL         string                 `json:"url"`
+}
+
+type IASCredentials struct {
+	Certificate          []byte    `json:"certificate"`
+	CertificateExpiresAt time.Time `json:"certificate_expires_at"`
+	Clientid             string    `json:"clientid"`
+	Domain               string    `json:"domain"`
+	Domains              []string  `json:"domains"`
+	Key                  []byte    `json:"key"`
+	OsbURL               string    `json:"osb_url"`
+	ProoftokenURL        string    `json:"prooftoken_url"`
+	URL                  string    `json:"url"`
+	ZoneUUID             string    `json:"zone_uuid"`
+}
+
+func LoadServiceCredentials(log *libbuildpack.Logger, serviceName string) (json.RawMessage, error) {
+	svcsString := os.Getenv("VCAP_SERVICES")
+	var svcs map[string][]Service
+	err := json.Unmarshal([]byte(svcsString), &svcs)
+	if err != nil {
+		return json.RawMessage{}, fmt.Errorf("could not unmarshal VCAP_SERVICES: %w", err)
+	}
+	var rawAmsCreds []json.RawMessage
+	if ups, ok := svcs["user-provided"]; ok {
+		for i, up := range ups {
+			for _, t := range up.Tags {
+				if t == serviceName {
+					log.Info("Detected user-provided %s service '%s", serviceName, ups[i].Name)
+					rawAmsCreds = append(rawAmsCreds, ups[i].Credentials)
+				}
+			}
+		}
+	}
+	for _, amsSvc := range svcs[serviceName] {
+		rawAmsCreds = append(rawAmsCreds, amsSvc.Credentials)
+	}
+	if len(rawAmsCreds) != 1 {
+		return json.RawMessage{}, fmt.Errorf("expect only one service (type %s or user-provided) but got %d", serviceName, len(rawAmsCreds))
+	}
+	return rawAmsCreds[0], nil
 }

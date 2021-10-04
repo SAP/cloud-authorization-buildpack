@@ -25,8 +25,8 @@ type AMSClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-func NewUploader(log *libbuildpack.Logger, cert, key string) (Uploader, error) {
-	crt, err := tls.LoadX509KeyPair(cert, key)
+func NewUploader(log *libbuildpack.Logger, cert, key []byte) (Uploader, error) {
+	crt, err := tls.X509KeyPair(cert, key)
 	if err != nil {
 		return nil, fmt.Errorf("could not load cf certs %w", err)
 	}

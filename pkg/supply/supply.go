@@ -190,31 +190,13 @@ func (s *Supplier) writeLaunchConfig(cfg config) error {
 }
 
 func (s *Supplier) loadAMSCredentials(log *libbuildpack.Logger, cfg config) (AMSCredentials, error) {
-	svcsString := os.Getenv("VCAP_SERVICES")
-	var svcs map[string][]Service
-	err := json.Unmarshal([]byte(svcsString), &svcs)
+
+	creds, err := LoadServiceCredentials(log, cfg.serviceName)
 	if err != nil {
-		return AMSCredentials{}, fmt.Errorf("could not unmarshal VCAP_SERVICES: %w", err)
-	}
-	var rawAmsCreds []json.RawMessage
-	if ups, ok := svcs["user-provided"]; ok {
-		for i, up := range ups {
-			for _, t := range up.Tags {
-				if t == ServiceName {
-					log.Info("Detected user-provided authorization service '%s", ups[i].Name)
-					rawAmsCreds = append(rawAmsCreds, ups[i].Credentials)
-				}
-			}
-		}
-	}
-	for _, amsSvc := range svcs[cfg.serviceName] {
-		rawAmsCreds = append(rawAmsCreds, amsSvc.Credentials)
-	}
-	if len(rawAmsCreds) != 1 {
-		return AMSCredentials{}, fmt.Errorf("expect only one AMS service (type %s or user-provided) but got %d", cfg.serviceName, len(rawAmsCreds))
+		return AMSCredentials{}, err
 	}
 	var amsCreds AMSCredentials
-	err = json.Unmarshal(rawAmsCreds[0], &amsCreds)
+	err = json.Unmarshal(creds, &amsCreds)
 	return amsCreds, err
 }
 
