@@ -112,11 +112,11 @@ func loadIASClientCert(log *libbuildpack.Logger) (cert []byte, key []byte, err e
 	if err != nil {
 		return cert, key, err
 	}
-	if len(iasCreds.Certificate) == 0 {
+	if iasCreds.Certificate == "" {
 		return cert, key, fmt.Errorf("identity service binding does not contain client certificate. Please use binding parameter {\"credential_type\":\"X509_GENERATED\"}")
 	}
 
-	return cert, key, err
+	return []byte(iasCreds.Certificate), []byte(iasCreds.Key), nil
 }
 func loadAMSClientCert(log *libbuildpack.Logger) (cert []byte, key []byte, err error) {
 	cert, key, err = loadIASClientCert(log)
