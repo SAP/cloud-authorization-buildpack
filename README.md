@@ -2,8 +2,13 @@
 
 [![REUSE status](https://api.reuse.software/badge/github.com/SAP/cloud-authorization-buildpack)](https://api.reuse.software/info/github.com/SAP/cloud-authorization-buildpack)
 
+This is a supply/sidecar buildpack which can't be used stand-alone. It has two major purposes. It defines a sidecar process which handles the authorization decisions. This sidecar is queried by the security client libraries. And it provides an upload mechanism for the applications base policy definitions to the Authorization Management Service.
+
 ## Usage
-This is a supply/sidecar buildpack. Which can't be used stand-alone. It has two major purposes. It defines a sidecar process which handles the authorization decisions. This sidecar is queried by the security client libraries. And it provides an upload mechanism for the applications base policy definitions to the Authorization Management Service.
+Consume the latest released version of this buildpack with the following link in your manifest or via the `-b` flag:
+
+https://github.com/SAP/cloud-authorization-buildpack/releases/latest/download/opa_buildpack.zip
+We discourage referencing a branch of this repo directly.
 
 ### Services
 By default this buildpack expect to find an "authorization" service binding in the VCAP_SERVICES.
