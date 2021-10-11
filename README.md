@@ -2,58 +2,28 @@
 
 [![REUSE status](https://api.reuse.software/badge/github.com/SAP/cloud-authorization-buildpack)](https://api.reuse.software/info/github.com/SAP/cloud-authorization-buildpack)
 
-## Building the Buildpack
-To build this buildpack, run the following command from the buildpack's directory:
+This is a supply/sidecar buildpack which can't be used stand-alone. It has two major purposes. It defines a sidecar process which handles the authorization decisions. This sidecar is queried by the security client libraries. And it provides an upload mechanism for the applications base policy definitions to the Authorization Management Service.
 
-1. Source the .envrc file in the buildpack directory.
-```bash
-source .envrc
-```
-To simplify the process in the future, install [direnv](https://direnv.net/) which will automatically source .envrc when you change directories.
+## Usage
+Consume the latest released version of this buildpack with the following link in your manifest or via the `-b` flag:
 
-1. Install buildpack-packager
-```bash
-./scripts/install_tools.sh
-```
+https://github.com/SAP/cloud-authorization-buildpack/releases/latest/download/opa_buildpack.zip
+We discourage referencing a branch of this repo directly.
 
-1. Build the buildpack
-```bash
-buildpack-packager build
-```
+### Services
+By default this buildpack expect to find an "authorization" service binding in the VCAP_SERVICES.
+It's also possible to bind a user-provided service instead, when it has same structure as the "authorization" binding and is tagged with "authorization". Another way to override this behavior is to provide the environment variable AMS_SERVICE to target another service than "authorization"(e.g. "authorization-dev")
+### Base Policy Upload
+By default this buildpack doesn't upload any policies. To upload the base policies, provide the environment variable AMS_DCL_ROOT with the value of the path that contains the schema.dcl and the DCL packages. (For example in Spring /META-INF/classes; For other main buildpacks just the absolute folder relative to the project root). The buildpack will then upload all DCL files in all subfolders at the app staging. This enviromnent variable will be probably be replaced with an AMS config file end of Q4 2021(https://jtrack.wdf.sap.corp/browse/SECAUTH-1534)
 
-1. Use in Cloud Foundry
-Upload the buildpack to your Cloud Foundry and optionally specify it by name
+## Development
 
-```bash
-cf create-buildpack [BUILDPACK_NAME] [BUILDPACK_ZIP_FILE_PATH] 1
-cf push my_app [-b BUILDPACK_NAME]
-```
+Prerequisites:
+* Go
+* [buildpack-packer](https://github.com/cloudfoundry/libbuildpack/tree/master/packager#installing-the-packager)
+* Make
 
-## Testing
-Buildpacks use the [Cutlass](https://github.com/cloudfoundry/libbuildpack/cutlass) framework for running integration tests.
-
-To test this buildpack, run the following command from the buildpack's directory:
-
-1. Source the .envrc file in the buildpack directory.
-
-```bash
-source .envrc
-```
-To simplify the process in the future, install [direnv](https://direnv.net/) which will automatically source .envrc when you change directories.
-
-1. Run unit tests
-
-```bash
-./scripts/unit.sh
-```
-
-1. Run integration tests
-
-```bash
-./scripts/integration.sh
-```
-
-More information can be found on Github [cutlass](https://github.com/cloudfoundry/libbuildpack/cutlass).
+Run `make test` to run unit tests. Run `make build` to package the buildpack as a .zip file.
 
 ## Reporting Issues
 Open an issue on this project
