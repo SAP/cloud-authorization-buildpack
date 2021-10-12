@@ -31,5 +31,11 @@ Files:
     fixtures/.gitkeep
     README.md
     .gitignore
+    Makefile
+    builder.Dockerfile
+    pkg/*
+    cmd/*
+    go.mod
+    go.sum
 Copyright: 2020-2021 SAP SE or an SAP affiliate company and cloud-authorization-buildpack contributors
 License: Apache-2.0
