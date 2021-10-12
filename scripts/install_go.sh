@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# SPDX-FileCopyrightText: Dr Nic Williams 2017-Present
+# SPDX-License-Identifier: mit-drnic
+
 set -e
 set -u
 set -o pipefail
