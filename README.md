@@ -22,6 +22,7 @@ Prerequisites:
 * Go
 * [buildpack-packer](https://github.com/cloudfoundry/libbuildpack/tree/master/packager#installing-the-packager)
 * Make
+* Docker
 
 Run `make test` to run unit tests. Run `make build` to package the buildpack as a .zip file.
 
