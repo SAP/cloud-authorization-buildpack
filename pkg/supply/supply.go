@@ -84,7 +84,7 @@ func (s *Supplier) Run() error {
 	if err := s.writeLaunchConfig(cfg); err != nil {
 		return fmt.Errorf("could not write launch config: %w", err)
 	}
-	if err := s.writeOpaConfig(amsCreds.ObjectStore); err != nil {
+	if err := s.writeOpaConfig(amsCreds.BundleURL); err != nil {
 		return fmt.Errorf("could not write opa config: %w", err)
 	}
 	if err := s.writeProfileDFile(cfg, amsCreds); err != nil {
@@ -102,8 +102,13 @@ type S3Signing struct {
 	AWSEnvCreds interface{} `json:"environment_credentials,omitempty"`
 }
 
+type ClientTLS struct {
+	Cert string `json:"cert,omitempty"`
+	Key  string `json:"key,omitempty"`
+}
+
 type Credentials struct {
-	S3Signing S3Signing `json:"s3_signing,omitempty"`
+	ClientTLS ClientTLS `json:"client_tls,omitempty"`
 }
 
 type RestConfig struct {
@@ -119,11 +124,8 @@ type OPAConfig struct {
 func (s *Supplier) writeProfileDFile(cfg config, amsCreds AMSCredentials) error {
 	s.Log.Info("writing profileD file..")
 	values := map[string]string{
-		"AWS_ACCESS_KEY_ID":     amsCreds.ObjectStore.AccessKeyID,
-		"AWS_SECRET_ACCESS_KEY": amsCreds.ObjectStore.SecretAccessKey,
-		"AWS_REGION":            amsCreds.ObjectStore.Region,
-		"OPA_URL":               fmt.Sprintf("http://localhost:%d/", cfg.port),
-		"ADC_URL":               fmt.Sprintf("http://localhost:%d/", cfg.port),
+		"OPA_URL": fmt.Sprintf("http://localhost:%d/", cfg.port),
+		"ADC_URL": fmt.Sprintf("http://localhost:%d/", cfg.port),
 	}
 	var b bytes.Buffer
 	for k, v := range values {
@@ -137,9 +139,9 @@ func (s *Supplier) writeProfileDFile(cfg config, amsCreds AMSCredentials) error 
 	return os.WriteFile(path.Join(s.Stager.ProfileDir(), "0000_opa_env.sh"), b.Bytes(), 0755)
 }
 
-func (s *Supplier) writeOpaConfig(osCreds ObjectStoreCredentials) error {
+func (s *Supplier) writeOpaConfig(bundleURL string) error {
 	s.Log.Info("writing opa config..")
-	serviceKey := "s3"
+	serviceKey := "bundle_storage"
 	bundles := make(map[string]*bundle.Source)
 	bundles["SAP"] = &bundle.Source{
 		Config: download.Config{
@@ -153,8 +155,11 @@ func (s *Supplier) writeOpaConfig(osCreds ObjectStoreCredentials) error {
 	}
 	services := make(map[string]RestConfig)
 	services[serviceKey] = RestConfig{
-		URL:         fmt.Sprintf("https://%s/%s", osCreds.Host, osCreds.Bucket),
-		Credentials: Credentials{S3Signing{AWSEnvCreds: struct{}{}}},
+		URL: bundleURL,
+		Credentials: Credentials{ClientTLS{
+			Cert: "/home/vcap/deps/0/ias.crt",
+			Key:  "/home/vcap/deps/0/ias.key",
+		}},
 	}
 
 	cfg := OPAConfig{

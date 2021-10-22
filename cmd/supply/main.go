@@ -66,9 +66,19 @@ func main() {
 		logger.Error("Unable to setup environment variables: %s", err)
 		os.Exit(14)
 	}
-	cert, key, err := loadAMSClientCert(logger)
+	cert, key, err := loadIASClientCert(logger)
 	if err != nil {
-		logger.Error("Unable to laod AMS client certificate: %s", err)
+		logger.Error("Unable to laod IAS client certificate: %s", err)
+		os.Exit(14)
+	}
+	os.WriteFile(filepath.Join(stager.DepDir(), "ias.crt"), cert, 0666)
+	if err != nil {
+		logger.Error("Unable to write IAS client certificate: %s", err)
+		os.Exit(14)
+	}
+	os.WriteFile(filepath.Join(stager.DepDir(), "ias.key"), key, 0666)
+	if err != nil {
+		logger.Error("Unable to write IAS client key: %s", err)
 		os.Exit(14)
 	}
 
@@ -117,20 +127,4 @@ func loadIASClientCert(log *libbuildpack.Logger) (cert []byte, key []byte, err e
 	}
 
 	return []byte(iasCreds.Certificate), []byte(iasCreds.Key), nil
-}
-func loadAMSClientCert(log *libbuildpack.Logger) (cert []byte, key []byte, err error) {
-	cert, key, err = loadIASClientCert(log)
-	if err == nil {
-		return cert, key, nil
-	}
-	log.Warning("%v", err)
-	log.Warning("Unable to read client certificate from identity service. Using CloudFoundry client cert instead. This mechanism is deprecated and will be removed soon.")
-	cert, err = os.ReadFile(os.Getenv("CF_INSTANCE_CERT"))
-	if err != nil {
-		return cert, key, err
-	}
-	key, err = os.ReadFile(os.Getenv("CF_INSTANCE_KEY"))
-
-	return cert, key, err
-
 }

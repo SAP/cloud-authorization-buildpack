@@ -34,11 +34,11 @@ type ObjectStoreCredentials struct {
 
 // This is the old way of marshaling creds
 type AMSCredentials struct {
-	UIURL       string                 `json:"ui_url"`
-	ObjectStore ObjectStoreCredentials `json:"object_store"`
-	Issuer      string                 `json:"value_help_certificate_issuer"`
-	Subject     string                 `json:"value_help_certificate_subject"`
-	URL         string                 `json:"url"`
+	UIURL     string `json:"ui_url"`
+	BundleURL string `json:"bundle_url"`
+	Issuer    string `json:"value_help_certificate_issuer"`
+	Subject   string `json:"value_help_certificate_subject"`
+	URL       string `json:"url"`
 }
 
 type IASCredentials struct {
