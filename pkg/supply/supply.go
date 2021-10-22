@@ -84,7 +84,7 @@ func (s *Supplier) Run() error {
 	if err := s.writeLaunchConfig(cfg); err != nil {
 		return fmt.Errorf("could not write launch config: %w", err)
 	}
-	if err := s.writeOpaConfig(amsCreds.BundleURL); err != nil {
+	if err := s.writeOpaConfig(amsCreds); err != nil {
 		return fmt.Errorf("could not write opa config: %w", err)
 	}
 	if err := s.writeProfileDFile(cfg, amsCreds); err != nil {
@@ -139,11 +139,11 @@ func (s *Supplier) writeProfileDFile(cfg config, amsCreds AMSCredentials) error 
 	return os.WriteFile(path.Join(s.Stager.ProfileDir(), "0000_opa_env.sh"), b.Bytes(), 0755)
 }
 
-func (s *Supplier) writeOpaConfig(bundleURL string) error {
+func (s *Supplier) writeOpaConfig(cred AMSCredentials) error {
 	s.Log.Info("writing opa config..")
 	serviceKey := "bundle_storage"
 	bundles := make(map[string]*bundle.Source)
-	bundles["SAP"] = &bundle.Source{
+	bundles[cred.InstanceID] = &bundle.Source{
 		Config: download.Config{
 			Polling: download.PollingConfig{
 				MinDelaySeconds: newInt64P(10),
@@ -151,11 +151,11 @@ func (s *Supplier) writeOpaConfig(bundleURL string) error {
 			},
 		},
 		Service:  serviceKey,
-		Resource: "SAP.tar.gz",
+		Resource: cred.InstanceID,
 	}
 	services := make(map[string]RestConfig)
 	services[serviceKey] = RestConfig{
-		URL: bundleURL,
+		URL: cred.BundleURL,
 		Credentials: Credentials{ClientTLS{
 			Cert: "/home/vcap/deps/0/ias.crt",
 			Key:  "/home/vcap/deps/0/ias.key",
@@ -198,12 +198,13 @@ func (s *Supplier) writeLaunchConfig(cfg config) error {
 
 func (s *Supplier) loadAMSCredentials(log *libbuildpack.Logger, cfg config) (AMSCredentials, error) {
 
-	creds, err := LoadServiceCredentials(log, cfg.serviceName)
+	creds, id, err := LoadServiceCredentials(log, cfg.serviceName)
 	if err != nil {
 		return AMSCredentials{}, err
 	}
 	var amsCreds AMSCredentials
 	err = json.Unmarshal(creds, &amsCreds)
+	amsCreds.InstanceID = id
 	return amsCreds, err
 }
 

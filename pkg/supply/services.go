@@ -13,6 +13,7 @@ type Service struct {
 	Name        string          `json:"name"`
 	Tags        []string        `json:"tags"`
 	Credentials json.RawMessage `json:"credentials"`
+	InstanceID  string          `json:"instance_guid"`
 }
 
 type ObjectStoreCredentials struct {
@@ -34,11 +35,12 @@ type ObjectStoreCredentials struct {
 
 // This is the old way of marshaling creds
 type AMSCredentials struct {
-	UIURL     string `json:"ui_url"`
-	BundleURL string `json:"bundle_url"`
-	Issuer    string `json:"value_help_certificate_issuer"`
-	Subject   string `json:"value_help_certificate_subject"`
-	URL       string `json:"url"`
+	UIURL      string `json:"ui_url"`
+	BundleURL  string `json:"bundle_url"`
+	Issuer     string `json:"value_help_certificate_issuer"`
+	Subject    string `json:"value_help_certificate_subject"`
+	URL        string `json:"url"`
+	InstanceID string `json:"instance_guid"`
 }
 
 type IASCredentials struct {
@@ -54,12 +56,12 @@ type IASCredentials struct {
 	ZoneUUID             string    `json:"zone_uuid"`
 }
 
-func LoadServiceCredentials(log *libbuildpack.Logger, serviceName string) (json.RawMessage, error) {
+func LoadServiceCredentials(log *libbuildpack.Logger, serviceName string) (json.RawMessage, string, error) {
 	svcsString := os.Getenv("VCAP_SERVICES")
 	var svcs map[string][]Service
 	err := json.Unmarshal([]byte(svcsString), &svcs)
 	if err != nil {
-		return json.RawMessage{}, fmt.Errorf("could not unmarshal VCAP_SERVICES: %w", err)
+		return json.RawMessage{}, "", fmt.Errorf("could not unmarshal VCAP_SERVICES: %w", err)
 	}
 	var rawAmsCreds []json.RawMessage
 	if ups, ok := svcs["user-provided"]; ok {
@@ -72,11 +74,13 @@ func LoadServiceCredentials(log *libbuildpack.Logger, serviceName string) (json.
 			}
 		}
 	}
+	var instanceID string
 	for _, amsSvc := range svcs[serviceName] {
+		instanceID = amsSvc.InstanceID
 		rawAmsCreds = append(rawAmsCreds, amsSvc.Credentials)
 	}
 	if len(rawAmsCreds) != 1 {
-		return json.RawMessage{}, fmt.Errorf("expect only one service (type %s or user-provided) but got %d", serviceName, len(rawAmsCreds))
+		return json.RawMessage{}, "", fmt.Errorf("expect only one service (type %s or user-provided) but got %d", serviceName, len(rawAmsCreds))
 	}
-	return rawAmsCreds[0], nil
+	return rawAmsCreds[0], instanceID, nil
 }

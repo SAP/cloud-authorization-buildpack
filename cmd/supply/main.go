@@ -113,7 +113,7 @@ func main() {
 	}
 }
 func loadIASClientCert(log *libbuildpack.Logger) (cert []byte, key []byte, err error) {
-	iasCredsRaw, err := supply.LoadServiceCredentials(log, "identity")
+	iasCredsRaw, _, err := supply.LoadServiceCredentials(log, "identity")
 	if err != nil {
 		return cert, key, err
 	}
