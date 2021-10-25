@@ -151,7 +151,7 @@ func (s *Supplier) writeOpaConfig(cred AMSCredentials) error {
 			},
 		},
 		Service:  serviceKey,
-		Resource: cred.InstanceID,
+		Resource: cred.InstanceID + ".tar.gz",
 	}
 	services := make(map[string]RestConfig)
 	services[serviceKey] = RestConfig{
