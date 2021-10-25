@@ -104,7 +104,7 @@ type S3Signing struct {
 
 type ClientTLS struct {
 	Cert string `json:"cert,omitempty"`
-	Key  string `json:"key,omitempty"`
+	Key  string `json:"private_key,omitempty"`
 }
 
 type Credentials struct {
