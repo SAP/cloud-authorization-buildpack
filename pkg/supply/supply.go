@@ -78,16 +78,16 @@ func (s *Supplier) Run() error {
 	if err != nil {
 		return fmt.Errorf("could not load AMSCredentials: %w", err)
 	}
-	if err := s.supplyOPABinary(); err != nil {
+	if err = s.supplyOPABinary(); err != nil {
 		return fmt.Errorf("could not supply opa binary: %w", err)
 	}
-	if err := s.writeLaunchConfig(cfg); err != nil {
+	if err = s.writeLaunchConfig(cfg); err != nil {
 		return fmt.Errorf("could not write launch config: %w", err)
 	}
-	if err := s.writeOpaConfig(amsCreds.ObjectStore); err != nil {
+	if err = s.writeOpaConfig(amsCreds.ObjectStore); err != nil {
 		return fmt.Errorf("could not write opa config: %w", err)
 	}
-	if err := s.writeProfileDFile(cfg, amsCreds); err != nil {
+	if err = s.writeProfileDFile(cfg, amsCreds); err != nil {
 		return fmt.Errorf("could not write profileD file: %w", err)
 	}
 	if cfg.shouldUpload {
