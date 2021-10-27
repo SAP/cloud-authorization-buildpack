@@ -118,11 +118,16 @@ var _ = Describe("Supply", func() {
 				Expect(ld.Processes).To(HaveLen(1))
 				Expect(ld.Processes[0].Type).To(Equal("opa"))
 				Expect(ld.Processes[0].Platforms.Cloudfoundry.SidecarFor).To(Equal([]string{"web"}))
-				cmd := `"$DEPS_DIR/42/opa" run -s -c "$DEPS_DIR/42/opa_config.yml" -l 'info' -a '[]:9888' --skip-version-check`
+				cmd := `"$DEPS_DIR/42/opa" run -s -b "$DEPS_DIR/42/healthBundle" -c "$DEPS_DIR/42/opa_config.yml" -l 'info' -a '[]:9888' --skip-version-check`
 				Expect(ld.Processes[0].Command).To(Equal(cmd))
 				Expect(ld.Processes[0].Limits.Memory).To(Equal(100))
 				Expect(buffer.String()).To(ContainSubstring("writing launch.yml"))
 			})
+		})
+		It("adds the health bundle", func() {
+			Expect(supplier.Run()).To(Succeed())
+			Expect(filepath.Join(depDir, "healthBundle", "system", "health", "health.rego")).To(BeARegularFile())
+			Expect(filepath.Join(depDir, "healthBundle", ".manifest")).To(BeARegularFile())
 		})
 		It("creates the correct opa config", func() {
 			Expect(supplier.Run()).To(Succeed())

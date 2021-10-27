@@ -90,6 +90,9 @@ func (s *Supplier) Run() error {
 	if err = s.writeProfileDFile(cfg, amsCreds); err != nil {
 		return fmt.Errorf("could not write profileD file: %w", err)
 	}
+	if err = s.supplyHealthBundle(); err != nil {
+		return fmt.Errorf("could not supply health bundle: %v", err)
+	}
 	if cfg.shouldUpload {
 		if err := s.Uploader.Upload(path.Join(s.Stager.BuildDir(), cfg.root), amsCreds.URL); err != nil {
 			return fmt.Errorf("could not upload authz data: %w", err)
@@ -171,7 +174,7 @@ func (s *Supplier) writeOpaConfig(osCreds ObjectStoreCredentials) error {
 func (s *Supplier) writeLaunchConfig(cfg config) error {
 	s.Log.Info("writing launch.yml..")
 	cmd := fmt.Sprintf(
-		"\"$DEPS_DIR/%s\" run -s -c \"$DEPS_DIR/%s\" -l '%s' -a '[]:%d' --skip-version-check",
+		`"$DEPS_DIR/%s" run -s -b "$DEPS_DIR/42/healthBundle" -c "$DEPS_DIR/%s" -l '%s' -a '[]:%d' --skip-version-check`,
 		path.Join(s.Stager.DepsIdx(), "opa"),
 		path.Join(s.Stager.DepsIdx(), "opa_config.yml"),
 		cfg.logLevel,
@@ -265,4 +268,12 @@ func (s *Supplier) loadBuildpackConfig(log *libbuildpack.Logger) (config, error)
 		logLevel:     logLevel,
 		port:         9888,
 	}, nil
+}
+
+func (s *Supplier) supplyHealthBundle() error {
+	dstDir := path.Join(s.Stager.DepDir(), "healthBundle")
+	if err := os.Mkdir(dstDir, 0755); err != nil {
+		return err
+	}
+	return libbuildpack.CopyDirectory(path.Join(s.BuildpackDir, "resources", "healthBundle"), dstDir)
 }
