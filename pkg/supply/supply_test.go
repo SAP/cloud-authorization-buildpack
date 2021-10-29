@@ -142,6 +142,7 @@ var _ = Describe("Supply", func() {
 				serviceKey = bundleConfig["SAP"].Service
 				Expect(serviceKey).NotTo(BeEmpty())
 				Expect(bundleConfig["SAP"].Resource).To(Equal("SAP.tar.gz"))
+				Expect(bundleConfig["SAP"].Persist).To(BeTrue())
 				Expect(*bundleConfig["SAP"].Polling.MinDelaySeconds).To(Equal(int64(10)))
 				Expect(*bundleConfig["SAP"].Polling.MaxDelaySeconds).To(Equal(int64(20)))
 			})

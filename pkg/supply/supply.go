@@ -142,6 +142,7 @@ func (s *Supplier) writeOpaConfig(osCreds ObjectStoreCredentials) error {
 	serviceKey := "s3"
 	bundles := make(map[string]*bundle.Source)
 	bundles["SAP"] = &bundle.Source{
+		Persist: true,
 		Config: download.Config{
 			Polling: download.PollingConfig{
 				MinDelaySeconds: newInt64P(10),
