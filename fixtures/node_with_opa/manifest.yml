@@ -11,8 +11,9 @@ applications:
     - https://github.com/SAP/cloud-authorization-buildpack/releases/latest/download/opa_buildpack.zip
     - nodejs_buildpack
   services:
-    - ams-node-opa
-    - ias-node-opa
+    - name: ams-node-opa
+    - name: ias-node-opa
+      parameters: { "credential-type": "X509_GENERATED" }
   health-check-type: process
   env:
     BP_DEBUG: "true"
