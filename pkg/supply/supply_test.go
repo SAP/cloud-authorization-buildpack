@@ -258,14 +258,27 @@ var _ = Describe("Supply", func() {
 
 	})
 	When("AMS credentials are included in the IAS credentials", func() {
-		BeforeEach(func() {
-			vcapServices = testdata.EnvWithIASAuthorization
-			os.Setenv("AMS_DCL_ROOT", "/policies")
+		Context("and credential type is not x509", func() {
+			BeforeEach(func() {
+				vcapServices = testdata.EnvWithIASAuthWithClientSecret
+				os.Setenv("AMS_DCL_ROOT", "/policies")
+			})
+			It("should fail", func() {
+				err := supplier.Run()
+				Expect(err).To(HaveOccurred())
+				Expect(buffer.String()).To(ContainSubstring("Field validation for 'Certificate' failed"))
+			})
 		})
-		It("should succeed", func() {
-			Expect(supplier.Run()).To(Succeed())
-			Expect(filepath.Join(depDir, "launch.yml")).To(BeARegularFile())
-			Expect(uploadReqSpy.Host).To(Equal("ams.url.from.identity"))
+		Context("and credential type is x509", func() {
+			BeforeEach(func() {
+				vcapServices = testdata.EnvWithIASAuthX509
+				os.Setenv("AMS_DCL_ROOT", "/policies")
+			})
+			It("should succeed", func() {
+				Expect(supplier.Run()).To(Succeed())
+				Expect(filepath.Join(depDir, "launch.yml")).To(BeARegularFile())
+				Expect(uploadReqSpy.Host).To(Equal("ams.url.from.identity"))
+			})
 		})
 
 	})

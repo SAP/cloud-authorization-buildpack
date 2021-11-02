@@ -43,12 +43,12 @@ type AMSCredentials struct {
 }
 
 type IASCredentials struct {
-	Certificate          string                 `json:"certificate"`
+	Certificate          string                 `json:"certificate" validate:"required"`
 	CertificateExpiresAt time.Time              `json:"certificate_expires_at"`
 	Clientid             string                 `json:"clientid"`
 	Domain               string                 `json:"domain"`
 	Domains              []string               `json:"domains"`
-	Key                  string                 `json:"key"`
+	Key                  string                 `json:"key" validate:"required"`
 	OsbURL               string                 `json:"osb_url"`
 	ProoftokenURL        string                 `json:"prooftoken_url"`
 	URL                  string                 `json:"url"`
