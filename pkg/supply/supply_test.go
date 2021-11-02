@@ -100,6 +100,7 @@ var _ = Describe("Supply", func() {
 		Expect(os.Unsetenv("AMS_DCL_ROOT")).To(Succeed())
 		Expect(os.Unsetenv("AMS_SERVICE")).To(Succeed())
 		Expect(os.Unsetenv("CF_STACK")).To(Succeed())
+		Expect(os.Unsetenv("VCAP_SERVICES")).To(Succeed())
 	})
 	When("VCAP_SERVICES contains a 'authorization' service", func() {
 		BeforeEach(func() {
@@ -256,12 +257,26 @@ var _ = Describe("Supply", func() {
 		})
 
 	})
+	When("AMS credentials are included in the IAS credentials", func() {
+		BeforeEach(func() {
+			vcapServices = testdata.EnvWithIASAuthorization
+			os.Setenv("AMS_DCL_ROOT", "/policies")
+		})
+		It("should succeed", func() {
+			Expect(supplier.Run()).To(Succeed())
+			Expect(filepath.Join(depDir, "launch.yml")).To(BeARegularFile())
+			Expect(uploadReqSpy.Host).To(Equal("ams.url.from.identity"))
+		})
+
+	})
 	When("VCAP_SERVICES is empty", func() {
 		JustBeforeEach(func() {
 			os.Unsetenv("VCAP_SERVICES")
 		})
 		It("should abort with err", func() {
-			Expect(supplier.Run().Error()).To(ContainSubstring("could not unmarshal VCAP_SERVICES"))
+			err := supplier.Run()
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("could not unmarshal VCAP_SERVICES"))
 		})
 	})
 

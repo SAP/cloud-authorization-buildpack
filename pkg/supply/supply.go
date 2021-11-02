@@ -192,12 +192,16 @@ func (s *Supplier) writeLaunchConfig(cfg config) error {
 }
 
 func (s *Supplier) loadAMSCredentials(log *libbuildpack.Logger, cfg config) (AMSCredentials, error) {
-
+	amsCreds, err := loadAMSCredsFromIAS(log)
+	if err == nil {
+		log.Debug("using authorization credentials embedded in identity service")
+		return amsCreds, nil
+	}
+	log.Warning("no AMS credentials as part of identity service (%v). Resorting to other services", err)
 	creds, err := LoadServiceCredentials(log, cfg.serviceName)
 	if err != nil {
 		return AMSCredentials{}, err
 	}
-	var amsCreds AMSCredentials
 	err = json.Unmarshal(creds, &amsCreds)
 	return amsCreds, err
 }
