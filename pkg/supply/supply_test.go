@@ -266,7 +266,6 @@ var _ = Describe("Supply", func() {
 			It("should fail", func() {
 				err := supplier.Run()
 				Expect(err).To(HaveOccurred())
-				Expect(buffer.String()).To(ContainSubstring("Field validation for 'Certificate' failed"))
 			})
 		})
 		Context("and credential type is x509", func() {

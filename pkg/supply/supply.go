@@ -197,7 +197,7 @@ func (s *Supplier) loadAMSCredentials(log *libbuildpack.Logger, cfg config) (AMS
 		log.Debug("using authorization credentials embedded in identity service")
 		return amsCreds, nil
 	}
-	log.Warning("no AMS credentials as part of identity service (%v). Resorting to other services", err)
+	log.Warning("no AMS credentials as part of identity service. Resorting to other services")
 	creds, err := LoadServiceCredentials(log, cfg.serviceName)
 	if err != nil {
 		return AMSCredentials{}, err
