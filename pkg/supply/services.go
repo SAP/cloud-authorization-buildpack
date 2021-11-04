@@ -55,7 +55,7 @@ type IASCredentials struct {
 	ZoneUUID             string                 `json:"zone_uuid"`
 	AuthzURL             string                 `json:"authorization_url" validate:"required,url"`
 	AuthzObjectStore     ObjectStoreCredentials `json:"authorization_object_store" validate:"required"`
-	AuthzUIURL           string                 `json:"authorization_ui_url,url"`
+	AuthzUIURL           string                 `json:"authorization_ui_url" validate:"url,required"`
 }
 
 func LoadServiceCredentials(log *libbuildpack.Logger, serviceName string) (json.RawMessage, error) {
