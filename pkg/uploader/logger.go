@@ -43,7 +43,7 @@ func (up *uploader) logResponse(res *http.Response) error {
 		var ce CompileError
 		if err = json.Unmarshal(b, &ce); err == nil {
 			if err = up.printCompileError(ce); err == nil {
-				return fmt.Errorf("DCL upload failed: status(%s)", res.Status)
+				return fmt.Errorf("DCL upload failed: status(%s) body(%s)", res.Status, string(b))
 			}
 		}
 	}
