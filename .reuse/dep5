@@ -38,5 +38,123 @@ Files:
     go.mod
     go.sum
     VERSION
+    vendor/modules.txt
 Copyright: 2020-2021 SAP SE or an SAP affiliate company and cloud-authorization-buildpack contributors
 License: Apache-2.0
+
+Files: vendor/code.cloudfoundry.org/buildpackapplifecycle/*
+Copyright: Copyright (c) 2015-Present CloudFoundry.org Foundation, Inc.
+License: Apache-2.0 
+
+Files: vendor/gopkg.in/tomb.v1/*
+Copyright:  2010-2011 - Gustavo Niemeyer <gustavo@niemeyer.net>
+License: tomb.v1 
+
+Files: vendor/gopkg.in/yaml.v2/*
+Copyright: Copyright 2011-2016 Canonical Ltd.
+License: Apache-2.0 
+
+Files: vendor/github.com/OneOfOne/xxhash/*
+Copyright: default
+License: Apache-2.0 
+
+Files: vendor/github.com/blang/semver/*
+Copyright:  2014 Benedikt Lang <github at benediktlang.de>
+License: mit-semver 
+
+Files: vendor/github.com/cloudfoundry/libbuildpack/*
+Copyright: Copyright (c) 2017-Present CloudFoundry.org Foundation, Inc. 
+License: Apache-2.0 
+
+Files: vendor/github.com/fsnotify/fsnotify/*
+Copyright: Aaron L <aaron@bettercoder.net>, Adrien Bustany <adrien@bustany.org>, Amit Krishnan <amit.krishnan@oracle.com>, Anmol Sethi <me@anmol.io>, Bjørn Erik Pedersen <bjorn.erik.pedersen@gmail.com>, Bruno Bigras <bigras.bruno@gmail.com>, Caleb Spare <cespare@gmail.com>, Case Nelson <case@teammating.com>, Chris Howey <chris@howey.me> <howeyc@gmail.com>, Christoffer Buchholz <christoffer.buchholz@gmail.com>, Daniel Wagner-Hall <dawagner@gmail.com>, Dave Cheney <dave@cheney.net>, Evan Phoenix <evan@fallingsnow.net>, Francisco Souza <f@souza.cc>, Hari haran <hariharan.uno@gmail.com>, John C Barstow, Kelvin Fo <vmirage@gmail.com>, Ken-ichirou MATSUZAWA <chamas@h4.dion.ne.jp>, Matt Layher <mdlayher@gmail.com>, Nathan Youngman <git@nathany.com>, Nickolai Zeldovich <nickolai@csail.mit.edu>, Patrick <patrick@dropbox.com>, Paul Hammond <paul@paulhammond.org>, Pawel Knap <pawelknap88@gmail.com>, Pieter Droogendijk <pieter@binky.org.uk>, Pursuit92 <JoshChase@techpursuit.net>, Riku Voipio <riku.voipio@linaro.org>, Rob Figueiredo <robfig@gmail.com>, Rodrigo Chiossi <rodrigochiossi@gmail.com>, Slawek Ligus <root@ooz.ie>, Soge Zhang <zhssoge@gmail.com>, Tiffany Jernigan <tiffany.jernigan@intel.com>, Tilak Sharma <tilaks@google.com>, Tom Payne <twpayne@gmail.com>, Travis Cline <travis.cline@gmail.com>, Tudor Golubenco <tudor.g@gmail.com>, Vahe Khachikyan <vahe@live.ca>, Yukang <moorekang@gmail.com>, bronze1man <bronze1man@gmail.com>, debrando <denis.brandolini@gmail.com>, henrikedwards <henrik.edwards@gmail.com>, 铁哥 <guotie.9@gmail.com>
+License: fsnotify
+
+Files: vendor/github.com/ghodss/yaml/*
+Copyright: 2014 Sam Ghods, 2012 The Go Authors
+License: mit-yaml
+
+Files: vendor/github.com/go-playground/locales/*
+Copyright:  2016 Go Playground
+License: mit-locales 
+
+Files: vendor/github.com/go-playground/universal-translator/*
+Copyright:  2016 Go Playground
+License: mit-universal-translator 
+
+Files: vendor/github.com/gobwas/glob/*
+Copyright:  2016 Sergey Kamardin
+License: mit-glob 
+
+Files: vendor/github.com/golang/mock/*
+Copyright: Alex Reece <awreece@gmail.com>, Google Inc.
+License: Apache-2.0 
+
+Files: vendor/github.com/leodido/go-urn/*
+Copyright:  2018 Leonardo Di Donato
+License: go-urn 
+
+Files: vendor/github.com/nxadm/tail/*
+Copyright:  2014 ActiveState
+License: mit-tail 
+
+Files: vendor/github.com/onsi/ginkgo/*
+Copyright:  2013-2014 Onsi Fakhouri
+License: ginkgo 
+
+Files: vendor/github.com/onsi/gomega/*
+Copyright:  2013-2014 Onsi Fakhouri
+License: gomega 
+
+Files: vendor/github.com/open-policy-agent/opa/*
+Copyright: default
+License: Apache-2.0 
+
+Files: vendor/github.com/pkg/errors/*
+Copyright:  2015, Dave Cheney <dave@cheney.net>
+License: errors 
+
+Files: vendor/github.com/rcrowley/go-metrics/*
+Copyright: 2012 Richard Crowley
+License: go-metrics 
+
+Files: vendor/github.com/sirupsen/logrus/*
+Copyright:  2014 Simon Eskildsen
+License: mit-logrus 
+
+Files: vendor/github.com/yashtewari/glob-intersection/*
+Copyright: default
+License: Apache-2.0 
+
+Files: vendor/golang.org/x/crypto/*
+Copyright: https://tip.golang.org/AUTHORS
+License: crypto 
+
+Files: vendor/golang.org/x/net/*
+Copyright: http://tip.golang.org/AUTHORS
+License: net 
+
+Files: vendor/golang.org/x/sys/*
+Copyright: http://tip.golang.org/AUTHORS
+License: sys 
+
+Files: vendor/golang.org/x/text/*
+Copyright: http://tip.golang.org/AUTHORS
+License: text 
+
+Files: vendor/github.com/Masterminds/semver/*
+Copyright: 2014-2019, Matt Butcher and Matt Farina
+License: semver 
+
+Files: vendor/github.com/xeipuuv/gojsonpointer/*
+Copyright: 2015 xeipuuv
+License: Apache-2.0 
+
+Files: vendor/github.com/xeipuuv/gojsonreference/*
+Copyright: 2015 xeipuuv
+License: Apache-2.0 
+
+Files: vendor/github.com/go-playground/validator/v10/*
+Copyright: 2015 Dean Karn
+License: mit-v10 
+
