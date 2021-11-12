@@ -55,7 +55,7 @@ Copyright: Copyright 2011-2016 Canonical Ltd.
 License: Apache-2.0
 
 Files: vendor/github.com/OneOfOne/xxhash/*
-Copyright: default
+Copyright: The xxhash project contributors
 License: Apache-2.0
 
 Files: vendor/github.com/blang/semver/*
@@ -107,7 +107,7 @@ Copyright:  2013-2014 Onsi Fakhouri
 License: LicenseRef-gomega
 
 Files: vendor/github.com/open-policy-agent/opa/*
-Copyright: default
+Copyright: The Open Policy Agent project contributors
 License: Apache-2.0
 
 Files: vendor/github.com/pkg/errors/*
@@ -123,7 +123,7 @@ Copyright:  2014 Simon Eskildsen
 License: LicenseRef-mit-logrus
 
 Files: vendor/github.com/yashtewari/glob-intersection/*
-Copyright: default
+Copyright: The glob-intersection project contributors
 License: Apache-2.0
 
 Files: vendor/golang.org/x/crypto/*
