@@ -38,6 +38,7 @@ Files:
     go.mod
     go.sum
     VERSION
+    vendor/modules.txt
 Copyright: 2020-2021 SAP SE or an SAP affiliate company and cloud-authorization-buildpack contributors
 License: Apache-2.0
 
@@ -66,54 +67,12 @@ Copyright: Copyright (c) 2017-Present CloudFoundry.org Foundation, Inc.
 License: Apache-2.0 
 
 Files: vendor/github.com/fsnotify/fsnotify/*
-Copyright: 
-Aaron L <aaron@bettercoder.net>
-Adrien Bustany <adrien@bustany.org>
-Amit Krishnan <amit.krishnan@oracle.com>
-Anmol Sethi <me@anmol.io>
-Bjørn Erik Pedersen <bjorn.erik.pedersen@gmail.com>
-Bruno Bigras <bigras.bruno@gmail.com>
-Caleb Spare <cespare@gmail.com>
-Case Nelson <case@teammating.com>
-Chris Howey <chris@howey.me> <howeyc@gmail.com>
-Christoffer Buchholz <christoffer.buchholz@gmail.com>
-Daniel Wagner-Hall <dawagner@gmail.com>
-Dave Cheney <dave@cheney.net>
-Evan Phoenix <evan@fallingsnow.net>
-Francisco Souza <f@souza.cc>
-Hari haran <hariharan.uno@gmail.com>
-John C Barstow
-Kelvin Fo <vmirage@gmail.com>
-Ken-ichirou MATSUZAWA <chamas@h4.dion.ne.jp>
-Matt Layher <mdlayher@gmail.com>
-Nathan Youngman <git@nathany.com>
-Nickolai Zeldovich <nickolai@csail.mit.edu>
-Patrick <patrick@dropbox.com>
-Paul Hammond <paul@paulhammond.org>
-Pawel Knap <pawelknap88@gmail.com>
-Pieter Droogendijk <pieter@binky.org.uk>
-Pursuit92 <JoshChase@techpursuit.net>
-Riku Voipio <riku.voipio@linaro.org>
-Rob Figueiredo <robfig@gmail.com>
-Rodrigo Chiossi <rodrigochiossi@gmail.com>
-Slawek Ligus <root@ooz.ie>
-Soge Zhang <zhssoge@gmail.com>
-Tiffany Jernigan <tiffany.jernigan@intel.com>
-Tilak Sharma <tilaks@google.com>
-Tom Payne <twpayne@gmail.com>
-Travis Cline <travis.cline@gmail.com>
-Tudor Golubenco <tudor.g@gmail.com>
-Vahe Khachikyan <vahe@live.ca>
-Yukang <moorekang@gmail.com>
-bronze1man <bronze1man@gmail.com>
-debrando <denis.brandolini@gmail.com>
-henrikedwards <henrik.edwards@gmail.com>
-铁哥 <guotie.9@gmail.com>
-License: fsnotify 
+Copyright: Aaron L <aaron@bettercoder.net>, Adrien Bustany <adrien@bustany.org>, Amit Krishnan <amit.krishnan@oracle.com>, Anmol Sethi <me@anmol.io>, Bjørn Erik Pedersen <bjorn.erik.pedersen@gmail.com>, Bruno Bigras <bigras.bruno@gmail.com>, Caleb Spare <cespare@gmail.com>, Case Nelson <case@teammating.com>, Chris Howey <chris@howey.me> <howeyc@gmail.com>, Christoffer Buchholz <christoffer.buchholz@gmail.com>, Daniel Wagner-Hall <dawagner@gmail.com>, Dave Cheney <dave@cheney.net>, Evan Phoenix <evan@fallingsnow.net>, Francisco Souza <f@souza.cc>, Hari haran <hariharan.uno@gmail.com>, John C Barstow, Kelvin Fo <vmirage@gmail.com>, Ken-ichirou MATSUZAWA <chamas@h4.dion.ne.jp>, Matt Layher <mdlayher@gmail.com>, Nathan Youngman <git@nathany.com>, Nickolai Zeldovich <nickolai@csail.mit.edu>, Patrick <patrick@dropbox.com>, Paul Hammond <paul@paulhammond.org>, Pawel Knap <pawelknap88@gmail.com>, Pieter Droogendijk <pieter@binky.org.uk>, Pursuit92 <JoshChase@techpursuit.net>, Riku Voipio <riku.voipio@linaro.org>, Rob Figueiredo <robfig@gmail.com>, Rodrigo Chiossi <rodrigochiossi@gmail.com>, Slawek Ligus <root@ooz.ie>, Soge Zhang <zhssoge@gmail.com>, Tiffany Jernigan <tiffany.jernigan@intel.com>, Tilak Sharma <tilaks@google.com>, Tom Payne <twpayne@gmail.com>, Travis Cline <travis.cline@gmail.com>, Tudor Golubenco <tudor.g@gmail.com>, Vahe Khachikyan <vahe@live.ca>, Yukang <moorekang@gmail.com>, bronze1man <bronze1man@gmail.com>, debrando <denis.brandolini@gmail.com>, henrikedwards <henrik.edwards@gmail.com>, 铁哥 <guotie.9@gmail.com>
+License: fsnotify
 
 Files: vendor/github.com/ghodss/yaml/*
-Copyright:  2014 Sam Ghods, 2012 The Go Authors
-License: mit-yaml 
+Copyright: 2014 Sam Ghods, 2012 The Go Authors
+License: mit-yaml
 
 Files: vendor/github.com/go-playground/locales/*
 Copyright:  2016 Go Playground
@@ -182,4 +141,20 @@ License: sys
 Files: vendor/golang.org/x/text/*
 Copyright: http://tip.golang.org/AUTHORS
 License: text 
+
+Files: vendor/github.com/Masterminds/semver/*
+Copyright: 2014-2019, Matt Butcher and Matt Farina
+License: semver 
+
+Files: vendor/github.com/xeipuuv/gojsonpointer/*
+Copyright: 2015 xeipuuv
+License: Apache-2.0 
+
+Files: vendor/github.com/xeipuuv/gojsonreference/*
+Copyright: 2015 xeipuuv
+License: Apache-2.0 
+
+Files: vendor/github.com/go-playground/validator/v10/*
+Copyright: 2015 Dean Karn
+License: mit-v10 
 
