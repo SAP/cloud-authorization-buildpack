@@ -260,7 +260,7 @@ func (s *Supplier) loadBuildpackConfig(log *libbuildpack.Logger) (config, error)
 	}
 	logLevel := os.Getenv("AMS_LOG_LEVEL")
 	if logLevel == "" {
-		logLevel = "info"
+		logLevel = "error"
 	}
 	return config{
 		serviceName:  serviceName,
