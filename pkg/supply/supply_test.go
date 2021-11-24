@@ -119,7 +119,7 @@ var _ = Describe("Supply", func() {
 				Expect(ld.Processes).To(HaveLen(1))
 				Expect(ld.Processes[0].Type).To(Equal("opa"))
 				Expect(ld.Processes[0].Platforms.Cloudfoundry.SidecarFor).To(Equal([]string{"web"}))
-				cmd := `"$DEPS_DIR/42/opa" run -s -c "$DEPS_DIR/42/opa_config.yml" -l 'info' -a '[]:9888' --skip-version-check`
+				cmd := `"$DEPS_DIR/42/opa" run -s -c "$DEPS_DIR/42/opa_config.yml" -l 'error' -a '[]:9888' --skip-version-check`
 				Expect(ld.Processes[0].Command).To(Equal(cmd))
 				Expect(ld.Processes[0].Limits.Memory).To(Equal(100))
 				Expect(buffer.String()).To(ContainSubstring("writing launch.yml"))
@@ -233,6 +233,20 @@ var _ = Describe("Supply", func() {
 					Expect(err).To(HaveOccurred())
 					Expect(err.Error()).To(ContainSubstring("your policy is broken"))
 				})
+			})
+		})
+		When("AMS_LOG_LEVEL is set to info", func() {
+			BeforeEach(func() { os.Setenv("AMS_LOG_LEVEL", "info") })
+			AfterEach(func() { os.Unsetenv("AMS_LOG_LEVEL") })
+			It("should start OPA with log level 'info'", func() {
+				Expect(supplier.Run()).To(Succeed())
+				launchConfig, err := os.Open(filepath.Join(depDir, "launch.yml"))
+				Expect(err).NotTo(HaveOccurred())
+
+				var ld resources.LaunchData
+				err = yaml.NewDecoder(launchConfig).Decode(&ld)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(ld.Processes[0].Command).To(ContainSubstring("-l 'info'"))
 			})
 		})
 	})
