@@ -27,19 +27,12 @@ type ObjectStoreCredentials struct {
 	Username        string `json:"username"`
 }
 
-//type AMSCredentials struct{
-//	UIURL       string                 `json:"authorization_ui_url"`
-//	ObjectStore ObjectStoreCredentials `json:"authorization_object_store"`
-//	Issuer      string                 `json:"authorization_value_help_certificate_issuer"`
-//	Subject     string                 `json:"authorization_value_help_certificate_subject"`
-//}
-
-// This is the old way of marshaling creds
+// AMSCredentials are credentials from the legacy standalone authorization broker
 type AMSCredentials struct {
-	BundleURL   string                 `json:"bundle_url"`
-	ObjectStore ObjectStoreCredentials `json:"object_store"`
-	URL         string                 `json:"url"`
-	InstanceID  string                 `json:"instance_id"`
+	BundleURL   string                 `json:"bundle_url" validate:"required_without=BundleURL"`
+	ObjectStore ObjectStoreCredentials `json:"object_store" validate:"required_without=ObjectStore"`
+	URL         string                 `json:"url" validate:"required"`
+	InstanceID  string                 `json:"instance_id" validate:"required"`
 }
 
 type IASCredentials struct {
@@ -53,12 +46,14 @@ type IASCredentials struct {
 	ProoftokenURL        string    `json:"prooftoken_url"`
 	URL                  string    `json:"url"`
 	ZoneUUID             string    `json:"zone_uuid"`
+}
 
-	// ams creds from Unified Identity Broker
-	AuthzURL         string                 `json:"authorization_url"`
-	BundleURL        string                 `json:"authorization_bundle_url"`
-	AuthzObjectStore ObjectStoreCredentials `json:"authorization_object_store"`
-	InstanceID       string                 `json:"authorization_instance_id"`
+type UnifiedIdentityCredentials struct {
+	IASCredentials
+	AuthzURL         string                 `json:"authorization_url" validate:"required"`
+	AuthzBundleURL   string                 `json:"authorization_bundle_url" validate:"required_without=AuthzObjectStore"`
+	AuthzObjectStore ObjectStoreCredentials `json:"authorization_object_store" validate:"required_without=AuthzBundleURL"`
+	AuthzInstanceID  string                 `json:"authorization_instance_id"`
 }
 
 func LoadServiceCredentials(log *libbuildpack.Logger, serviceName string) (credentials json.RawMessage, serviceInstanceId string, err error) {
@@ -100,7 +95,7 @@ func LoadIASClientCert(log *libbuildpack.Logger) (cert []byte, key []byte, err e
 	if err != nil {
 		return cert, key, err
 	}
-	if iasCreds.Certificate == "" {
+	if iasCreds.Certificate == "" || iasCreds.Key == "" { // TODO: Provide option for {"credential_type":"X509_PROVIDED"}
 		return cert, key, fmt.Errorf("identity service binding does not contain client certificate. Please use binding parameter {\"credential_type\":\"X509_GENERATED\"}")
 	}
 
@@ -119,6 +114,8 @@ func loadAMSCredentials(log *libbuildpack.Logger, cfg config) (AMSCredentials, e
 		return AMSCredentials{}, err
 	}
 	err = json.Unmarshal(creds, &amsCreds)
+	validate := validator.New()
+	err = validate.Struct(creds)
 	amsCreds.InstanceID = id // legacy mode, until all consumers have bindings with integrated instance_id
 	return amsCreds, err
 }
@@ -128,7 +125,7 @@ func loadAMSCredsFromIAS(log *libbuildpack.Logger) (AMSCredentials, error) {
 	if err != nil {
 		return AMSCredentials{}, err
 	}
-	var iasCreds IASCredentials
+	var iasCreds UnifiedIdentityCredentials
 	err = json.Unmarshal(iasCredsRaw, &iasCreds)
 	if err != nil {
 		return AMSCredentials{}, err
@@ -136,9 +133,9 @@ func loadAMSCredsFromIAS(log *libbuildpack.Logger) (AMSCredentials, error) {
 	validate := validator.New()
 	err = validate.Struct(iasCreds)
 	return AMSCredentials{
-		BundleURL:   iasCreds.BundleURL,
+		BundleURL:   iasCreds.AuthzBundleURL,
 		ObjectStore: iasCreds.AuthzObjectStore,
 		URL:         iasCreds.AuthzURL,
-		InstanceID:  iasCreds.InstanceID,
+		InstanceID:  iasCreds.AuthzInstanceID,
 	}, err
 }

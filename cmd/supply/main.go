@@ -66,7 +66,7 @@ func main() {
 	}
 	cert, key, err := supply.LoadIASClientCert(logger)
 	if err != nil {
-		logger.Error("Unable to laod IAS client certificate: %s", err)
+		logger.Error("Unable to load IAS client certificate: %s", err)
 		os.Exit(14)
 	}
 	err = os.WriteFile(filepath.Join(stager.DepDir(), "ias.crt"), cert, 0666)
