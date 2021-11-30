@@ -71,12 +71,12 @@ func main() {
 		logger.Error("Unable to laod IAS client certificate: %s", err)
 		os.Exit(14)
 	}
-	os.WriteFile(filepath.Join(stager.DepDir(), "ias.crt"), cert, 0666)
+	err = os.WriteFile(filepath.Join(stager.DepDir(), "ias.crt"), cert, 0666)
 	if err != nil {
 		logger.Error("Unable to write IAS client certificate: %s", err)
 		os.Exit(14)
 	}
-	os.WriteFile(filepath.Join(stager.DepDir(), "ias.key"), key, 0666)
+	err = os.WriteFile(filepath.Join(stager.DepDir(), "ias.key"), key, 0666)
 	if err != nil {
 		logger.Error("Unable to write IAS client key: %s", err)
 		os.Exit(14)
