@@ -1,8 +1,6 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -66,7 +64,7 @@ func main() {
 		logger.Error("Unable to setup environment variables: %s", err)
 		os.Exit(14)
 	}
-	cert, key, err := loadIASClientCert(logger)
+	cert, key, err := supply.LoadIASClientCert(logger)
 	if err != nil {
 		logger.Error("Unable to laod IAS client certificate: %s", err)
 		os.Exit(14)
@@ -111,20 +109,4 @@ func main() {
 		logger.Error("Unable clean up app cache: %s", err)
 		os.Exit(19)
 	}
-}
-func loadIASClientCert(log *libbuildpack.Logger) (cert []byte, key []byte, err error) {
-	iasCredsRaw, _, err := supply.LoadServiceCredentials(log, "identity")
-	if err != nil {
-		return cert, key, err
-	}
-	var iasCreds supply.IASCredentials
-	err = json.Unmarshal(iasCredsRaw, &iasCreds)
-	if err != nil {
-		return cert, key, err
-	}
-	if iasCreds.Certificate == "" {
-		return cert, key, fmt.Errorf("identity service binding does not contain client certificate. Please use binding parameter {\"credential_type\":\"X509_GENERATED\"}")
-	}
-
-	return []byte(iasCreds.Certificate), []byte(iasCreds.Key), nil
 }

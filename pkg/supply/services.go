@@ -90,6 +90,23 @@ func LoadServiceCredentials(log *libbuildpack.Logger, serviceName string) (crede
 	return rawAmsCreds[0], instanceID, nil
 }
 
+func LoadIASClientCert(log *libbuildpack.Logger) (cert []byte, key []byte, err error) {
+	iasCredsRaw, _, err := LoadServiceCredentials(log, "identity")
+	if err != nil {
+		return cert, key, err
+	}
+	var iasCreds IASCredentials
+	err = json.Unmarshal(iasCredsRaw, &iasCreds)
+	if err != nil {
+		return cert, key, err
+	}
+	if iasCreds.Certificate == "" {
+		return cert, key, fmt.Errorf("identity service binding does not contain client certificate. Please use binding parameter {\"credential_type\":\"X509_GENERATED\"}")
+	}
+
+	return []byte(iasCreds.Certificate), []byte(iasCreds.Key), nil
+}
+
 func loadAMSCredentials(log *libbuildpack.Logger, cfg config) (AMSCredentials, error) {
 	amsCreds, err := loadAMSCredsFromIAS(log)
 	if err == nil {
