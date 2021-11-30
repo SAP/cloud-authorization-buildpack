@@ -113,9 +113,13 @@ func loadAMSCredentials(log *libbuildpack.Logger, cfg config) (AMSCredentials, e
 	if err != nil {
 		return AMSCredentials{}, err
 	}
-	err = json.Unmarshal(creds, &amsCreds)
+	if err := json.Unmarshal(creds, &amsCreds); err != nil {
+		return AMSCredentials{}, err
+	}
 	validate := validator.New()
-	err = validate.Struct(creds)
+	if err := validate.Struct(creds); err != nil {
+		return AMSCredentials{}, err
+	}
 	amsCreds.InstanceID = id // legacy mode, until all consumers have bindings with integrated instance_id
 	return amsCreds, err
 }
