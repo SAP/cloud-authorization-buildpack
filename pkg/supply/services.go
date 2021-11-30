@@ -29,8 +29,8 @@ type ObjectStoreCredentials struct {
 
 // AMSCredentials are credentials from the legacy standalone authorization broker
 type AMSCredentials struct {
-	BundleURL   string                 `json:"bundle_url" validate:"required_without=BundleURL"`
-	ObjectStore ObjectStoreCredentials `json:"object_store" validate:"required_without=ObjectStore"`
+	BundleURL   string                 `json:"bundle_url" validate:"required_without=ObjectStore"`
+	ObjectStore ObjectStoreCredentials `json:"object_store" validate:"required_without=BundleURL"`
 	URL         string                 `json:"url" validate:"required"`
 	InstanceID  string                 `json:"instance_id" validate:"required"`
 }
@@ -117,7 +117,7 @@ func loadAMSCredentials(log *libbuildpack.Logger, cfg config) (AMSCredentials, e
 		return AMSCredentials{}, err
 	}
 	validate := validator.New()
-	if err := validate.Struct(creds); err != nil {
+	if err := validate.Struct(amsCreds); err != nil {
 		return AMSCredentials{}, err
 	}
 	amsCreds.InstanceID = id // legacy mode, until all consumers have bindings with integrated instance_id
