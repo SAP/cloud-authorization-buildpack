@@ -56,42 +56,40 @@ type UnifiedIdentityCredentials struct {
 	AuthzInstanceID  string                 `json:"authorization_instance_id" validate:"required"`
 }
 
-func LoadServiceCredentials(log *libbuildpack.Logger, serviceName string) (credentials json.RawMessage, serviceInstanceId string, err error) {
+func LoadService(log *libbuildpack.Logger, serviceName string) (Service, error) {
 	svcsString := os.Getenv("VCAP_SERVICES")
 	var svcs map[string][]Service
-	err = json.Unmarshal([]byte(svcsString), &svcs)
+	err := json.Unmarshal([]byte(svcsString), &svcs)
 	if err != nil {
-		return json.RawMessage{}, "", fmt.Errorf("could not unmarshal VCAP_SERVICES: %w", err)
+		return Service{}, fmt.Errorf("could not unmarshal VCAP_SERVICES: %w", err)
 	}
-	var rawAmsCreds []json.RawMessage
+
+	filteredServices := make([]Service, 0, 1)
 	if ups, ok := svcs["user-provided"]; ok {
-		for i, up := range ups {
-			for _, t := range up.Tags {
+		for i := range ups {
+			for _, t := range ups[i].Tags {
 				if t == serviceName {
 					log.Info("Detected user-provided %s service '%s", serviceName, ups[i].Name)
-					rawAmsCreds = append(rawAmsCreds, ups[i].Credentials)
+					ups[i].InstanceID = "" // delete since it's the instance id of the user-provided-service, not the actual instance
+					filteredServices = append(filteredServices, ups[i])
 				}
 			}
 		}
 	}
-	var instanceID string
-	for _, amsSvc := range svcs[serviceName] {
-		instanceID = amsSvc.InstanceID
-		rawAmsCreds = append(rawAmsCreds, amsSvc.Credentials)
+	filteredServices = append(filteredServices, svcs[serviceName]...)
+	if len(filteredServices) != 1 {
+		return Service{}, fmt.Errorf("expect only one service (type %s or user-provided) but got %d", serviceName, len(filteredServices))
 	}
-	if len(rawAmsCreds) != 1 {
-		return json.RawMessage{}, "", fmt.Errorf("expect only one service (type %s or user-provided) but got %d", serviceName, len(rawAmsCreds))
-	}
-	return rawAmsCreds[0], instanceID, nil
+	return filteredServices[0], nil
 }
 
 func LoadIASClientCert(log *libbuildpack.Logger) (cert []byte, key []byte, err error) {
-	iasCredsRaw, _, err := LoadServiceCredentials(log, "identity")
+	iasService, err := LoadService(log, "identity")
 	if err != nil {
 		return cert, key, err
 	}
 	var iasCreds IASCredentials
-	err = json.Unmarshal(iasCredsRaw, &iasCreds)
+	err = json.Unmarshal(iasService.Credentials, &iasCreds)
 	if err != nil {
 		return cert, key, err
 	}
@@ -109,28 +107,33 @@ func loadAMSCredentials(log *libbuildpack.Logger, cfg config) (AMSCredentials, e
 		return amsCreds, nil
 	}
 	log.Warning("no AMS credentials as part of identity service. Resorting to standalone authorization service broker")
-	creds, id, err := LoadServiceCredentials(log, cfg.serviceName)
+	amsService, err := LoadService(log, cfg.serviceName)
 	if err != nil {
 		return AMSCredentials{}, err
 	}
-	if err := json.Unmarshal(creds, &amsCreds); err != nil {
+	if err := json.Unmarshal(amsService.Credentials, &amsCreds); err != nil {
 		return AMSCredentials{}, err
 	}
 	validate := validator.New()
 	if err := validate.Struct(amsCreds); err != nil {
 		return AMSCredentials{}, err
 	}
-	amsCreds.InstanceID = id // legacy mode, until all consumers have bindings with integrated instance_id
+	if len(amsCreds.InstanceID) == 0 {
+		if len(amsService.InstanceID) == 0 {
+			return AMSCredentials{}, fmt.Errorf("authorization credentials bound via user-provided-service, however parameter instance_id is missing. Please update the binding")
+		}
+		amsCreds.InstanceID = amsService.InstanceID // legacy mode, until all consumers have bindings with integrated instance_id
+	}
 	return amsCreds, err
 }
 
 func loadAMSCredsFromIAS(log *libbuildpack.Logger) (AMSCredentials, error) {
-	iasCredsRaw, _, err := LoadServiceCredentials(log, "identity")
+	iasService, err := LoadService(log, "identity")
 	if err != nil {
 		return AMSCredentials{}, err
 	}
 	var iasCreds UnifiedIdentityCredentials
-	err = json.Unmarshal(iasCredsRaw, &iasCreds)
+	err = json.Unmarshal(iasService.Credentials, &iasCreds)
 	if err != nil {
 		return AMSCredentials{}, err
 	}
