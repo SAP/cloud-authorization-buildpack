@@ -1,8 +1,6 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -66,9 +64,19 @@ func main() {
 		logger.Error("Unable to setup environment variables: %s", err)
 		os.Exit(14)
 	}
-	cert, key, err := loadAMSClientCert(logger)
+	cert, key, err := supply.LoadIASClientCert(logger)
 	if err != nil {
-		logger.Error("Unable to laod AMS client certificate: %s", err)
+		logger.Error("Unable to load IAS client certificate: %s", err)
+		os.Exit(14)
+	}
+	err = os.WriteFile(filepath.Join(stager.DepDir(), "ias.crt"), cert, 0600)
+	if err != nil {
+		logger.Error("Unable to write IAS client certificate: %s", err)
+		os.Exit(14)
+	}
+	err = os.WriteFile(filepath.Join(stager.DepDir(), "ias.key"), key, 0600)
+	if err != nil {
+		logger.Error("Unable to write IAS client key: %s", err)
 		os.Exit(14)
 	}
 
@@ -101,36 +109,4 @@ func main() {
 		logger.Error("Unable clean up app cache: %s", err)
 		os.Exit(19)
 	}
-}
-func loadIASClientCert(log *libbuildpack.Logger) (cert []byte, key []byte, err error) {
-	iasCredsRaw, err := supply.LoadServiceCredentials(log, "identity")
-	if err != nil {
-		return cert, key, err
-	}
-	var iasCreds supply.IASCredentials
-	err = json.Unmarshal(iasCredsRaw, &iasCreds)
-	if err != nil {
-		return cert, key, err
-	}
-	if iasCreds.Certificate == "" {
-		return cert, key, fmt.Errorf("identity service binding does not contain client certificate. Please use binding parameter {\"credential_type\":\"X509_GENERATED\"}")
-	}
-
-	return []byte(iasCreds.Certificate), []byte(iasCreds.Key), nil
-}
-func loadAMSClientCert(log *libbuildpack.Logger) (cert []byte, key []byte, err error) {
-	cert, key, err = loadIASClientCert(log)
-	if err == nil {
-		return cert, key, nil
-	}
-	log.Warning("%v", err)
-	log.Warning("Unable to read client certificate from identity service. Make sure to set binding param \"credential-type\": \"X509_GENERATED\". Using CloudFoundry client cert instead. This mechanism is deprecated and will be removed soon.")
-	cert, err = os.ReadFile(os.Getenv("CF_INSTANCE_CERT"))
-	if err != nil {
-		return cert, key, err
-	}
-	key, err = os.ReadFile(os.Getenv("CF_INSTANCE_KEY"))
-
-	return cert, key, err
-
 }
