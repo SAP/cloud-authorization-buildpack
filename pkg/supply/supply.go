@@ -8,10 +8,11 @@ import (
 	"os"
 	"path"
 
-	"github.com/SAP/cloud-authorization-buildpack/pkg/uploader"
 	"github.com/cloudfoundry/libbuildpack"
 	"github.com/open-policy-agent/opa/download"
 	"github.com/open-policy-agent/opa/plugins/bundle"
+
+	"github.com/SAP/cloud-authorization-buildpack/pkg/uploader"
 )
 
 const ServiceName = "authorization"
@@ -74,7 +75,7 @@ func (s *Supplier) Run() error {
 	if err != nil {
 		return fmt.Errorf("could not load buildpack config: %w", err)
 	}
-	amsCreds, err := s.loadAMSCredentials(s.Log, cfg)
+	amsCreds, err := loadAMSCredentials(s.Log, cfg)
 	if err != nil {
 		return fmt.Errorf("could not load AMSCredentials: %w", err)
 	}
@@ -108,8 +109,8 @@ type ClientTLS struct {
 }
 
 type Credentials struct {
-	S3Signing S3Signing `json:"s3_signing,omitempty"`
-	ClientTLS ClientTLS `json:"client_tls,omitempty"`
+	S3Signing S3Signing `json:"s3_signing,omitempty"` // old direct s3 bundle access
+	ClientTLS ClientTLS `json:"client_tls,omitempty"` // new storage gateway bundle access
 }
 
 type RestConfig struct {
@@ -125,12 +126,16 @@ type OPAConfig struct {
 func (s *Supplier) writeProfileDFile(cfg config, amsCreds AMSCredentials) error {
 	s.Log.Info("writing profileD file..")
 	values := map[string]string{
-		"AWS_ACCESS_KEY_ID":     amsCreds.ObjectStore.AccessKeyID,
-		"AWS_SECRET_ACCESS_KEY": amsCreds.ObjectStore.SecretAccessKey,
-		"AWS_REGION":            amsCreds.ObjectStore.Region,
-		"OPA_URL":               fmt.Sprintf("http://localhost:%d/", cfg.port),
-		"ADC_URL":               fmt.Sprintf("http://localhost:%d/", cfg.port),
+		"OPA_URL": fmt.Sprintf("http://localhost:%d/", cfg.port),
+		"ADC_URL": fmt.Sprintf("http://localhost:%d/", cfg.port),
 	}
+
+	if len(amsCreds.BundleURL) == 0 {
+		values["AWS_ACCESS_KEY_ID"] = amsCreds.ObjectStore.AccessKeyID
+		values["AWS_SECRET_ACCESS_KEY"] = amsCreds.ObjectStore.SecretAccessKey
+		values["AWS_REGION"] = amsCreds.ObjectStore.Region
+	}
+
 	var b bytes.Buffer
 	for k, v := range values {
 		b.WriteString(fmt.Sprintf("export %s=%s\n", k, v))
@@ -145,6 +150,46 @@ func (s *Supplier) writeProfileDFile(cfg config, amsCreds AMSCredentials) error 
 
 func (s *Supplier) writeOpaConfig(cred AMSCredentials) error {
 	s.Log.Info("writing opa config..")
+
+	var cfg OPAConfig
+	if len(cred.BundleURL) != 0 {
+		cfg = s.createStorageGatewayConfig(cred)
+	} else {
+		cfg = s.createDirectS3OpaConfig(cred.ObjectStore)
+	}
+
+	filePath := path.Join(s.Stager.DepDir(), "opa_config.yml")
+	bCfg, _ := json.Marshal(cfg)
+	s.Log.Debug("OPA config: '%s'", string(bCfg))
+	return libbuildpack.NewJSON().Write(filePath, cfg)
+}
+
+func (s *Supplier) createDirectS3OpaConfig(osCreds ObjectStoreCredentials) OPAConfig {
+	serviceKey := "s3"
+	bundles := make(map[string]*bundle.Source)
+	bundles["SAP"] = &bundle.Source{
+		Config: download.Config{
+			Polling: download.PollingConfig{
+				MinDelaySeconds: newInt64P(10),
+				MaxDelaySeconds: newInt64P(20),
+			},
+		},
+		Service:  serviceKey,
+		Resource: "SAP.tar.gz",
+	}
+	services := make(map[string]RestConfig)
+	services[serviceKey] = RestConfig{
+		URL:         fmt.Sprintf("https://%s/%s", osCreds.Host, osCreds.Bucket),
+		Credentials: Credentials{S3Signing: S3Signing{AWSEnvCreds: struct{}{}}},
+	}
+
+	return OPAConfig{
+		Bundles:  bundles,
+		Services: services,
+	}
+}
+
+func (s *Supplier) createStorageGatewayConfig(cred AMSCredentials) OPAConfig {
 	serviceKey := "bundle_storage"
 	bundles := make(map[string]*bundle.Source)
 	bundles[cred.InstanceID] = &bundle.Source{
@@ -160,21 +205,16 @@ func (s *Supplier) writeOpaConfig(cred AMSCredentials) error {
 	services := make(map[string]RestConfig)
 	services[serviceKey] = RestConfig{
 		URL: cred.BundleURL,
-		Credentials: Credentials{ClientTLS{
+		Credentials: Credentials{ClientTLS: ClientTLS{
 			Cert: "/home/vcap/deps/0/ias.crt",
 			Key:  "/home/vcap/deps/0/ias.key",
 		}},
 	}
 
-	cfg := OPAConfig{
+	return OPAConfig{
 		Bundles:  bundles,
 		Services: services,
 	}
-
-	filePath := path.Join(s.Stager.DepDir(), "opa_config.yml")
-	bCfg, _ := json.Marshal(cfg)
-	s.Log.Debug("OPA config: '%s'", string(bCfg))
-	return libbuildpack.NewJSON().Write(filePath, cfg)
 }
 
 func (s *Supplier) writeLaunchConfig(cfg config) error {
@@ -198,22 +238,6 @@ func (s *Supplier) writeLaunchConfig(cfg config) error {
 	}
 	filePath := path.Join(s.Stager.DepDir(), "launch.yml")
 	return libbuildpack.NewJSON().Write(filePath, launchData)
-}
-
-func (s *Supplier) loadAMSCredentials(log *libbuildpack.Logger, cfg config) (AMSCredentials, error) {
-	amsCreds, err := loadAMSCredsFromIAS(log)
-	if err == nil {
-		log.Debug("using authorization credentials embedded in identity service")
-		return amsCreds, nil
-	}
-	log.Warning("no AMS credentials as part of identity service. Resorting to other services")
-	creds, id, err := LoadServiceCredentials(log, cfg.serviceName)
-	if err != nil {
-		return AMSCredentials{}, err
-	}
-	err = json.Unmarshal(creds, &amsCreds)
-	amsCreds.InstanceID = id
-	return amsCreds, err
 }
 
 func (s *Supplier) supplyOPABinary() error {
