@@ -100,6 +100,7 @@ var _ = Describe("Supply", func() {
 		Expect(os.Unsetenv("AMS_DCL_ROOT")).To(Succeed())
 		Expect(os.Unsetenv("AMS_SERVICE")).To(Succeed())
 		Expect(os.Unsetenv("CF_STACK")).To(Succeed())
+		Expect(os.Unsetenv("VCAP_SERVICES")).To(Succeed())
 	})
 	When("VCAP_SERVICES contains a 'authorization' service", func() {
 		BeforeEach(func() {
@@ -118,7 +119,7 @@ var _ = Describe("Supply", func() {
 				Expect(ld.Processes).To(HaveLen(1))
 				Expect(ld.Processes[0].Type).To(Equal("opa"))
 				Expect(ld.Processes[0].Platforms.Cloudfoundry.SidecarFor).To(Equal([]string{"web"}))
-				cmd := `"$DEPS_DIR/42/opa" run -s -c "$DEPS_DIR/42/opa_config.yml" -l 'info' -a '[]:9888' --skip-version-check`
+				cmd := `"$DEPS_DIR/42/opa" run -s -c "$DEPS_DIR/42/opa_config.yml" -l 'error' -a '[]:9888' --skip-version-check`
 				Expect(ld.Processes[0].Command).To(Equal(cmd))
 				Expect(ld.Processes[0].Limits.Memory).To(Equal(100))
 				Expect(buffer.String()).To(ContainSubstring("writing launch.yml"))
@@ -203,18 +204,49 @@ var _ = Describe("Supply", func() {
 			})
 		})
 		When("the AMS server returns an error", func() {
-			BeforeEach(func() {
-				mockAMSClient = NewMockAMSClient(mockCtrl)
-				mockAMSClient.EXPECT().Do(gomock.Any()).DoAndReturn(func(req *http.Request) (*http.Response, error) {
-					uploadReqSpy = req
-					return &http.Response{StatusCode: 400, Body: io.NopCloser(strings.NewReader("your policy is broken"))}, nil
-				}).AnyTimes()
+			Context("400", func() {
+				BeforeEach(func() {
+					mockAMSClient = NewMockAMSClient(mockCtrl)
+					mockAMSClient.EXPECT().Do(gomock.Any()).DoAndReturn(func(req *http.Request) (*http.Response, error) {
+						uploadReqSpy = req
+						return &http.Response{StatusCode: 400, Body: io.NopCloser(strings.NewReader("your policy is broken"))}, nil
+					}).AnyTimes()
 
+				})
+				It("should log the response body", func() {
+					err := supplier.Run()
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("your policy is broken"))
+				})
 			})
-			It("should log the response body", func() {
-				err := supplier.Run()
-				Expect(err).To(HaveOccurred())
-				Expect(err.Error()).To(ContainSubstring("your policy is broken"))
+			Context("401", func() {
+				BeforeEach(func() {
+					mockAMSClient = NewMockAMSClient(mockCtrl)
+					mockAMSClient.EXPECT().Do(gomock.Any()).DoAndReturn(func(req *http.Request) (*http.Response, error) {
+						uploadReqSpy = req
+						return &http.Response{StatusCode: 401, Body: io.NopCloser(strings.NewReader("your policy is broken"))}, nil
+					}).AnyTimes()
+
+				})
+				It("should log the response body", func() {
+					err := supplier.Run()
+					Expect(err).To(HaveOccurred())
+					Expect(err.Error()).To(ContainSubstring("your policy is broken"))
+				})
+			})
+		})
+		When("AMS_LOG_LEVEL is set to info", func() {
+			BeforeEach(func() { os.Setenv("AMS_LOG_LEVEL", "info") })
+			AfterEach(func() { os.Unsetenv("AMS_LOG_LEVEL") })
+			It("should start OPA with log level 'info'", func() {
+				Expect(supplier.Run()).To(Succeed())
+				launchConfig, err := os.Open(filepath.Join(depDir, "launch.yml"))
+				Expect(err).NotTo(HaveOccurred())
+
+				var ld resources.LaunchData
+				err = yaml.NewDecoder(launchConfig).Decode(&ld)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(ld.Processes[0].Command).To(ContainSubstring("-l 'info'"))
 			})
 		})
 	})
@@ -239,12 +271,38 @@ var _ = Describe("Supply", func() {
 		})
 
 	})
+	When("AMS credentials are included in the IAS credentials", func() {
+		Context("and credential type is not x509", func() {
+			BeforeEach(func() {
+				vcapServices = testdata.EnvWithIASAuthWithClientSecret
+				os.Setenv("AMS_DCL_ROOT", "/policies")
+			})
+			It("should fail", func() {
+				err := supplier.Run()
+				Expect(err).To(HaveOccurred())
+			})
+		})
+		Context("and credential type is x509", func() {
+			BeforeEach(func() {
+				vcapServices = testdata.EnvWithIASAuthX509
+				os.Setenv("AMS_DCL_ROOT", "/policies")
+			})
+			It("should succeed", func() {
+				Expect(supplier.Run()).To(Succeed())
+				Expect(filepath.Join(depDir, "launch.yml")).To(BeARegularFile())
+				Expect(uploadReqSpy.Host).To(Equal("ams.url.from.identity"))
+			})
+		})
+
+	})
 	When("VCAP_SERVICES is empty", func() {
 		JustBeforeEach(func() {
 			os.Unsetenv("VCAP_SERVICES")
 		})
 		It("should abort with err", func() {
-			Expect(supplier.Run().Error()).To(ContainSubstring("could not unmarshal VCAP_SERVICES"))
+			err := supplier.Run()
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("could not unmarshal VCAP_SERVICES"))
 		})
 	})
 

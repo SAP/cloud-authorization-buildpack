@@ -108,6 +108,7 @@ type ClientTLS struct {
 }
 
 type Credentials struct {
+	S3Signing S3Signing `json:"s3_signing,omitempty"`
 	ClientTLS ClientTLS `json:"client_tls,omitempty"`
 }
 
@@ -124,8 +125,11 @@ type OPAConfig struct {
 func (s *Supplier) writeProfileDFile(cfg config, amsCreds AMSCredentials) error {
 	s.Log.Info("writing profileD file..")
 	values := map[string]string{
-		"OPA_URL": fmt.Sprintf("http://localhost:%d/", cfg.port),
-		"ADC_URL": fmt.Sprintf("http://localhost:%d/", cfg.port),
+		"AWS_ACCESS_KEY_ID":     amsCreds.ObjectStore.AccessKeyID,
+		"AWS_SECRET_ACCESS_KEY": amsCreds.ObjectStore.SecretAccessKey,
+		"AWS_REGION":            amsCreds.ObjectStore.Region,
+		"OPA_URL":               fmt.Sprintf("http://localhost:%d/", cfg.port),
+		"ADC_URL":               fmt.Sprintf("http://localhost:%d/", cfg.port),
 	}
 	var b bytes.Buffer
 	for k, v := range values {
@@ -197,12 +201,16 @@ func (s *Supplier) writeLaunchConfig(cfg config) error {
 }
 
 func (s *Supplier) loadAMSCredentials(log *libbuildpack.Logger, cfg config) (AMSCredentials, error) {
-
+	amsCreds, err := loadAMSCredsFromIAS(log)
+	if err == nil {
+		log.Debug("using authorization credentials embedded in identity service")
+		return amsCreds, nil
+	}
+	log.Warning("no AMS credentials as part of identity service. Resorting to other services")
 	creds, id, err := LoadServiceCredentials(log, cfg.serviceName)
 	if err != nil {
 		return AMSCredentials{}, err
 	}
-	var amsCreds AMSCredentials
 	err = json.Unmarshal(creds, &amsCreds)
 	amsCreds.InstanceID = id
 	return amsCreds, err
@@ -262,7 +270,7 @@ func (s *Supplier) loadBuildpackConfig(log *libbuildpack.Logger) (config, error)
 	}
 	logLevel := os.Getenv("AMS_LOG_LEVEL")
 	if logLevel == "" {
-		logLevel = "info"
+		logLevel = "error"
 	}
 	return config{
 		serviceName:  serviceName,

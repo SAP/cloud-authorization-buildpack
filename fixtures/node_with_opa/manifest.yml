@@ -8,17 +8,15 @@ applications:
   memory: 128M
   instances: 1
   buildpacks:
-    - https://github.com/SAP/cloud-authorization-buildpack#storage_gateway
+    - https://github.com/SAP/cloud-authorization-buildpack/releases/latest/download/opa_buildpack.zip
     - nodejs_buildpack
   services:
-    - name: ams-k8s-dev
-    - name: ias-k8s-dev
-      parameters:
-        credential-type: X509_GENERATED
+    - name: ams-node-opa
+    - name: ias-node-opa
+      parameters: { "credential-type": "X509_GENERATED" }
   health-check-type: process
   env:
     BP_DEBUG: "true"
     AMS_DCL_ROOT: "/"
-    AMS_SERVICE: authorization-dev
   no-route: true
   

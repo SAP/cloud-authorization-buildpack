@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/cloudfoundry/libbuildpack"
+	"github.com/go-playground/validator/v10"
 )
 
 type Service struct {
@@ -17,11 +18,11 @@ type Service struct {
 }
 
 type ObjectStoreCredentials struct {
-	AccessKeyID     string `json:"access_key_id"`
-	Bucket          string `json:"bucket"`
-	Host            string `json:"host"`
-	Region          string `json:"region"`
-	SecretAccessKey string `json:"secret_access_key"`
+	AccessKeyID     string `json:"access_key_id" validate:"required"`
+	Bucket          string `json:"bucket" validate:"required"`
+	Host            string `json:"host" validate:"required"`
+	Region          string `json:"region" validate:"required"`
+	SecretAccessKey string `json:"secret_access_key" validate:"required"`
 	Uri             string `json:"uri"`
 	Username        string `json:"username"`
 }
@@ -37,6 +38,7 @@ type ObjectStoreCredentials struct {
 type AMSCredentials struct {
 	UIURL      string `json:"ui_url"`
 	BundleURL  string `json:"bundle_url"`
+	ObjectStore ObjectStoreCredentials `json:"object_store"`
 	Issuer     string `json:"value_help_certificate_issuer"`
 	Subject    string `json:"value_help_certificate_subject"`
 	URL        string `json:"url"`
@@ -44,16 +46,19 @@ type AMSCredentials struct {
 }
 
 type IASCredentials struct {
-	Certificate          string    `json:"certificate"`
-	CertificateExpiresAt time.Time `json:"certificate_expires_at"`
-	Clientid             string    `json:"clientid"`
-	Domain               string    `json:"domain"`
-	Domains              []string  `json:"domains"`
-	Key                  string    `json:"key"`
-	OsbURL               string    `json:"osb_url"`
-	ProoftokenURL        string    `json:"prooftoken_url"`
-	URL                  string    `json:"url"`
-	ZoneUUID             string    `json:"zone_uuid"`
+	Certificate          string                 `json:"certificate" validate:"required"`
+	CertificateExpiresAt time.Time              `json:"certificate_expires_at"`
+	Clientid             string                 `json:"clientid"`
+	Domain               string                 `json:"domain"`
+	Domains              []string               `json:"domains"`
+	Key                  string                 `json:"key" validate:"required"`
+	OsbURL               string                 `json:"osb_url"`
+	ProoftokenURL        string                 `json:"prooftoken_url"`
+	URL                  string                 `json:"url"`
+	ZoneUUID             string                 `json:"zone_uuid"`
+	AuthzURL             string                 `json:"authorization_url" validate:"required,url"`
+	AuthzObjectStore     ObjectStoreCredentials `json:"authorization_object_store" validate:"required"`
+	AuthzUIURL           string                 `json:"authorization_ui_url" validate:"url,required"`
 }
 
 func LoadServiceCredentials(log *libbuildpack.Logger, serviceName string) (json.RawMessage, string, error) {
@@ -83,4 +88,23 @@ func LoadServiceCredentials(log *libbuildpack.Logger, serviceName string) (json.
 		return json.RawMessage{}, "", fmt.Errorf("expect only one service (type %s or user-provided) but got %d", serviceName, len(rawAmsCreds))
 	}
 	return rawAmsCreds[0], instanceID, nil
+}
+
+func loadAMSCredsFromIAS(log *libbuildpack.Logger) (AMSCredentials, error) {
+	iasCredsRaw, err := LoadServiceCredentials(log, "identity")
+	if err != nil {
+		return AMSCredentials{}, err
+	}
+	var iasCreds IASCredentials
+	err = json.Unmarshal(iasCredsRaw, &iasCreds)
+	if err != nil {
+		return AMSCredentials{}, err
+	}
+	validate := validator.New()
+	err = validate.Struct(iasCreds)
+	return AMSCredentials{
+		UIURL:       iasCreds.AuthzUIURL,
+		ObjectStore: iasCreds.AuthzObjectStore,
+		URL:         iasCreds.AuthzURL,
+	}, err
 }
