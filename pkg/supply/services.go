@@ -6,7 +6,6 @@ import (
 	"os"
 	"time"
 
-	"cloud-authorization-buildpack/vendor/github.com/go-playground/validator/v10"
 	"github.com/cloudfoundry/libbuildpack"
 	"github.com/go-playground/validator/v10"
 )
