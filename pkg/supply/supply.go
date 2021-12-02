@@ -109,8 +109,8 @@ type ClientTLS struct {
 }
 
 type Credentials struct {
-	S3Signing S3Signing `json:"s3_signing,omitempty"` // old direct s3 bundle access
-	ClientTLS ClientTLS `json:"client_tls,omitempty"` // new storage gateway bundle access
+	S3Signing *S3Signing `json:"s3_signing,omitempty"` // old direct s3 bundle access
+	ClientTLS *ClientTLS `json:"client_tls,omitempty"` // new storage gateway bundle access
 }
 
 type RestConfig struct {
@@ -180,7 +180,7 @@ func (s *Supplier) createDirectS3OpaConfig(osCreds ObjectStoreCredentials) OPACo
 	services := make(map[string]RestConfig)
 	services[serviceKey] = RestConfig{
 		URL:         fmt.Sprintf("https://%s/%s", osCreds.Host, osCreds.Bucket),
-		Credentials: Credentials{S3Signing: S3Signing{AWSEnvCreds: struct{}{}}},
+		Credentials: Credentials{S3Signing: &S3Signing{AWSEnvCreds: struct{}{}}},
 	}
 
 	return OPAConfig{
@@ -205,9 +205,9 @@ func (s *Supplier) createStorageGatewayConfig(cred AMSCredentials) OPAConfig {
 	services := make(map[string]RestConfig)
 	services[serviceKey] = RestConfig{
 		URL: cred.BundleURL,
-		Credentials: Credentials{ClientTLS: ClientTLS{
-			Cert: "/home/vcap/deps/0/ias.crt",
-			Key:  "/home/vcap/deps/0/ias.key",
+		Credentials: Credentials{ClientTLS: &ClientTLS{
+			Cert: path.Join(s.Stager.DepDir(), "ias.crt"),
+			Key:  path.Join(s.Stager.DepDir(), "ias.key"),
 		}},
 	}
 

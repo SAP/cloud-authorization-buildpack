@@ -151,6 +151,7 @@ var _ = Describe("Supply", func() {
 				err = json.Unmarshal(cfg.Services, &restConfig)
 				Expect(err).NotTo(HaveOccurred())
 				Expect(restConfig).To(HaveKey(serviceKey))
+				Expect(restConfig[serviceKey].Credentials.ClientTLS).To(BeNil())
 				Expect(restConfig[serviceKey].Credentials.S3Signing).NotTo(BeNil())
 				Expect(restConfig[serviceKey].URL).To(Equal("https://s3-eu-central-1.amazonaws.com/my-bucket"))
 			})
@@ -291,6 +292,28 @@ var _ = Describe("Supply", func() {
 				Expect(supplier.Run()).To(Succeed())
 				Expect(filepath.Join(depDir, "launch.yml")).To(BeARegularFile())
 				Expect(uploadReqSpy.Host).To(Equal("ams.url.from.identity"))
+			})
+			Context("the bundle gateway url is set", func() {
+				It("should configure access to the gateway", func() {
+					Expect(supplier.Run()).To(Succeed())
+					rawConfig, err := os.ReadFile(filepath.Join(depDir, "opa_config.yml"))
+					Expect(err).NotTo(HaveOccurred())
+					cfg, err := config.ParseConfig(rawConfig, "testId")
+					Expect(err).NotTo(HaveOccurred())
+
+					var restConfig map[string]rest.Config
+					err = json.Unmarshal(cfg.Services, &restConfig)
+					Expect(err).NotTo(HaveOccurred())
+					By("specifying ClientTLS", func() {
+						Expect(restConfig).To(HaveKey("bundle_storage"))
+						Expect(restConfig["bundle_storage"].Credentials.ClientTLS.Cert).To(Equal(path.Join(depDir, "ias.crt")))
+						Expect(restConfig["bundle_storage"].Credentials.ClientTLS.PrivateKey).To(Equal(path.Join(depDir, "ias.key")))
+						Expect(restConfig["bundle_storage"].URL).To(Equal("https://my-bundle-gateway.org/some/path"))
+					})
+					By("making sure there's only one auth method", func() {
+						Expect(restConfig["bundle_storage"].Credentials.S3Signing).To(BeNil())
+					})
+				})
 			})
 		})
 
