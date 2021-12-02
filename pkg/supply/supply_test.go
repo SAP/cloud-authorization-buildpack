@@ -261,6 +261,14 @@ var _ = Describe("Supply", func() {
 		It("should succeed", func() {
 			Expect(supplier.Run()).To(Succeed())
 		})
+		When("the bundle URL is set", func() {
+			BeforeEach(func() {
+				vcapServices = testdata.EnvWithUPSBundleURL
+			})
+			It("should succeed", func() {
+				Expect(supplier.Run()).To(Succeed())
+			})
+		})
 
 	})
 	When("the bound AMS service is user-provided", func() {
@@ -271,7 +279,6 @@ var _ = Describe("Supply", func() {
 		It("should succeed", func() {
 			Expect(supplier.Run()).To(Succeed())
 		})
-
 	})
 	When("AMS credentials are included in the IAS credentials", func() {
 		Context("and credential type is not x509", func() {

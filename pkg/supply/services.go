@@ -29,10 +29,10 @@ type ObjectStoreCredentials struct {
 
 // AMSCredentials are credentials from the legacy standalone authorization broker
 type AMSCredentials struct {
-	BundleURL   string                 `json:"bundle_url" validate:"required_without=ObjectStore"`
-	ObjectStore ObjectStoreCredentials `json:"object_store" validate:"required_without=BundleURL"`
-	URL         string                 `json:"url" validate:"required"`
-	InstanceID  string                 `json:"instance_id"`
+	BundleURL   string                  `json:"bundle_url" validate:"required_without=ObjectStore"`
+	ObjectStore *ObjectStoreCredentials `json:"object_store" validate:"required_without=BundleURL"`
+	URL         string                  `json:"url" validate:"required"`
+	InstanceID  string                  `json:"instance_id"`
 }
 
 type IASCredentials struct {
@@ -50,10 +50,10 @@ type IASCredentials struct {
 
 type UnifiedIdentityCredentials struct {
 	IASCredentials
-	AuthzURL         string                 `json:"authorization_url" validate:"required"`
-	AuthzBundleURL   string                 `json:"authorization_bundle_url" validate:"required_without=AuthzObjectStore"`
-	AuthzObjectStore ObjectStoreCredentials `json:"authorization_object_store" validate:"required_without=AuthzBundleURL"`
-	AuthzInstanceID  string                 `json:"authorization_instance_id" validate:"required"`
+	AuthzURL         string                  `json:"authorization_url" validate:"required"`
+	AuthzBundleURL   string                  `json:"authorization_bundle_url" validate:"required_without=AuthzObjectStore"`
+	AuthzObjectStore *ObjectStoreCredentials `json:"authorization_object_store" validate:"required_without=AuthzBundleURL"`
+	AuthzInstanceID  string                  `json:"authorization_instance_id" validate:"required"`
 }
 
 func LoadService(log *libbuildpack.Logger, serviceName string) (Service, error) {

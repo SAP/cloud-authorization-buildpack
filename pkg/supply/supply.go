@@ -155,7 +155,7 @@ func (s *Supplier) writeOpaConfig(cred AMSCredentials) error {
 	if len(cred.BundleURL) != 0 {
 		cfg = s.createStorageGatewayConfig(cred)
 	} else {
-		cfg = s.createDirectS3OpaConfig(cred.ObjectStore)
+		cfg = s.createDirectS3OpaConfig(*cred.ObjectStore)
 	}
 
 	filePath := path.Join(s.Stager.DepDir(), "opa_config.yml")
