@@ -16,9 +16,6 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/buildpackapplifecycle/buildpackrunner/resources"
-	"github.com/SAP/cloud-authorization-buildpack/pkg/supply"
-	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/testdata"
-	"github.com/SAP/cloud-authorization-buildpack/pkg/uploader"
 	"github.com/cloudfoundry/libbuildpack"
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
@@ -27,6 +24,10 @@ import (
 	"github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"gopkg.in/yaml.v2"
+
+	"github.com/SAP/cloud-authorization-buildpack/pkg/supply"
+	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/testdata"
+	"github.com/SAP/cloud-authorization-buildpack/pkg/uploader"
 )
 
 var _ = Describe("Supply", func() {
@@ -306,8 +307,8 @@ var _ = Describe("Supply", func() {
 					Expect(err).NotTo(HaveOccurred())
 					By("specifying ClientTLS", func() {
 						Expect(restConfig).To(HaveKey("bundle_storage"))
-						Expect(restConfig["bundle_storage"].Credentials.ClientTLS.Cert).To(Equal(path.Join(depDir, "ias.crt")))
-						Expect(restConfig["bundle_storage"].Credentials.ClientTLS.PrivateKey).To(Equal(path.Join(depDir, "ias.key")))
+						Expect(restConfig["bundle_storage"].Credentials.ClientTLS.Cert).To(Equal("/home/vcap/deps/0/ias.crt"))
+						Expect(restConfig["bundle_storage"].Credentials.ClientTLS.PrivateKey).To(Equal("/home/vcap/deps/0/ias.key"))
 						Expect(restConfig["bundle_storage"].URL).To(Equal("https://my-bundle-gateway.org/some/path"))
 					})
 					By("making sure there's only one auth method", func() {
