@@ -220,7 +220,7 @@ func (s *Supplier) createStorageGatewayConfig(cred AMSCredentials) OPAConfig {
 func (s *Supplier) writeLaunchConfig(cfg config) error {
 	s.Log.Info("writing launch.yml..")
 	cmd := fmt.Sprintf(
-		"\"$DEPS_DIR/%s\" run -s -c \"$DEPS_DIR/%s\" -l '%s' -a '[]:%d' --skip-version-check",
+		"\"$DEPS_DIR/%s\" run -s -c \"$DEPS_DIR/%s\" -l '%s' -a '127.0.0.1:%d' --skip-version-check",
 		path.Join(s.Stager.DepsIdx(), "opa"),
 		path.Join(s.Stager.DepsIdx(), "opa_config.yml"),
 		cfg.logLevel,
