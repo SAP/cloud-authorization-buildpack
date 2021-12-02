@@ -206,8 +206,8 @@ func (s *Supplier) createStorageGatewayConfig(cred AMSCredentials) OPAConfig {
 	services[serviceKey] = RestConfig{
 		URL: cred.BundleURL,
 		Credentials: Credentials{ClientTLS: &ClientTLS{
-			Cert: "/home/vcap/deps/0/ias.crt",
-			Key:  "/home/vcap/deps/0/ias.key",
+			Cert: path.Join(s.Stager.DepDir(), "ias.crt"),
+			Key:  path.Join(s.Stager.DepDir(), "ias.key"),
 		}},
 	}
 
