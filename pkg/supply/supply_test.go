@@ -120,7 +120,7 @@ var _ = Describe("Supply", func() {
 				Expect(ld.Processes).To(HaveLen(1))
 				Expect(ld.Processes[0].Type).To(Equal("opa"))
 				Expect(ld.Processes[0].Platforms.Cloudfoundry.SidecarFor).To(Equal([]string{"web"}))
-				cmd := `"$DEPS_DIR/42/opa" run -s -c "$DEPS_DIR/42/opa_config.yml" -l 'error' -a '127.0.0.1:9888' --skip-version-check`
+				cmd := `"/home/vcap/deps/42/opa" run -s -c "/home/vcap/deps/42/opa_config.yml" -l 'error' -a '127.0.0.1:9888' --skip-version-check`
 				Expect(ld.Processes[0].Command).To(Equal(cmd))
 				Expect(ld.Processes[0].Limits.Memory).To(Equal(100))
 				Expect(buffer.String()).To(ContainSubstring("writing launch.yml"))
@@ -314,8 +314,8 @@ var _ = Describe("Supply", func() {
 					Expect(err).NotTo(HaveOccurred())
 					By("specifying ClientTLS", func() {
 						Expect(restConfig).To(HaveKey("bundle_storage"))
-						Expect(restConfig["bundle_storage"].Credentials.ClientTLS.Cert).To(Equal("/home/vcap/deps/0/ias.crt"))
-						Expect(restConfig["bundle_storage"].Credentials.ClientTLS.PrivateKey).To(Equal("/home/vcap/deps/0/ias.key"))
+						Expect(restConfig["bundle_storage"].Credentials.ClientTLS.Cert).To(Equal("/home/vcap/deps/42/ias.crt"))
+						Expect(restConfig["bundle_storage"].Credentials.ClientTLS.PrivateKey).To(Equal("/home/vcap/deps/42/ias.key"))
 						Expect(restConfig["bundle_storage"].URL).To(Equal("https://my-bundle-gateway.org/some/path"))
 					})
 					By("making sure there's only one auth method", func() {
