@@ -156,6 +156,11 @@ var _ = Describe("Supply", func() {
 				Expect(restConfig[serviceKey].Credentials.S3Signing).NotTo(BeNil())
 				Expect(restConfig[serviceKey].URL).To(Equal("https://s3-eu-central-1.amazonaws.com/my-bucket"))
 			})
+			By("enabling the OPA dcn plugin", func() {
+				enabled, ok := cfg.Plugins["dcl"]
+				Expect(ok).To(BeTrue())
+				Expect(string(enabled)).To(Equal(`true`))
+			})
 		})
 		It("creates the correct env vars", func() {
 			Expect(supplier.Run()).To(Succeed())
@@ -320,6 +325,11 @@ var _ = Describe("Supply", func() {
 					})
 					By("making sure there's only one auth method", func() {
 						Expect(restConfig["bundle_storage"].Credentials.S3Signing).To(BeNil())
+					})
+					By("enabling the OPA dcn plugin", func() {
+						enabled, ok := cfg.Plugins["dcl"]
+						Expect(ok).To(BeTrue())
+						Expect(string(enabled)).To(Equal(`true`))
 					})
 				})
 			})
