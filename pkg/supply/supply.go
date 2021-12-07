@@ -18,19 +18,19 @@ import (
 const ServiceName = "authorization"
 
 type Manifest interface {
-	//TODO: See more options at https://github.com/cloudfoundry/libbuildpack/blob/master/manifest.go
+	// TODO: See more options at https://github.com/cloudfoundry/libbuildpack/blob/master/manifest.go
 	AllDependencyVersions(string) []string
 	DefaultVersion(string) (libbuildpack.Dependency, error)
 }
 
 type Installer interface {
-	//TODO: See more options at https://github.com/cloudfoundry/libbuildpack/blob/master/installer.go
+	// TODO: See more options at https://github.com/cloudfoundry/libbuildpack/blob/master/installer.go
 	InstallDependency(libbuildpack.Dependency, string) error
 	InstallOnlyVersion(string, string) error
 }
 
 type Command interface {
-	//TODO: See more options at https://github.com/cloudfoundry/libbuildpack/blob/master/command.go
+	// TODO: See more options at https://github.com/cloudfoundry/libbuildpack/blob/master/command.go
 	Execute(string, io.Writer, io.Writer, string, ...string) error
 	Output(dir string, program string, args ...string) (string, error)
 }
@@ -121,6 +121,7 @@ type RestConfig struct {
 type OPAConfig struct {
 	Bundles  map[string]*bundle.Source `json:"bundles"`
 	Services map[string]RestConfig     `json:"services"`
+	Plugins  map[string]bool           `json:"plugins,omitempty"`
 }
 
 func (s *Supplier) writeProfileDFile(cfg config, amsCreds AMSCredentials) error {
@@ -157,7 +158,7 @@ func (s *Supplier) writeOpaConfig(cred AMSCredentials) error {
 	} else {
 		cfg = s.createDirectS3OpaConfig(*cred.ObjectStore)
 	}
-
+	cfg.Plugins = map[string]bool{"dcl": true}
 	filePath := path.Join(s.Stager.DepDir(), "opa_config.yml")
 	bCfg, _ := json.Marshal(cfg)
 	s.Log.Debug("OPA config: '%s'", string(bCfg))
