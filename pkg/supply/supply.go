@@ -207,8 +207,8 @@ func (s *Supplier) createStorageGatewayConfig(cred AMSCredentials) OPAConfig {
 	services[serviceKey] = RestConfig{
 		URL: cred.BundleURL,
 		Credentials: Credentials{ClientTLS: &ClientTLS{
-			Cert: "/home/vcap/deps/0/ias.crt",
-			Key:  "/home/vcap/deps/0/ias.key",
+			Cert: path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.crt"),
+			Key:  path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.key"),
 		}},
 	}
 
@@ -221,7 +221,7 @@ func (s *Supplier) createStorageGatewayConfig(cred AMSCredentials) OPAConfig {
 func (s *Supplier) writeLaunchConfig(cfg config) error {
 	s.Log.Info("writing launch.yml..")
 	cmd := fmt.Sprintf(
-		"\"$DEPS_DIR/%s\" run -s -c \"$DEPS_DIR/%s\" -l '%s' -a '127.0.0.1:%d' --skip-version-check",
+		`"/home/vcap/deps/%s" run -s -c "/home/vcap/deps/%s" -l '%s' -a '127.0.0.1:%d' --skip-version-check`,
 		path.Join(s.Stager.DepsIdx(), "opa"),
 		path.Join(s.Stager.DepsIdx(), "opa_config.yml"),
 		cfg.logLevel,
