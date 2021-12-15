@@ -93,8 +93,8 @@ func LoadIASClientCert(log *libbuildpack.Logger) (cert []byte, key []byte, err e
 	if err != nil {
 		return cert, key, err
 	}
-	if iasCreds.Certificate == "" || iasCreds.Key == "" { // TODO: Provide option for {"credential_type":"X509_PROVIDED"}
-		return cert, key, fmt.Errorf("identity service binding does not contain client certificate. Please use binding parameter {\"credential_type\":\"X509_GENERATED\"}")
+	if iasCreds.Certificate == "" || iasCreds.Key == "" { // TODO: Provide option for {"credential-type":"X509_PROVIDED"}
+		return cert, key, fmt.Errorf("identity service binding does not contain client certificate. Please use binding parameter {\"credential-type\":\"X509_GENERATED\"}")
 	}
 
 	return []byte(iasCreds.Certificate), []byte(iasCreds.Key), nil
