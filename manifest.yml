@@ -13,7 +13,7 @@ dependencies:
     version: "0.2.2-sap-0.32.0"
     file: "resources/opa"
     sha256: b60de9113843f9531d5243997fe8ce9f81564411e43bcdf1a567c3eb1c41ee40
-    uri: https://github.com/SAP/cloud-authorization-buildpack/raw/master/resources/opa
+    uri: https://github.com/SAP/cloud-authorization-buildpack/raw/main/resources/opa
     cf_stacks: ["cflinuxfs3"]
 include_files:
   - README.md
