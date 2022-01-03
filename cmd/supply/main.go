@@ -64,20 +64,34 @@ func main() {
 		logger.Error("Unable to setup environment variables: %s", err)
 		os.Exit(14)
 	}
-	cert, key, err := supply.LoadIASClientCert(logger)
-	if err != nil {
-		logger.Error("Unable to load IAS client certificate: %s", err)
-		os.Exit(14)
-	}
-	err = os.WriteFile(filepath.Join(stager.DepDir(), "ias.crt"), cert, 0600)
-	if err != nil {
-		logger.Error("Unable to write IAS client certificate: %s", err)
-		os.Exit(14)
-	}
-	err = os.WriteFile(filepath.Join(stager.DepDir(), "ias.key"), key, 0600)
-	if err != nil {
-		logger.Error("Unable to write IAS client key: %s", err)
-		os.Exit(14)
+	var cert, key []byte
+	if _, err = supply.LoadMegacliteURL(logger); err != nil {
+		cert, err = os.ReadFile(os.Getenv("CF_INSTANCE_CERT"))
+		if err != nil {
+			logger.Error("Unable to read CF_INSTANCE_CERT certificate: %s", err)
+			os.Exit(14)
+		}
+		key, err = os.ReadFile(os.Getenv("CF_INSTANCE_KEY"))
+		if err != nil {
+			logger.Error("Unable to read CF_INSTANCE_KEY certificate: %s", err)
+			os.Exit(14)
+		}
+	} else {
+		cert, key, err = supply.LoadIASClientCert(logger)
+		if err != nil {
+			logger.Error("Unable to load IAS client certificate: %s", err)
+			os.Exit(14)
+		}
+		err = os.WriteFile(filepath.Join(stager.DepDir(), "ias.crt"), cert, 0600)
+		if err != nil {
+			logger.Error("Unable to write IAS client certificate: %s", err)
+			os.Exit(14)
+		}
+		err = os.WriteFile(filepath.Join(stager.DepDir(), "ias.key"), key, 0600)
+		if err != nil {
+			logger.Error("Unable to write IAS client key: %s", err)
+			os.Exit(14)
+		}
 	}
 
 	uploader, err := uploader.NewUploader(logger, cert, key)

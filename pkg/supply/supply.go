@@ -76,6 +76,10 @@ func (s *Supplier) Run() error {
 		return fmt.Errorf("could not load buildpack config: %w", err)
 	}
 	amsCreds, err := loadAMSCredentials(s.Log, cfg)
+	if amsCreds.certPath == "" {
+		amsCreds.certPath = path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.crt")
+		amsCreds.keyPath = path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.key")
+	}
 	if err != nil {
 		return fmt.Errorf("could not load AMSCredentials: %w", err)
 	}
@@ -154,9 +158,7 @@ func (s *Supplier) writeOpaConfig(cred AMSCredentials) error {
 
 	var cfg OPAConfig
 	if len(cred.BundleURL) != 0 {
-		cfg = s.createStorageGatewayConfig(cred,
-			path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.crt"),
-			path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.key"))
+		cfg = s.createStorageGatewayConfig(cred)
 	} else {
 		cfg = s.createDirectS3OpaConfig(*cred.ObjectStore)
 	}
@@ -192,7 +194,7 @@ func (s *Supplier) createDirectS3OpaConfig(osCreds ObjectStoreCredentials) OPACo
 	}
 }
 
-func (s *Supplier) createStorageGatewayConfig(cred AMSCredentials, certPath, keyPath string) OPAConfig {
+func (s *Supplier) createStorageGatewayConfig(cred AMSCredentials) OPAConfig {
 	serviceKey := "bundle_storage"
 	bundles := make(map[string]*bundle.Source)
 	bundles[cred.InstanceID] = &bundle.Source{
@@ -209,8 +211,8 @@ func (s *Supplier) createStorageGatewayConfig(cred AMSCredentials, certPath, key
 	services[serviceKey] = RestConfig{
 		URL: cred.BundleURL,
 		Credentials: Credentials{ClientTLS: &ClientTLS{
-			Cert: path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.crt"),
-			Key:  path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.key"),
+			Cert: cred.certPath,
+			Key:  cred.keyPath,
 		}},
 	}
 

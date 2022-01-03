@@ -33,6 +33,8 @@ type AMSCredentials struct {
 	ObjectStore *ObjectStoreCredentials `json:"object_store" validate:"required_without=BundleURL"`
 	URL         string                  `json:"url" validate:"required"`
 	InstanceID  string                  `json:"instance_id"`
+	certPath    string
+	keyPath     string
 }
 
 type MegacliteService struct {
@@ -129,8 +131,11 @@ func loadAMSCredentials(log *libbuildpack.Logger, cfg config) (AMSCredentials, e
 	megacliteURL, err := LoadMegacliteURL(log)
 	if err != nil {
 		return AMSCredentials{
-			BundleURL: megacliteURL + "/ams/bundle/",
-			URL:       megacliteURL + "/ams/proxy/",
+			BundleURL:  megacliteURL + "/ams/bundle/",
+			URL:        megacliteURL + "/ams/proxy/",
+			InstanceID: "dwc-megaclite-ams-instance-id",
+			certPath:   os.Getenv("CF_INSTANCE_CERT"),
+			keyPath:    os.Getenv("CF_INSTANCE_KEY"),
 		}, nil
 	}
 	amsCreds, err := loadAMSCredsFromIAS(log)
