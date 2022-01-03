@@ -305,9 +305,10 @@ func (s *Supplier) upload(amsCreds services.AMSCredentials, tlsCfg tlsConfig, ro
 		return fmt.Errorf("unable to create AMS client: %s", err)
 	}
 	uploader := uploader.Uploader{
-		Log:    s.Log,
-		Root:   path.Join(s.Stager.BuildDir(), rootDir),
-		Client: client,
+		Log:           s.Log,
+		Root:          path.Join(s.Stager.BuildDir(), rootDir),
+		Client:        client,
+		AMSInstanceID: amsCreds.InstanceID,
 	}
 	return uploader.Do(amsCreds.URL)
 }

@@ -12,9 +12,10 @@ import (
 )
 
 type Uploader struct {
-	Log    *libbuildpack.Logger
-	Root   string
-	Client AMSClient
+	Log           *libbuildpack.Logger
+	Root          string
+	Client        AMSClient
+	AMSInstanceID string
 }
 
 //go:generate mockgen --build_flags=--mod=mod --destination=../supply/client_mock_test.go --package=supply_test github.com/SAP/cloud-authorization-buildpack/pkg/uploader AMSClient
@@ -48,7 +49,7 @@ func (up *Uploader) Do(dstURL string) error {
 	if err != nil {
 		return fmt.Errorf("invalid destination AMS URL ('%s'): %w", dstURL, err)
 	}
-	u.Path = path.Join(u.Path, "/sap/ams/v1/bundles/SAP.tar.gz")
+	u.Path = path.Join(u.Path, "/sap/ams/v1/ams-instances/", up.AMSInstanceID, "/dcl-upload")
 	r, err := http.NewRequest(http.MethodPost, u.String(), buf)
 	if err != nil {
 		return fmt.Errorf("could not create DCL upload request %w", err)
