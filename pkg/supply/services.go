@@ -35,6 +35,13 @@ type AMSCredentials struct {
 	InstanceID  string                  `json:"instance_id"`
 }
 
+type MegacliteService struct {
+	Name        string `json:"name"`
+	Credentials struct {
+		URL string `json:"url"`
+	} `json:"credentials"`
+}
+
 type IASCredentials struct {
 	Certificate          string    `json:"certificate" validate:"required"`
 	CertificateExpiresAt time.Time `json:"certificate_expires_at"`
@@ -100,7 +107,32 @@ func LoadIASClientCert(log *libbuildpack.Logger) (cert []byte, key []byte, err e
 	return []byte(iasCreds.Certificate), []byte(iasCreds.Key), nil
 }
 
+func LoadMegacliteURL(log *libbuildpack.Logger) (url string, err error) {
+	svcsString := os.Getenv("VCAP_SERVICES")
+	var svcs map[string][]MegacliteService
+	err = json.Unmarshal([]byte(svcsString), &svcs)
+	if err != nil {
+		return "", fmt.Errorf("could not unmarshal VCAP_SERVICES: %w", err)
+	}
+	if ups, ok := svcs["user-provided"]; ok {
+		for _, up := range ups {
+			if up.Name == "megaclite" {
+				return up.Credentials.URL, nil
+			}
+		}
+	}
+	return "", fmt.Errorf("no user provided service megaclite found")
+
+}
+
 func loadAMSCredentials(log *libbuildpack.Logger, cfg config) (AMSCredentials, error) {
+	megacliteURL, err := LoadMegacliteURL(log)
+	if err != nil {
+		return AMSCredentials{
+			BundleURL: megacliteURL + "/ams/bundle/",
+			URL:       megacliteURL + "/ams/proxy/",
+		}, nil
+	}
 	amsCreds, err := loadAMSCredsFromIAS(log)
 	if err == nil {
 		log.Debug("using authorization credentials embedded in identity service")

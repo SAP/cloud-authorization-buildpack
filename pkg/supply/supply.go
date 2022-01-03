@@ -154,7 +154,9 @@ func (s *Supplier) writeOpaConfig(cred AMSCredentials) error {
 
 	var cfg OPAConfig
 	if len(cred.BundleURL) != 0 {
-		cfg = s.createStorageGatewayConfig(cred)
+		cfg = s.createStorageGatewayConfig(cred,
+			path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.crt"),
+			path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.key"))
 	} else {
 		cfg = s.createDirectS3OpaConfig(*cred.ObjectStore)
 	}
@@ -190,7 +192,7 @@ func (s *Supplier) createDirectS3OpaConfig(osCreds ObjectStoreCredentials) OPACo
 	}
 }
 
-func (s *Supplier) createStorageGatewayConfig(cred AMSCredentials) OPAConfig {
+func (s *Supplier) createStorageGatewayConfig(cred AMSCredentials, certPath, keyPath string) OPAConfig {
 	serviceKey := "bundle_storage"
 	bundles := make(map[string]*bundle.Source)
 	bundles[cred.InstanceID] = &bundle.Source{
