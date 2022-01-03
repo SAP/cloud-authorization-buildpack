@@ -129,7 +129,7 @@ func LoadMegacliteURL(log *libbuildpack.Logger) (url string, err error) {
 
 func loadAMSCredentials(log *libbuildpack.Logger, cfg config) (AMSCredentials, error) {
 	megacliteURL, err := LoadMegacliteURL(log)
-	if err != nil {
+	if err == nil {
 		return AMSCredentials{
 			BundleURL:  megacliteURL + "/ams/bundle/",
 			URL:        megacliteURL + "/ams/proxy/",
