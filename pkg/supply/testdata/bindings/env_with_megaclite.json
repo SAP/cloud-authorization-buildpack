@@ -1,0 +1,15 @@
+{
+  "user-provided": [
+    {
+      "binding_guid": "cf5fbc53-f243-4411-a1d3-f6e254ec7bef",
+      "binding_name": null,
+      "credentials": {
+        "url": "http://megaclite.host"
+      },
+      "instance_guid": "my-instance-guid",
+      "instance_name": "megaclite",
+      "name": "megaclite",
+      "volume_mounts": []
+    }
+  ]
+}
