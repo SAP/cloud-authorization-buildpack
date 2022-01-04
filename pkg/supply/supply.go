@@ -7,15 +7,16 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 
+	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/env"
+	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/services"
 	"github.com/cloudfoundry/libbuildpack"
 	"github.com/open-policy-agent/opa/download"
 	"github.com/open-policy-agent/opa/plugins/bundle"
 
 	"github.com/SAP/cloud-authorization-buildpack/pkg/uploader"
 )
-
-const ServiceName = "authorization"
 
 type Manifest interface {
 	// TODO: See more options at https://github.com/cloudfoundry/libbuildpack/blob/master/manifest.go
@@ -36,13 +37,13 @@ type Command interface {
 }
 
 type Supplier struct {
-	Manifest     Manifest
-	Installer    Installer
-	Stager       *libbuildpack.Stager
-	Command      Command
-	Log          *libbuildpack.Logger
-	BuildpackDir string
-	Uploader     uploader.Uploader
+	Manifest      Manifest
+	Installer     Installer
+	Stager        *libbuildpack.Stager
+	Command       Command
+	Log           *libbuildpack.Logger
+	BuildpackDir  string
+	UploadBuilder func(log *libbuildpack.Logger, cert, key string) (uploader.Uploader, error)
 }
 
 type Cloudfoundry struct {
@@ -71,34 +72,55 @@ func (s *Supplier) Run() error {
 	s.Log.BeginStep("Supplying OPA")
 
 	// after remove of AMS_DATA, err and logger con be removed from this method
-	cfg, err := s.loadBuildpackConfig(s.Log)
+	cfg, err := env.LoadBuildpackConfig(s.Log)
 	if err != nil {
-		return fmt.Errorf("could not load buildpack config: %w", err)
+		return fmt.Errorf("could not load buildpack Config: %w", err)
 	}
-	amsCreds, err := loadAMSCredentials(s.Log, cfg)
-	if amsCreds.certPath == "" {
-		amsCreds.certPath = path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.crt")
-		amsCreds.keyPath = path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.key")
-	}
+	amsCreds, err := services.LoadAMSCredentials(s.Log, cfg, services.MegacliteLoader{}, services.IdentityLoader{}, services.AuthorizationLoader{})
 	if err != nil {
 		return fmt.Errorf("could not load AMSCredentials: %w", err)
+	}
+	if err := s.addTLSCreds(&amsCreds); err != nil {
+		return fmt.Errorf("could not add TLS credentials: %w", err)
 	}
 	if err := s.supplyOPABinary(); err != nil {
 		return fmt.Errorf("could not supply opa binary: %w", err)
 	}
 	if err := s.writeLaunchConfig(cfg); err != nil {
-		return fmt.Errorf("could not write launch config: %w", err)
+		return fmt.Errorf("could not write launch Config: %w", err)
 	}
 	if err := s.writeOpaConfig(amsCreds); err != nil {
-		return fmt.Errorf("could not write opa config: %w", err)
+		return fmt.Errorf("could not write opa Config: %w", err)
 	}
 	if err := s.writeProfileDFile(cfg, amsCreds); err != nil {
 		return fmt.Errorf("could not write profileD file: %w", err)
 	}
-	if cfg.shouldUpload {
-		if err := s.Uploader.Upload(path.Join(s.Stager.BuildDir(), cfg.root), amsCreds.URL); err != nil {
-			return fmt.Errorf("could not upload authz data: %w", err)
+
+	if cfg.ShouldUpload {
+		if err := s.upload(cfg, amsCreds); err != nil {
+			return fmt.Errorf("error uploading policies: %w", err)
 		}
+	}
+	return nil
+}
+
+func (s *Supplier) addTLSCreds(amsCreds *services.AMSCredentials) error {
+	if amsCreds.InstanceID == "dwc-megaclite-ams-instance-id" {
+		return nil
+	}
+	cert, key, err := services.LoadIASClientCert(s.Log)
+	if err != nil {
+		return err
+	}
+	amsCreds.CertPath = path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.crt")
+	amsCreds.KeyPath = path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.key")
+	err = os.WriteFile(amsCreds.CertPath, cert, 0600)
+	if err != nil {
+		return fmt.Errorf("unable to write IAS client certificate: %s", err)
+	}
+	return os.WriteFile(filepath.Join(s.Stager.DepDir(), "ias.key"), key, 0600)
+	if err != nil {
+		return fmt.Errorf("unable to write IAS client key: %s", err)
 	}
 	return nil
 }
@@ -128,11 +150,11 @@ type OPAConfig struct {
 	Plugins  map[string]bool           `json:"plugins,omitempty"`
 }
 
-func (s *Supplier) writeProfileDFile(cfg config, amsCreds AMSCredentials) error {
+func (s *Supplier) writeProfileDFile(cfg env.Config, amsCreds services.AMSCredentials) error {
 	s.Log.Info("writing profileD file..")
 	values := map[string]string{
-		"OPA_URL": fmt.Sprintf("http://localhost:%d/", cfg.port),
-		"ADC_URL": fmt.Sprintf("http://localhost:%d/", cfg.port),
+		"OPA_URL": fmt.Sprintf("http://localhost:%d/", cfg.Port),
+		"ADC_URL": fmt.Sprintf("http://localhost:%d/", cfg.Port),
 	}
 
 	if len(amsCreds.BundleURL) == 0 {
@@ -153,8 +175,8 @@ func (s *Supplier) writeProfileDFile(cfg config, amsCreds AMSCredentials) error 
 	return os.WriteFile(path.Join(s.Stager.ProfileDir(), "0000_opa_env.sh"), b.Bytes(), 0755)
 }
 
-func (s *Supplier) writeOpaConfig(cred AMSCredentials) error {
-	s.Log.Info("writing opa config..")
+func (s *Supplier) writeOpaConfig(cred services.AMSCredentials) error {
+	s.Log.Info("writing opa Config..")
 
 	var cfg OPAConfig
 	if len(cred.BundleURL) != 0 {
@@ -165,11 +187,11 @@ func (s *Supplier) writeOpaConfig(cred AMSCredentials) error {
 	cfg.Plugins = map[string]bool{"dcl": true}
 	filePath := path.Join(s.Stager.DepDir(), "opa_config.yml")
 	bCfg, _ := json.Marshal(cfg)
-	s.Log.Debug("OPA config: '%s'", string(bCfg))
+	s.Log.Debug("OPA Config: '%s'", string(bCfg))
 	return libbuildpack.NewJSON().Write(filePath, cfg)
 }
 
-func (s *Supplier) createDirectS3OpaConfig(osCreds ObjectStoreCredentials) OPAConfig {
+func (s *Supplier) createDirectS3OpaConfig(osCreds services.ObjectStoreCredentials) OPAConfig {
 	serviceKey := "s3"
 	bundles := make(map[string]*bundle.Source)
 	bundles["SAP"] = &bundle.Source{
@@ -194,7 +216,7 @@ func (s *Supplier) createDirectS3OpaConfig(osCreds ObjectStoreCredentials) OPACo
 	}
 }
 
-func (s *Supplier) createStorageGatewayConfig(cred AMSCredentials) OPAConfig {
+func (s *Supplier) createStorageGatewayConfig(cred services.AMSCredentials) OPAConfig {
 	serviceKey := "bundle_storage"
 	bundles := make(map[string]*bundle.Source)
 	bundles[cred.InstanceID] = &bundle.Source{
@@ -211,8 +233,8 @@ func (s *Supplier) createStorageGatewayConfig(cred AMSCredentials) OPAConfig {
 	services[serviceKey] = RestConfig{
 		URL: cred.BundleURL,
 		Credentials: Credentials{ClientTLS: &ClientTLS{
-			Cert: cred.certPath,
-			Key:  cred.keyPath,
+			Cert: cred.CertPath,
+			Key:  cred.KeyPath,
 		}},
 	}
 
@@ -222,13 +244,13 @@ func (s *Supplier) createStorageGatewayConfig(cred AMSCredentials) OPAConfig {
 	}
 }
 
-func (s *Supplier) writeLaunchConfig(cfg config) error {
+func (s *Supplier) writeLaunchConfig(cfg env.Config) error {
 	s.Log.Info("writing launch.yml..")
 	cmd := fmt.Sprintf(
 		`"/home/vcap/deps/%s" run -s -c "/home/vcap/deps/%s" -l '%s' -a '127.0.0.1:%d' --skip-version-check`,
 		path.Join(s.Stager.DepsIdx(), "opa"),
 		path.Join(s.Stager.DepsIdx(), "opa_config.yml"),
-		cfg.logLevel,
+		cfg.LogLevel,
 		9888)
 	s.Log.Debug("OPA start command: '%s'", cmd)
 	launchData := LaunchData{
@@ -257,55 +279,15 @@ func (s *Supplier) supplyOPABinary() error {
 	return os.Chmod(path.Join(s.Stager.DepDir(), opaDep.Name), 0755)
 }
 
-type config struct {
-	root         string
-	serviceName  string
-	shouldUpload bool
-	logLevel     string
-	port         int
-}
-type amsDataDeprecated struct {
-	Root string `json:"root"`
-}
-
-func (s *Supplier) loadBuildpackConfig(log *libbuildpack.Logger) (config, error) {
-
-	serviceName := os.Getenv("AMS_SERVICE")
-	if serviceName == "" {
-		serviceName = ServiceName
+func (s *Supplier) upload(cfg env.Config, amsCreds services.AMSCredentials) error {
+	// s.Log.Info("creating policy archive..")
+	// buf, err := uploader.CreateArchive(s.Log, cfg.root)
+	// if err != nil {
+	// 	return fmt.Errorf("could not create policy DCL.tar.gz: %w", err)
+	// }
+	uploader, err := s.UploadBuilder(s.Log, amsCreds.CertPath, amsCreds.KeyPath)
+	if err != nil {
+		return fmt.Errorf("unable to create uploader: %s", err)
 	}
-
-	// Deprecated compatibility coding to support AMS_DATA for now (AMS_DATA.serviceNname will be ignored, because its not supposed to be supported by stakeholders)
-	amsData, amsDataSet := os.LookupEnv("AMS_DATA")
-	if amsDataSet {
-		log.Warning("the environment variable AMS_DATA is deprecated. Please use $AMS_DCL_ROOT to provide Base DCL application (see https://github.com/SAP/cloud-authorization-buildpack/blob/master/README.md#base-policy-upload)")
-		var amsD amsDataDeprecated
-		err := json.Unmarshal([]byte(amsData), &amsD)
-		return config{
-			serviceName:  serviceName,
-			root:         amsD.Root,
-			shouldUpload: amsD.Root != "",
-			logLevel:     "info",
-			port:         9888,
-		}, err
-
-	}
-	// End of Deprecated coding
-
-	dclRoot := os.Getenv("AMS_DCL_ROOT")
-	shouldUpload := dclRoot != ""
-	if !shouldUpload {
-		s.Log.Warning("this app will upload no authorization data (AMS_DCL_ROOT empty or not set)")
-	}
-	logLevel := os.Getenv("AMS_LOG_LEVEL")
-	if logLevel == "" {
-		logLevel = "error"
-	}
-	return config{
-		serviceName:  serviceName,
-		root:         dclRoot,
-		shouldUpload: shouldUpload,
-		logLevel:     logLevel,
-		port:         9888,
-	}, nil
+	return uploader.Upload(path.Join(s.Stager.BuildDir(), cfg.Root), amsCreds.URL)
 }

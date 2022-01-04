@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/buildpackapplifecycle/buildpackrunner/resources"
+	"github.com/SAP/cloud-authorization-buildpack/pkg/uploader"
 	"github.com/cloudfoundry/libbuildpack"
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
@@ -27,7 +28,6 @@ import (
 
 	"github.com/SAP/cloud-authorization-buildpack/pkg/supply"
 	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/testdata"
-	"github.com/SAP/cloud-authorization-buildpack/pkg/uploader"
 )
 
 var _ = Describe("Supply", func() {
@@ -88,7 +88,9 @@ var _ = Describe("Supply", func() {
 			Installer:    libbuildpack.NewInstaller(m),
 			Log:          logger,
 			BuildpackDir: buildpackDir,
-			Uploader:     uploader.NewUploaderWithClient(logger, mockAMSClient),
+			UploadBuilder: func(log *libbuildpack.Logger, cert, key string) (uploader.Uploader, error) {
+				return uploader.NewUploaderWithClient(logger, mockAMSClient), nil
+			},
 		}
 	})
 
@@ -126,9 +128,9 @@ var _ = Describe("Supply", func() {
 				Expect(writtenLogs.String()).To(ContainSubstring("writing launch.yml"))
 			})
 		})
-		It("creates the correct opa config", func() {
+		It("creates the correct opa Config", func() {
 			Expect(supplier.Run()).To(Succeed())
-			Expect(writtenLogs.String()).To(ContainSubstring("writing opa config"))
+			Expect(writtenLogs.String()).To(ContainSubstring("writing opa Config"))
 
 			rawConfig, err := os.ReadFile(filepath.Join(depDir, "opa_config.yml"))
 			Expect(err).NotTo(HaveOccurred())
@@ -147,7 +149,7 @@ var _ = Describe("Supply", func() {
 				Expect(*bundleConfig["SAP"].Polling.MinDelaySeconds).To(Equal(int64(10)))
 				Expect(*bundleConfig["SAP"].Polling.MaxDelaySeconds).To(Equal(int64(20)))
 			})
-			By("specifying proper s3 rest config", func() {
+			By("specifying proper s3 rest Config", func() {
 				var restConfig map[string]rest.Config
 				err = json.Unmarshal(cfg.Services, &restConfig)
 				Expect(err).NotTo(HaveOccurred())

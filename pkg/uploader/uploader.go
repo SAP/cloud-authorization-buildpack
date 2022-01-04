@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"time"
 
 	"github.com/cloudfoundry/libbuildpack"
 )
@@ -25,10 +26,10 @@ type AMSClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-func NewUploader(log *libbuildpack.Logger, cert, key []byte) (Uploader, error) {
-	crt, err := tls.X509KeyPair(cert, key)
+func GetClient(log *libbuildpack.Logger, cert, key string) (Uploader, error) {
+	crt, err := tls.LoadX509KeyPair(cert, key)
 	if err != nil {
-		return nil, fmt.Errorf("could not load cf certs %w", err)
+		return nil, fmt.Errorf("could not load key or certificate: %w", err)
 	}
 
 	transport := http.DefaultTransport.(*http.Transport).Clone()
@@ -36,6 +37,7 @@ func NewUploader(log *libbuildpack.Logger, cert, key []byte) (Uploader, error) {
 	amsClient :=
 		&http.Client{
 			Transport: transport,
+			Timeout:   30 * time.Second,
 		}
 	return &uploader{
 		log,
@@ -54,7 +56,7 @@ func NewUploaderWithClient(log *libbuildpack.Logger, client AMSClient) Uploader 
 func (up *uploader) Upload(rootDir string, dstURL string) error {
 	up.root = rootDir
 	up.log.Info("creating policy archive..")
-	buf, err := up.createArchive(up.log, rootDir)
+	buf, err := CreateArchive(up.log, rootDir)
 	if err != nil {
 		return fmt.Errorf("could not create policy DCL.tar.gz: %w", err)
 	}
