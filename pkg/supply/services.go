@@ -134,8 +134,8 @@ func loadAMSCredentials(log *libbuildpack.Logger, cfg config) (AMSCredentials, e
 			BundleURL:  megacliteURL + "/ams/bundle/",
 			URL:        megacliteURL + "/ams/proxy/",
 			InstanceID: "dwc-megaclite-ams-instance-id",
-			certPath:   os.Getenv("CF_INSTANCE_CERT"),
-			keyPath:    os.Getenv("CF_INSTANCE_KEY"),
+			certPath:   "${CF_INSTANCE_CERT}",
+			keyPath:    "${CF_INSTANCE_KEY}",
 		}, nil
 	}
 	amsCreds, err := loadAMSCredsFromIAS(log)
