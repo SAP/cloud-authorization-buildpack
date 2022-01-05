@@ -11,6 +11,8 @@ import (
 	"github.com/cloudfoundry/libbuildpack"
 )
 
+const MegacliteID = "dwc-megaclite-ams-instance-id"
+
 type Service struct {
 	Name        string          `json:"name"`
 	Tags        []string        `json:"tags"`

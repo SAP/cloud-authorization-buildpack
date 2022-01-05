@@ -113,8 +113,7 @@ type tlsConfig struct {
 }
 
 func (s *Supplier) getTLSConfig(amsCreds *services.AMSCredentials) (tlsConfig, error) {
-	//TODO: make constant
-	if amsCreds.InstanceID == "dwc-megaclite-ams-instance-id" {
+	if amsCreds.InstanceID == services.MegacliteID {
 		cert, err := os.ReadFile(os.Getenv("CF_INSTANCE_CERT"))
 		if err != nil {
 			return tlsConfig{}, fmt.Errorf("unable to read CF_INSTANCE_CERT certificate: %s", err)

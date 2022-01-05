@@ -26,7 +26,7 @@ func fromMegaclite() (*AMSCredentials, error) {
 				return &AMSCredentials{
 					BundleURL:  megacliteURL + "/ams/bundle/",
 					URL:        megacliteURL + "/ams/proxy/",
-					InstanceID: "dwc-megaclite-ams-instance-id",
+					InstanceID: MegacliteID,
 				}, nil
 			}
 		}

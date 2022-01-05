@@ -310,9 +310,8 @@ var _ = Describe("Supply", func() {
 				Expect(supplier.Run()).To(Succeed())
 				Expect(filepath.Join(depDir, "launch.yml")).To(BeARegularFile())
 				Expect(uploadReqSpy.Host).To(Equal("ams.url.from.identity"))
-				//TODO: Test certificates
-				Expect(keySpy).NotTo(BeNil())  //To(Equal(path.Join(supplier.Stager.DepDir(), "ias.key")))
-				Expect(certSpy).NotTo(BeNil()) //To(Equal(path.Join(supplier.Stager.DepDir(), "ias.crt")))
+				Expect(string(keySpy)).To(Equal("identity-key-payload"))
+				Expect(string(certSpy)).To(Equal("identity-cert-payload"))
 			})
 			Context("the bundle gateway url is set", func() {
 				It("should configure access to the gateway", func() {
@@ -330,6 +329,14 @@ var _ = Describe("Supply", func() {
 						Expect(restConfig["bundle_storage"].Credentials.ClientTLS.Cert).To(Equal("/home/vcap/deps/42/ias.crt"))
 						Expect(restConfig["bundle_storage"].Credentials.ClientTLS.PrivateKey).To(Equal("/home/vcap/deps/42/ias.key"))
 						Expect(restConfig["bundle_storage"].URL).To(Equal("https://my-bundle-gateway.org/some/path"))
+					})
+					By("persisting the identity cert/key", func() {
+						cert, err := os.ReadFile(filepath.Join(depDir, "ias.crt"))
+						Expect(err).NotTo(HaveOccurred())
+						Expect(string(cert)).To(Equal("identity-cert-payload"))
+						key, err := os.ReadFile(filepath.Join(depDir, "ias.key"))
+						Expect(err).NotTo(HaveOccurred())
+						Expect(string(key)).To(Equal("identity-key-payload"))
 					})
 					By("making sure there's only one auth method", func() {
 						Expect(restConfig["bundle_storage"].Credentials.S3Signing).To(BeNil())
@@ -371,6 +378,8 @@ var _ = Describe("Supply", func() {
 			Expect(supplier.Run()).To(Succeed())
 			Expect(filepath.Join(depDir, "launch.yml")).To(BeARegularFile())
 			Expect(uploadReqSpy.Host).To(Equal("megaclite.host"))
+			Expect(string(keySpy)).To(Equal("cf-instance-key-payload"))
+			Expect(string(certSpy)).To(Equal("cf-instance-cert-payload"))
 		})
 		It("should configure OPA to access megaclite", func() {
 			Expect(supplier.Run()).To(Succeed())
