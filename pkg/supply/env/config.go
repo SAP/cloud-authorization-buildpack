@@ -30,7 +30,7 @@ func LoadBuildpackConfig(log *libbuildpack.Logger) (Config, error) {
 	// Deprecated compatibility coding to support AMS_DATA for now (AMS_DATA.serviceNname will be ignored, because its not supposed to be supported by stakeholders)
 	amsData, amsDataSet := os.LookupEnv("AMS_DATA")
 	if amsDataSet {
-		log.Warning("the environment variable AMS_DATA is deprecated. Please use $AMS_DCL_ROOT to provide Base DCL application (see https://github.com/SAP/cloud-authorization-buildpack/blob/master/README.md#base-policy-upload)")
+		log.Warning("the environment variable AMS_DATA is deprecated. Please use $AMS_DCL_ROOT to provide Base DCL application (see https://github.com/SAP/cloud-authorization-buildpack/blob/main/README.md#base-policy-upload)")
 		var amsD amsDataDeprecated
 		err := json.Unmarshal([]byte(amsData), &amsD)
 		return Config{
