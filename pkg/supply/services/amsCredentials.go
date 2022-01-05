@@ -5,18 +5,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/env"
 	"github.com/cloudfoundry/libbuildpack"
 	"github.com/go-playground/validator/v10"
 )
 
-type Loader interface {
-	Load(log *libbuildpack.Logger, config env.Config) (*AMSCredentials, error)
-}
-
-type MegacliteLoader struct{}
-
-func (m MegacliteLoader) Load(log *libbuildpack.Logger, cfg env.Config) (*AMSCredentials, error) {
+func fromMegaclite() (*AMSCredentials, error) {
 	svcsString := os.Getenv("VCAP_SERVICES")
 	var svcs map[string][]MegacliteService
 	err := json.Unmarshal([]byte(svcsString), &svcs)
@@ -41,15 +34,12 @@ func (m MegacliteLoader) Load(log *libbuildpack.Logger, cfg env.Config) (*AMSCre
 	return nil, nil
 }
 
-type IdentityLoader struct{}
-
-func (i IdentityLoader) Load(log *libbuildpack.Logger, cfg env.Config) (*AMSCredentials, error) {
+func fromIdentity(log *libbuildpack.Logger) (*AMSCredentials, error) {
 	identityCreds, err := loadIdentityCreds(log)
 	if err != nil {
 		return nil, fmt.Errorf("could not load identity credentials: %w", err)
 	}
 	if identityCreds.AuthzURL == "" {
-		log.Warning("no AMS credentials as part of identity service. Resorting to standalone authorization service broker")
 		return nil, nil
 	}
 	validate := validator.New()
@@ -72,10 +62,8 @@ func loadIdentityCreds(log *libbuildpack.Logger) (UnifiedIdentityCredentials, er
 	return iasCreds, err
 }
 
-type AuthorizationLoader struct{}
-
-func (a AuthorizationLoader) Load(log *libbuildpack.Logger, cfg env.Config) (*AMSCredentials, error) {
-	amsService, err := LoadService(log, cfg.ServiceName)
+func fromAuthz(log *libbuildpack.Logger, serviceName string) (*AMSCredentials, error) {
+	amsService, err := LoadService(log, serviceName)
 	if err != nil {
 		return nil, err
 	}

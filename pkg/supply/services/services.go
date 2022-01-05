@@ -107,15 +107,28 @@ func LoadIASClientCert(log *libbuildpack.Logger) (cert []byte, key []byte, err e
 	return []byte(iasCreds.Certificate), []byte(iasCreds.Key), nil
 }
 
-func LoadAMSCredentials(log *libbuildpack.Logger, cfg env.Config, loaders ...Loader) (AMSCredentials, error) {
-	for _, l := range loaders {
-		amsCreds, err := l.Load(log, cfg)
-		if err != nil {
-			return AMSCredentials{}, err
-		}
-		if amsCreds != nil {
-			return *amsCreds, nil
-		}
+func LoadAMSCredentials(log *libbuildpack.Logger, cfg env.Config) (AMSCredentials, error) {
+	amsCreds, err := fromMegaclite()
+	if err != nil {
+		return AMSCredentials{}, err
+	}
+	if amsCreds != nil {
+		return *amsCreds, nil
+	}
+	amsCreds, err = fromIdentity(log)
+	if err != nil {
+		return AMSCredentials{}, err
+	}
+	if amsCreds != nil {
+		return *amsCreds, nil
+	}
+	log.Warning("no AMS credentials as part of identity service. Resorting to standalone authorization service broker")
+	amsCreds, err = fromAuthz(log, cfg.ServiceName)
+	if err != nil {
+		return AMSCredentials{}, err
+	}
+	if amsCreds != nil {
+		return *amsCreds, nil
 	}
 	return AMSCredentials{}, errors.New("cannot find authorization-enabled identity service")
 }

@@ -76,7 +76,7 @@ func (s *Supplier) Run() error {
 	if err != nil {
 		return fmt.Errorf("could not load buildpack Config: %w", err)
 	}
-	amsCreds, err := services.LoadAMSCredentials(s.Log, cfg, services.MegacliteLoader{}, services.IdentityLoader{}, services.AuthorizationLoader{})
+	amsCreds, err := services.LoadAMSCredentials(s.Log, cfg)
 	if err != nil {
 		return fmt.Errorf("could not load AMSCredentials: %w", err)
 	}
@@ -113,6 +113,7 @@ type tlsConfig struct {
 }
 
 func (s *Supplier) getTLSConfig(amsCreds *services.AMSCredentials) (tlsConfig, error) {
+	//TODO: make constant
 	if amsCreds.InstanceID == "dwc-megaclite-ams-instance-id" {
 		cert, err := os.ReadFile(os.Getenv("CF_INSTANCE_CERT"))
 		if err != nil {
