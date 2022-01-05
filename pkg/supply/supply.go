@@ -88,15 +88,14 @@ func (s *Supplier) Run() error {
 		return fmt.Errorf("could not supply opa binary: %w", err)
 	}
 	if err := s.writeLaunchConfig(cfg); err != nil {
-		return fmt.Errorf("could not write launch Config: %w", err)
+		return fmt.Errorf("could not write launch config: %w", err)
 	}
 	if err := s.writeOpaConfig(amsCreds, tlsCfg); err != nil {
-		return fmt.Errorf("could not write opa Config: %w", err)
+		return fmt.Errorf("could not write opa config: %w", err)
 	}
 	if err := s.writeProfileDFile(cfg, amsCreds); err != nil {
 		return fmt.Errorf("could not write profileD file: %w", err)
 	}
-
 	if cfg.ShouldUpload {
 		if err := s.upload(amsCreds, tlsCfg, cfg.Root); err != nil {
 			return fmt.Errorf("error uploading policies: %w", err)
@@ -197,7 +196,7 @@ func (s *Supplier) writeProfileDFile(cfg env.Config, amsCreds services.AMSCreden
 }
 
 func (s *Supplier) writeOpaConfig(cred services.AMSCredentials, tlsCfg tlsConfig) error {
-	s.Log.Info("writing opa Config..")
+	s.Log.Info("writing opa config..")
 
 	var cfg OPAConfig
 	if len(cred.BundleURL) != 0 {
@@ -208,7 +207,7 @@ func (s *Supplier) writeOpaConfig(cred services.AMSCredentials, tlsCfg tlsConfig
 	cfg.Plugins = map[string]bool{"dcl": true}
 	filePath := path.Join(s.Stager.DepDir(), "opa_config.yml")
 	bCfg, _ := json.Marshal(cfg)
-	s.Log.Debug("OPA Config: '%s'", string(bCfg))
+	s.Log.Debug("OPA config: '%s'", string(bCfg))
 	return libbuildpack.NewJSON().Write(filePath, cfg)
 }
 

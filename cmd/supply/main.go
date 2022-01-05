@@ -7,6 +7,7 @@ import (
 
 	"github.com/SAP/cloud-authorization-buildpack/pkg/supply"
 	"github.com/SAP/cloud-authorization-buildpack/pkg/uploader"
+
 	"github.com/cloudfoundry/libbuildpack"
 )
 
