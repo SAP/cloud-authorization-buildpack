@@ -389,8 +389,8 @@ var _ = Describe("Supply", func() {
 
 			By("specifying ClientTLS", func() {
 				Expect(restConfig).To(HaveKey("bundle_storage"))
-				Expect(restConfig["bundle_storage"].Credentials.ClientTLS.Cert).To(Equal("/certs/cf.crt"))
-				Expect(restConfig["bundle_storage"].Credentials.ClientTLS.PrivateKey).To(Equal("/certs/cf.key"))
+				Expect(restConfig["bundle_storage"].Credentials.ClientTLS.Cert).To(Equal("${CF_INSTANCE_CERT}"))
+				Expect(restConfig["bundle_storage"].Credentials.ClientTLS.PrivateKey).To(Equal("${CF_INSTANCE_KEY}"))
 				Expect(restConfig["bundle_storage"].URL).To(Equal("http://megaclite.host/ams/bundle/"))
 			})
 			By("Using Instance ID placeholder for megaclite", func() {
