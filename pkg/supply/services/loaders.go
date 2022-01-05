@@ -34,8 +34,6 @@ func (m MegacliteLoader) Load(log *libbuildpack.Logger, cfg env.Config) (*AMSCre
 					BundleURL:  megacliteURL + "/ams/bundle/",
 					URL:        megacliteURL + "/ams/proxy/",
 					InstanceID: "dwc-megaclite-ams-instance-id",
-					CertPath:   os.Getenv("CF_INSTANCE_CERT"),
-					KeyPath:    os.Getenv("CF_INSTANCE_KEY"),
 				}, nil
 			}
 		}

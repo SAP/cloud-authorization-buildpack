@@ -32,18 +32,19 @@ import (
 
 var _ = Describe("Supply", func() {
 	var (
-		uploadReqSpy  *http.Request
-		err           error
-		buildDir      string
-		depsDir       string
-		depsIdx       string
-		depDir        string
-		supplier      *supply.Supplier
-		logger        *libbuildpack.Logger
-		mockCtrl      *gomock.Controller
-		mockAMSClient *MockAMSClient
-		writtenLogs   *bytes.Buffer
-		vcapServices  string
+		uploadReqSpy    *http.Request
+		certSpy, keySpy []byte
+		err             error
+		buildDir        string
+		depsDir         string
+		depsIdx         string
+		depDir          string
+		supplier        *supply.Supplier
+		logger          *libbuildpack.Logger
+		mockCtrl        *gomock.Controller
+		mockAMSClient   *MockAMSClient
+		writtenLogs     *bytes.Buffer
+		vcapServices    string
 	)
 
 	BeforeEach(func() {
@@ -88,7 +89,9 @@ var _ = Describe("Supply", func() {
 			Installer:    libbuildpack.NewInstaller(m),
 			Log:          logger,
 			BuildpackDir: buildpackDir,
-			GetClient: func(cert, key string) (uploader.AMSClient, error) {
+			GetClient: func(cert, key []byte) (uploader.AMSClient, error) {
+				certSpy = cert
+				keySpy = key
 				return mockAMSClient, nil
 			},
 		}
@@ -307,6 +310,9 @@ var _ = Describe("Supply", func() {
 				Expect(supplier.Run()).To(Succeed())
 				Expect(filepath.Join(depDir, "launch.yml")).To(BeARegularFile())
 				Expect(uploadReqSpy.Host).To(Equal("ams.url.from.identity"))
+				//TODO: Test certificates
+				Expect(keySpy).NotTo(BeNil())  //To(Equal(path.Join(supplier.Stager.DepDir(), "ias.key")))
+				Expect(certSpy).NotTo(BeNil()) //To(Equal(path.Join(supplier.Stager.DepDir(), "ias.crt")))
 			})
 			Context("the bundle gateway url is set", func() {
 				It("should configure access to the gateway", func() {
@@ -352,9 +358,14 @@ var _ = Describe("Supply", func() {
 		BeforeEach(func() {
 			vcapServices = testdata.EnvWithMegaclite
 			os.Setenv("AMS_DCL_ROOT", "/policies")
-			os.Setenv("CF_INSTANCE_CERT", "/certs/cf.crt")
-			os.Setenv("CF_INSTANCE_KEY", "/certs/cf.key")
+			os.Setenv("CF_INSTANCE_CERT", "testdata/cf_instance_cert.pem")
+			os.Setenv("CF_INSTANCE_KEY", "testdata/cf_instance_key.pem")
 
+		})
+		AfterEach(func() {
+			os.Unsetenv("AMS_DCL_ROOT")
+			os.Unsetenv("CF_INSTANCE_CERT")
+			os.Unsetenv("CF_INSTANCE_KEY")
 		})
 		It("should succeed", func() {
 			Expect(supplier.Run()).To(Succeed())
@@ -401,7 +412,7 @@ var _ = Describe("Supply", func() {
 func expectIsExecutable(fp string) {
 	fi, err := os.Stat(fp)
 	Expect(err).NotTo(HaveOccurred())
-	//Check if executable by all
+	// Check if executable by all
 	Expect(fi.Mode().Perm() & 0111).To(Equal(fs.FileMode(0111)))
 }
 

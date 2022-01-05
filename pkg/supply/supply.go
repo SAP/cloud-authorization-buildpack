@@ -43,7 +43,7 @@ type Supplier struct {
 	Command      Command
 	Log          *libbuildpack.Logger
 	BuildpackDir string
-	GetClient    func(cert, key string) (uploader.AMSClient, error)
+	GetClient    func(cert, key []byte) (uploader.AMSClient, error)
 }
 
 type Cloudfoundry struct {
@@ -80,8 +80,9 @@ func (s *Supplier) Run() error {
 	if err != nil {
 		return fmt.Errorf("could not load AMSCredentials: %w", err)
 	}
-	if err := s.addTLSCreds(&amsCreds); err != nil {
-		return fmt.Errorf("could not add TLS credentials: %w", err)
+	tlsCfg, err := s.getTLSConfig(&amsCreds)
+	if err != nil {
+		return fmt.Errorf("could not load TLS credentials: %w", err)
 	}
 	if err := s.supplyOPABinary(); err != nil {
 		return fmt.Errorf("could not supply opa binary: %w", err)
@@ -89,7 +90,7 @@ func (s *Supplier) Run() error {
 	if err := s.writeLaunchConfig(cfg); err != nil {
 		return fmt.Errorf("could not write launch Config: %w", err)
 	}
-	if err := s.writeOpaConfig(amsCreds); err != nil {
+	if err := s.writeOpaConfig(amsCreds, tlsCfg); err != nil {
 		return fmt.Errorf("could not write opa Config: %w", err)
 	}
 	if err := s.writeProfileDFile(cfg, amsCreds); err != nil {
@@ -97,32 +98,52 @@ func (s *Supplier) Run() error {
 	}
 
 	if cfg.ShouldUpload {
-		if err := s.upload(cfg, amsCreds); err != nil {
+		if err := s.upload(amsCreds, tlsCfg, cfg.Root); err != nil {
 			return fmt.Errorf("error uploading policies: %w", err)
 		}
 	}
 	return nil
 }
 
-func (s *Supplier) addTLSCreds(amsCreds *services.AMSCredentials) error {
+type tlsConfig struct {
+	CertPath string
+	KeyPath  string
+	Cert     []byte
+	Key      []byte
+}
+
+func (s *Supplier) getTLSConfig(amsCreds *services.AMSCredentials) (tlsConfig, error) {
 	if amsCreds.InstanceID == "dwc-megaclite-ams-instance-id" {
-		return nil
+		cert, err := os.ReadFile(os.Getenv("CF_INSTANCE_CERT"))
+		if err != nil {
+			return tlsConfig{}, fmt.Errorf("unable to read CF_INSTANCE_CERT certificate: %s", err)
+		}
+		key, err := os.ReadFile(os.Getenv("CF_INSTANCE_KEY"))
+		if err != nil {
+			return tlsConfig{}, fmt.Errorf("unable to read CF_INSTANCE_KEY certificate: %s", err)
+		}
+		return tlsConfig{
+			CertPath: "CF_INSTANCE_CERT",
+			KeyPath:  "CF_INSTANCE_KEY",
+			Cert:     cert,
+			Key:      key,
+		}, nil
 	}
 	cert, key, err := services.LoadIASClientCert(s.Log)
 	if err != nil {
-		return err
+		return tlsConfig{}, fmt.Errorf("unable to load identity client certificate: %s", err)
 	}
 	err = os.WriteFile(path.Join(s.Stager.DepDir(), "ias.crt"), cert, 0600)
 	if err != nil {
-		return fmt.Errorf("unable to write IAS client certificate: %s", err)
+		return tlsConfig{}, fmt.Errorf("unable to write IAS client certificate: %s", err)
 	}
 	err = os.WriteFile(filepath.Join(s.Stager.DepDir(), "ias.key"), key, 0600)
-	if err != nil {
-		return fmt.Errorf("unable to write IAS client key: %s", err)
-	}
-	amsCreds.CertPath = path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.crt")
-	amsCreds.KeyPath = path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.key")
-	return nil
+	return tlsConfig{
+		CertPath: path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.crt"),
+		KeyPath:  path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.key"),
+		Cert:     cert,
+		Key:      key,
+	}, err
 }
 
 type S3Signing struct {
@@ -175,12 +196,12 @@ func (s *Supplier) writeProfileDFile(cfg env.Config, amsCreds services.AMSCreden
 	return os.WriteFile(path.Join(s.Stager.ProfileDir(), "0000_opa_env.sh"), b.Bytes(), 0755)
 }
 
-func (s *Supplier) writeOpaConfig(cred services.AMSCredentials) error {
+func (s *Supplier) writeOpaConfig(cred services.AMSCredentials, tlsCfg tlsConfig) error {
 	s.Log.Info("writing opa Config..")
 
 	var cfg OPAConfig
 	if len(cred.BundleURL) != 0 {
-		cfg = s.createStorageGatewayConfig(cred)
+		cfg = s.createStorageGatewayConfig(cred, tlsCfg)
 	} else {
 		cfg = s.createDirectS3OpaConfig(*cred.ObjectStore)
 	}
@@ -216,7 +237,7 @@ func (s *Supplier) createDirectS3OpaConfig(osCreds services.ObjectStoreCredentia
 	}
 }
 
-func (s *Supplier) createStorageGatewayConfig(cred services.AMSCredentials) OPAConfig {
+func (s *Supplier) createStorageGatewayConfig(cred services.AMSCredentials, cfg tlsConfig) OPAConfig {
 	serviceKey := "bundle_storage"
 	bundles := make(map[string]*bundle.Source)
 	bundles[cred.InstanceID] = &bundle.Source{
@@ -233,8 +254,8 @@ func (s *Supplier) createStorageGatewayConfig(cred services.AMSCredentials) OPAC
 	services[serviceKey] = RestConfig{
 		URL: cred.BundleURL,
 		Credentials: Credentials{ClientTLS: &ClientTLS{
-			Cert: cred.CertPath,
-			Key:  cred.KeyPath,
+			Cert: cfg.CertPath,
+			Key:  cfg.KeyPath,
 		}},
 	}
 
@@ -279,14 +300,14 @@ func (s *Supplier) supplyOPABinary() error {
 	return os.Chmod(path.Join(s.Stager.DepDir(), opaDep.Name), 0755)
 }
 
-func (s *Supplier) upload(cfg env.Config, amsCreds services.AMSCredentials) error {
-	client, err := s.GetClient(amsCreds.CertPath, amsCreds.KeyPath)
+func (s *Supplier) upload(amsCreds services.AMSCredentials, tlsCfg tlsConfig, rootDir string) error {
+	client, err := s.GetClient(tlsCfg.Cert, tlsCfg.Key)
 	if err != nil {
 		return fmt.Errorf("unable to create AMS client: %s", err)
 	}
 	uploader := uploader.Uploader{
 		Log:    s.Log,
-		Root:   path.Join(s.Stager.BuildDir(), cfg.Root),
+		Root:   path.Join(s.Stager.BuildDir(), rootDir),
 		Client: client,
 	}
 	return uploader.Do(amsCreds.URL)

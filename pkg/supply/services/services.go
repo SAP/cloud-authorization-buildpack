@@ -34,8 +34,6 @@ type AMSCredentials struct {
 	ObjectStore *ObjectStoreCredentials `json:"object_store" validate:"required_without=BundleURL"`
 	URL         string                  `json:"url" validate:"required"`
 	InstanceID  string                  `json:"instance_id"`
-	CertPath    string
-	KeyPath     string
 }
 
 type MegacliteService struct {
