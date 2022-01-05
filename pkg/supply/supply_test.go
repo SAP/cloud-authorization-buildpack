@@ -88,8 +88,8 @@ var _ = Describe("Supply", func() {
 			Installer:    libbuildpack.NewInstaller(m),
 			Log:          logger,
 			BuildpackDir: buildpackDir,
-			UploadBuilder: func(log *libbuildpack.Logger, cert, key string) (uploader.Uploader, error) {
-				return uploader.NewUploaderWithClient(logger, mockAMSClient), nil
+			GetClient: func(cert, key string) (uploader.AMSClient, error) {
+				return mockAMSClient, nil
 			},
 		}
 	})

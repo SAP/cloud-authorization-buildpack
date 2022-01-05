@@ -64,13 +64,13 @@ func main() {
 		os.Exit(14)
 	}
 	s := supply.Supplier{
-		Manifest:      manifest,
-		Installer:     installer,
-		Stager:        stager,
-		Command:       &libbuildpack.Command{},
-		Log:           logger,
-		BuildpackDir:  buildpackDir,
-		UploadBuilder: uploader.GetClient,
+		Manifest:     manifest,
+		Installer:    installer,
+		Stager:       stager,
+		Command:      &libbuildpack.Command{},
+		Log:          logger,
+		BuildpackDir: buildpackDir,
+		GetClient:    uploader.GetClient,
 	}
 
 	err = s.Run()

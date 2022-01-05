@@ -11,14 +11,10 @@ import (
 	"github.com/cloudfoundry/libbuildpack"
 )
 
-type Uploader interface {
-	Upload(string, string) error
-}
-
-type uploader struct {
-	log    *libbuildpack.Logger
-	root   string
-	client AMSClient
+type Uploader struct {
+	Log    *libbuildpack.Logger
+	Root   string
+	Client AMSClient
 }
 
 //go:generate mockgen --build_flags=--mod=mod --destination=../supply/client_mock_test.go --package=supply_test github.com/SAP/cloud-authorization-buildpack/pkg/uploader AMSClient
@@ -26,7 +22,7 @@ type AMSClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-func GetClient(log *libbuildpack.Logger, cert, key string) (Uploader, error) {
+func GetClient(cert, key string) (AMSClient, error) {
 	crt, err := tls.LoadX509KeyPair(cert, key)
 	if err != nil {
 		return nil, fmt.Errorf("could not load key or certificate: %w", err)
@@ -39,24 +35,12 @@ func GetClient(log *libbuildpack.Logger, cert, key string) (Uploader, error) {
 			Transport: transport,
 			Timeout:   30 * time.Second,
 		}
-	return &uploader{
-		log,
-		"",
-		amsClient,
-	}, nil
+	return amsClient, nil
 }
 
-func NewUploaderWithClient(log *libbuildpack.Logger, client AMSClient) Uploader {
-	return &uploader{
-		log:    log,
-		client: client,
-	}
-}
-
-func (up *uploader) Upload(rootDir string, dstURL string) error {
-	up.root = rootDir
-	up.log.Info("creating policy archive..")
-	buf, err := CreateArchive(up.log, rootDir)
+func (up *Uploader) Do(dstURL string) error {
+	up.Log.Info("creating policy archive..")
+	buf, err := CreateArchive(up.Log, up.Root)
 	if err != nil {
 		return fmt.Errorf("could not create policy DCL.tar.gz: %w", err)
 	}
@@ -70,7 +54,7 @@ func (up *uploader) Upload(rootDir string, dstURL string) error {
 		return fmt.Errorf("could not create DCL upload request %w", err)
 	}
 	r.Header.Set("Content-Type", "application/gzip")
-	resp, err := up.client.Do(r)
+	resp, err := up.Client.Do(r)
 	if err != nil {
 		return fmt.Errorf("DCL upload request unsuccessful: %w", err)
 	}

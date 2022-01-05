@@ -37,13 +37,13 @@ type Command interface {
 }
 
 type Supplier struct {
-	Manifest      Manifest
-	Installer     Installer
-	Stager        *libbuildpack.Stager
-	Command       Command
-	Log           *libbuildpack.Logger
-	BuildpackDir  string
-	UploadBuilder func(log *libbuildpack.Logger, cert, key string) (uploader.Uploader, error)
+	Manifest     Manifest
+	Installer    Installer
+	Stager       *libbuildpack.Stager
+	Command      Command
+	Log          *libbuildpack.Logger
+	BuildpackDir string
+	GetClient    func(cert, key string) (uploader.AMSClient, error)
 }
 
 type Cloudfoundry struct {
@@ -280,14 +280,14 @@ func (s *Supplier) supplyOPABinary() error {
 }
 
 func (s *Supplier) upload(cfg env.Config, amsCreds services.AMSCredentials) error {
-	// s.Log.Info("creating policy archive..")
-	// buf, err := uploader.CreateArchive(s.Log, cfg.root)
-	// if err != nil {
-	// 	return fmt.Errorf("could not create policy DCL.tar.gz: %w", err)
-	// }
-	uploader, err := s.UploadBuilder(s.Log, amsCreds.CertPath, amsCreds.KeyPath)
+	client, err := s.GetClient(amsCreds.CertPath, amsCreds.KeyPath)
 	if err != nil {
-		return fmt.Errorf("unable to create uploader: %s", err)
+		return fmt.Errorf("unable to create AMS client: %s", err)
 	}
-	return uploader.Upload(path.Join(s.Stager.BuildDir(), cfg.Root), amsCreds.URL)
+	uploader := uploader.Uploader{
+		Log:    s.Log,
+		Root:   path.Join(s.Stager.BuildDir(), cfg.Root),
+		Client: client,
+	}
+	return uploader.Do(amsCreds.URL)
 }
