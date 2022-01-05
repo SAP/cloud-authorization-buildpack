@@ -22,8 +22,8 @@ type AMSClient interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-func GetClient(cert, key string) (AMSClient, error) {
-	crt, err := tls.LoadX509KeyPair(cert, key)
+func GetClient(cert, key []byte) (AMSClient, error) {
+	crt, err := tls.X509KeyPair(cert, key)
 	if err != nil {
 		return nil, fmt.Errorf("could not load key or certificate: %w", err)
 	}

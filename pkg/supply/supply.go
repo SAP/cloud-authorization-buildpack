@@ -123,8 +123,8 @@ func (s *Supplier) getTLSConfig(amsCreds *services.AMSCredentials) (tlsConfig, e
 			return tlsConfig{}, fmt.Errorf("unable to read CF_INSTANCE_KEY certificate: %s", err)
 		}
 		return tlsConfig{
-			CertPath: "CF_INSTANCE_CERT",
-			KeyPath:  "CF_INSTANCE_KEY",
+			CertPath: "${CF_INSTANCE_CERT}",
+			KeyPath:  "${CF_INSTANCE_KEY}",
 			Cert:     cert,
 			Key:      key,
 		}, nil
