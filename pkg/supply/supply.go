@@ -112,16 +112,16 @@ func (s *Supplier) addTLSCreds(amsCreds *services.AMSCredentials) error {
 	if err != nil {
 		return err
 	}
-	amsCreds.CertPath = path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.crt")
-	amsCreds.KeyPath = path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.key")
-	err = os.WriteFile(amsCreds.CertPath, cert, 0600)
+	err = os.WriteFile(path.Join(s.Stager.DepDir(), "ias.crt"), cert, 0600)
 	if err != nil {
 		return fmt.Errorf("unable to write IAS client certificate: %s", err)
 	}
-	return os.WriteFile(filepath.Join(s.Stager.DepDir(), "ias.key"), key, 0600)
+	err = os.WriteFile(filepath.Join(s.Stager.DepDir(), "ias.key"), key, 0600)
 	if err != nil {
 		return fmt.Errorf("unable to write IAS client key: %s", err)
 	}
+	amsCreds.CertPath = path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.crt")
+	amsCreds.KeyPath = path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.key")
 	return nil
 }
 

@@ -50,7 +50,7 @@ func (i IdentityLoader) Load(log *libbuildpack.Logger, cfg env.Config) (*AMSCred
 	if err != nil {
 		return nil, fmt.Errorf("could not load identity credentials: %w", err)
 	}
-	if identityCreds.URL == "" {
+	if identityCreds.AuthzURL == "" {
 		log.Warning("no AMS credentials as part of identity service. Resorting to standalone authorization service broker")
 		return nil, nil
 	}
