@@ -30,9 +30,9 @@ type CompileError struct {
 const severityError = "ERROR"
 const severityWarning = "WARNING"
 
-func (up *uploader) logResponse(res *http.Response) error {
+func (up *Uploader) logResponse(res *http.Response) error {
 	if res.StatusCode == http.StatusOK || res.StatusCode == http.StatusCreated || res.StatusCode == http.StatusNotModified {
-		up.log.Info("Base DCLs uploaded and compiled successfully")
+		up.Log.Info("Base DCLs uploaded and compiled successfully")
 		return nil
 	}
 	b, err := io.ReadAll(res.Body)
@@ -50,10 +50,10 @@ func (up *uploader) logResponse(res *http.Response) error {
 	return fmt.Errorf("unexpected response on DCL upload: status(%s) body(%s)", res.Status, string(b))
 
 }
-func (up *uploader) printCompileError(compileError CompileError) error {
+func (up *Uploader) printCompileError(compileError CompileError) error {
 	for file, issues := range compileError.CompileError.DclIssues {
 		for _, issue := range issues {
-			reader, err := os.Open(up.root + file)
+			reader, err := os.Open(up.Root + file)
 			if err != nil {
 				return err
 			}
@@ -61,11 +61,11 @@ func (up *uploader) printCompileError(compileError CompileError) error {
 			if err != nil {
 				return err
 			}
-			logFunc := up.log.Info
+			logFunc := up.Log.Info
 			if issue.Severity == severityError {
-				logFunc = up.log.Error
+				logFunc = up.Log.Error
 			} else if issue.Severity == severityWarning {
-				logFunc = up.log.Warning
+				logFunc = up.Log.Warning
 			}
 
 			logFunc(createHeaderLine(issue, file))

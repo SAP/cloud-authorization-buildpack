@@ -21,7 +21,7 @@ type archiveContent struct {
 	file   string
 }
 
-func (up *uploader) createArchive(log *libbuildpack.Logger, root string) (io.Reader, error) {
+func CreateArchive(log *libbuildpack.Logger, root string) (io.Reader, error) {
 	var buf bytes.Buffer
 	zr := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(zr)
@@ -31,7 +31,7 @@ func (up *uploader) createArchive(log *libbuildpack.Logger, root string) (io.Rea
 		return nil, err
 	}
 
-	content, err := up.crawlDCLs(rootInfo, root)
+	content, err := crawlDCLs(rootInfo, root, root)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func (up *uploader) createArchive(log *libbuildpack.Logger, root string) (io.Rea
 			return nil, err
 		}
 		if c.file != "" {
-			up.log.Info("adding file '%s' to policy upload archive", c.header.Name)
+			log.Info("adding file '%s' to policy upload archive", c.header.Name)
 			data, err := os.Open(c.file)
 			if err != nil {
 				return nil, err
@@ -57,11 +57,11 @@ func (up *uploader) createArchive(log *libbuildpack.Logger, root string) (io.Rea
 		return nil, err
 	}
 
-	up.log.Debug("uploaded tar: %s", base64.StdEncoding.EncodeToString(buf.Bytes()))
+	log.Debug("uploaded tar: %s", base64.StdEncoding.EncodeToString(buf.Bytes()))
 	return &buf, nil
 }
 
-func (up *uploader) crawlDCLs(fi os.FileInfo, file string) (*[]archiveContent, error) {
+func crawlDCLs(fi os.FileInfo, file string, root string) (*[]archiveContent, error) {
 	var archive []archiveContent
 	if fi.IsDir() {
 		content, err := ioutil.ReadDir(file)
@@ -70,14 +70,14 @@ func (up *uploader) crawlDCLs(fi os.FileInfo, file string) (*[]archiveContent, e
 		}
 		for _, cfi := range content {
 
-			carchive, err := up.crawlDCLs(cfi, path.Join(file, cfi.Name()))
+			carchive, err := crawlDCLs(cfi, path.Join(file, cfi.Name()), root)
 			if err != nil {
 				return nil, err
 			}
 			archive = append(archive, *carchive...)
 		}
-		if len(archive) > 0 && file != up.root {
-			ce, err := up.createContentEntry(fi, file)
+		if len(archive) > 0 && file != root {
+			ce, err := createContentEntry(fi, file, root)
 			if err != nil {
 				return nil, err
 			}
@@ -85,18 +85,18 @@ func (up *uploader) crawlDCLs(fi os.FileInfo, file string) (*[]archiveContent, e
 		}
 		return &archive, nil
 	} else {
-		return up.createContentEntry(fi, file)
+		return createContentEntry(fi, file, root)
 	}
 
 }
 
-func (up *uploader) createContentEntry(fi os.FileInfo, file string) (*[]archiveContent, error) {
+func createContentEntry(fi os.FileInfo, file string, root string) (*[]archiveContent, error) {
 	var result archiveContent
 	if !fi.IsDir() && !strings.HasSuffix(file, ".dcl") {
 		return &[]archiveContent{}, nil
 	}
 
-	relPath, err := filepath.Rel(up.root, file)
+	relPath, err := filepath.Rel(root, file)
 	if err != nil {
 		return nil, err
 	}

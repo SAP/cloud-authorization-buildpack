@@ -1,14 +1,17 @@
-package supply
+package services
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"time"
 
+	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/env"
 	"github.com/cloudfoundry/libbuildpack"
-	"github.com/go-playground/validator/v10"
 )
+
+const MegacliteID = "dwc-megaclite-ams-instance-id"
 
 type Service struct {
 	Name        string          `json:"name"`
@@ -33,8 +36,6 @@ type AMSCredentials struct {
 	ObjectStore *ObjectStoreCredentials `json:"object_store" validate:"required_without=BundleURL"`
 	URL         string                  `json:"url" validate:"required"`
 	InstanceID  string                  `json:"instance_id"`
-	certPath    string
-	keyPath     string
 }
 
 type MegacliteService struct {
@@ -105,81 +106,31 @@ func LoadIASClientCert(log *libbuildpack.Logger) (cert []byte, key []byte, err e
 	if iasCreds.Certificate == "" || iasCreds.Key == "" { // TODO: Provide option for {"credential-type":"X509_PROVIDED"}
 		return cert, key, fmt.Errorf("identity service binding does not contain client certificate. Please use binding parameter {\"credential-type\":\"X509_GENERATED\"}")
 	}
-
 	return []byte(iasCreds.Certificate), []byte(iasCreds.Key), nil
 }
 
-func LoadMegacliteURL(log *libbuildpack.Logger) (url string, err error) {
-	svcsString := os.Getenv("VCAP_SERVICES")
-	var svcs map[string][]MegacliteService
-	err = json.Unmarshal([]byte(svcsString), &svcs)
+func LoadAMSCredentials(log *libbuildpack.Logger, cfg env.Config) (AMSCredentials, error) {
+	amsCreds, err := fromMegaclite()
 	if err != nil {
-		return "", fmt.Errorf("could not unmarshal VCAP_SERVICES: %w", err)
+		return AMSCredentials{}, err
 	}
-	if ups, ok := svcs["user-provided"]; ok {
-		for _, up := range ups {
-			if up.Name == "megaclite" {
-				return up.Credentials.URL, nil
-			}
-		}
+	if amsCreds != nil {
+		return *amsCreds, nil
 	}
-	return "", fmt.Errorf("no user provided service megaclite found")
-
-}
-
-func loadAMSCredentials(log *libbuildpack.Logger, cfg config) (AMSCredentials, error) {
-	megacliteURL, err := LoadMegacliteURL(log)
-	if err == nil {
-		return AMSCredentials{
-			BundleURL:  megacliteURL + "/ams/bundle/",
-			URL:        megacliteURL + "/ams/proxy/",
-			InstanceID: "dwc-megaclite-ams-instance-id",
-			certPath:   "${CF_INSTANCE_CERT}",
-			keyPath:    "${CF_INSTANCE_KEY}",
-		}, nil
+	amsCreds, err = fromIdentity(log)
+	if err != nil {
+		return AMSCredentials{}, err
 	}
-	amsCreds, err := loadAMSCredsFromIAS(log)
-	if err == nil {
-		log.Debug("using authorization credentials embedded in identity service")
-		return amsCreds, nil
+	if amsCreds != nil {
+		return *amsCreds, nil
 	}
 	log.Warning("no AMS credentials as part of identity service. Resorting to standalone authorization service broker")
-	amsService, err := LoadService(log, cfg.serviceName)
+	amsCreds, err = fromAuthz(log, cfg.ServiceName)
 	if err != nil {
 		return AMSCredentials{}, err
 	}
-	if err := json.Unmarshal(amsService.Credentials, &amsCreds); err != nil {
-		return AMSCredentials{}, err
+	if amsCreds != nil {
+		return *amsCreds, nil
 	}
-	validate := validator.New()
-	if err := validate.Struct(amsCreds); err != nil {
-		return AMSCredentials{}, err
-	}
-	if len(amsCreds.InstanceID) == 0 {
-		if len(amsService.InstanceID) == 0 {
-			return AMSCredentials{}, fmt.Errorf("authorization credentials bound via user-provided-service, however parameter instance_id is missing. Please update the binding")
-		}
-		amsCreds.InstanceID = amsService.InstanceID // legacy mode, until all consumers have bindings with integrated instance_id
-	}
-	return amsCreds, err
-}
-
-func loadAMSCredsFromIAS(log *libbuildpack.Logger) (AMSCredentials, error) {
-	iasService, err := LoadService(log, "identity")
-	if err != nil {
-		return AMSCredentials{}, err
-	}
-	var iasCreds UnifiedIdentityCredentials
-	err = json.Unmarshal(iasService.Credentials, &iasCreds)
-	if err != nil {
-		return AMSCredentials{}, err
-	}
-	validate := validator.New()
-	err = validate.Struct(iasCreds)
-	return AMSCredentials{
-		BundleURL:   iasCreds.AuthzBundleURL,
-		ObjectStore: iasCreds.AuthzObjectStore,
-		URL:         iasCreds.AuthzURL,
-		InstanceID:  iasCreds.AuthzInstanceID,
-	}, err
+	return AMSCredentials{}, errors.New("cannot find authorization-enabled identity service")
 }
