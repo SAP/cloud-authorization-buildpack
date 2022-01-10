@@ -12,7 +12,7 @@ Referencing a branch of this repository directly, increases the staging time of 
 
 ### Services
 #### Authorization Service (Legacy)
-This buildpack expects to find a bound identity service containing "cert" and "key" values in the credentials. This instance must have registered an authorization instance as consumed service instance. This authorization instance also needs to be bound to this app and will be identified like following:   
+This buildpack expects to find a bound identity service containing "cert" and "key" values in the credentials. This instance must have registered an authorization instance as consumed service instance. This authorization instance also needs to be bound to this app and will be identified as follows:   
 By default this buildpack expect to find an "authorization" service binding in the VCAP_SERVICES.
 It's also possible to bind a user-provided service instead, when it has same structure as the "authorization" binding and is tagged with "authorization". Another way to override this behavior is to provide the environment variable AMS_SERVICE to target another service than "authorization"(e.g. "authorization-dev")
 #### Identity Service 
