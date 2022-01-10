@@ -7,8 +7,11 @@ This is a supply/sidecar buildpack which can't be used stand-alone. It has two m
 ## Usage
 Consume the latest released version of this buildpack with the following link in your manifest or via the `-b` flag:
 
-https://github.com/SAP/cloud-authorization-buildpack/releases/latest/download/opa_buildpack.zip
-Referencing a branch of this repository directly, increases the staging time of the app.
+https://github.com/SAP/cloud-authorization-buildpack/releases/latest/download/opa_buildpack.zip  
+We discourage referencing a branch of this repo directly because:
+ - adds a start-up dependency to buildpacks.cloudfoundry.org, which we should avoid
+ - staging time will be increased significantly
+ - may contain potentially breaking changes
 
 ### Services
 #### Authorization Service (Legacy)
