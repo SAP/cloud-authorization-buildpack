@@ -346,6 +346,10 @@ var _ = Describe("Supply", func() {
 						Expect(ok).To(BeTrue())
 						Expect(string(enabled)).To(Equal(`true`))
 					})
+					By("uploading to the correct path", func() {
+						Expect(uploadReqSpy.URL.Path).To(Equal("/some-prefix/sap/ams/v1/ams-instances/00000000-3b4d-4c41-9e5b-9aee7bfa6348/dcl-upload"))
+						Expect(uploadReqSpy.URL.Host).To(Equal("ams.url.from.identity"))
+					})
 				})
 			})
 		})
