@@ -16,7 +16,7 @@ This buildpack expects to find a bound identity service containing "cert" and "k
 By default this buildpack expect to find an "authorization" service binding in the VCAP_SERVICES.
 It's also possible to bind a user-provided service instead, when it has same structure as the "authorization" binding and is tagged with "authorization". Another way to override this behavior is to provide the environment variable AMS_SERVICE to target another service than "authorization"(e.g. "authorization-dev")
 #### Identity Service 
-The buildpack expects to find a bound identity service containing "cert" and "key" values in the credentials, as well as authorization values (e.g. "authorization_url"). To create such an identity instance you need to provide following provisioning parameters:
+The buildpack expects to find a bound identity service containing "cert" and "key" values in the credentials, as well as authorization values (e.g. "authorization_url"). To create such an identity instance you need to provide the following provisioning parameters:
 ´´´
 {
     "credential_type": "X509_GENERATED",
