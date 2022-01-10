@@ -19,3 +19,6 @@ var EnvWithIASAuthWithClientSecret string
 
 //go:embed bindings/env_with_ias_auth_x509.json
 var EnvWithIASAuthX509 string
+
+//go:embed bindings/env_with_megaclite.json
+var EnvWithMegaclite string

@@ -64,27 +64,6 @@ func main() {
 		logger.Error("Unable to setup environment variables: %s", err)
 		os.Exit(14)
 	}
-	cert, key, err := supply.LoadIASClientCert(logger)
-	if err != nil {
-		logger.Error("Unable to load IAS client certificate: %s", err)
-		os.Exit(14)
-	}
-	err = os.WriteFile(filepath.Join(stager.DepDir(), "ias.crt"), cert, 0600)
-	if err != nil {
-		logger.Error("Unable to write IAS client certificate: %s", err)
-		os.Exit(14)
-	}
-	err = os.WriteFile(filepath.Join(stager.DepDir(), "ias.key"), key, 0600)
-	if err != nil {
-		logger.Error("Unable to write IAS client key: %s", err)
-		os.Exit(14)
-	}
-
-	uploader, err := uploader.NewUploader(logger, cert, key)
-	if err != nil {
-		logger.Error("Unable to create uploader: %s", err)
-		os.Exit(15)
-	}
 	s := supply.Supplier{
 		Manifest:     manifest,
 		Installer:    installer,
@@ -92,7 +71,7 @@ func main() {
 		Command:      &libbuildpack.Command{},
 		Log:          logger,
 		BuildpackDir: buildpackDir,
-		Uploader:     uploader,
+		GetClient:    uploader.GetClient,
 	}
 
 	err = s.Run()

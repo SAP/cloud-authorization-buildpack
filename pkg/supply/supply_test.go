@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/buildpackapplifecycle/buildpackrunner/resources"
+	"github.com/SAP/cloud-authorization-buildpack/pkg/uploader"
 	"github.com/cloudfoundry/libbuildpack"
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
@@ -27,23 +28,23 @@ import (
 
 	"github.com/SAP/cloud-authorization-buildpack/pkg/supply"
 	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/testdata"
-	"github.com/SAP/cloud-authorization-buildpack/pkg/uploader"
 )
 
 var _ = Describe("Supply", func() {
 	var (
-		uploadReqSpy  *http.Request
-		err           error
-		buildDir      string
-		depsDir       string
-		depsIdx       string
-		depDir        string
-		supplier      *supply.Supplier
-		logger        *libbuildpack.Logger
-		mockCtrl      *gomock.Controller
-		mockAMSClient *MockAMSClient
-		buffer        *bytes.Buffer
-		vcapServices  string
+		uploadReqSpy    *http.Request
+		certSpy, keySpy []byte
+		err             error
+		buildDir        string
+		depsDir         string
+		depsIdx         string
+		depDir          string
+		supplier        *supply.Supplier
+		logger          *libbuildpack.Logger
+		mockCtrl        *gomock.Controller
+		mockAMSClient   *MockAMSClient
+		writtenLogs     *bytes.Buffer
+		vcapServices    string
 	)
 
 	BeforeEach(func() {
@@ -60,8 +61,8 @@ var _ = Describe("Supply", func() {
 		err = os.MkdirAll(depDir, 0755)
 		Expect(err).To(BeNil())
 
-		buffer = new(bytes.Buffer)
-		logger = libbuildpack.NewLogger(buffer)
+		writtenLogs = new(bytes.Buffer)
+		logger = libbuildpack.NewLogger(writtenLogs)
 
 		mockCtrl = gomock.NewController(GinkgoT())
 		mockAMSClient = NewMockAMSClient(mockCtrl)
@@ -88,7 +89,11 @@ var _ = Describe("Supply", func() {
 			Installer:    libbuildpack.NewInstaller(m),
 			Log:          logger,
 			BuildpackDir: buildpackDir,
-			Uploader:     uploader.NewUploaderWithClient(logger, mockAMSClient),
+			GetClient: func(cert, key []byte) (uploader.AMSClient, error) {
+				certSpy = cert
+				keySpy = key
+				return mockAMSClient, nil
+			},
 		}
 	})
 
@@ -123,12 +128,12 @@ var _ = Describe("Supply", func() {
 				cmd := `"/home/vcap/deps/42/opa" run -s -c "/home/vcap/deps/42/opa_config.yml" -l 'error' -a '127.0.0.1:9888' --skip-version-check`
 				Expect(ld.Processes[0].Command).To(Equal(cmd))
 				Expect(ld.Processes[0].Limits.Memory).To(Equal(100))
-				Expect(buffer.String()).To(ContainSubstring("writing launch.yml"))
+				Expect(writtenLogs.String()).To(ContainSubstring("writing launch.yml"))
 			})
 		})
 		It("creates the correct opa config", func() {
 			Expect(supplier.Run()).To(Succeed())
-			Expect(buffer.String()).To(ContainSubstring("writing opa config"))
+			Expect(writtenLogs.String()).To(ContainSubstring("writing opa config"))
 
 			rawConfig, err := os.ReadFile(filepath.Join(depDir, "opa_config.yml"))
 			Expect(err).NotTo(HaveOccurred())
@@ -188,7 +193,7 @@ var _ = Describe("Supply", func() {
 			})
 			It("creates a warning", func() {
 				Expect(supplier.Run()).To(Succeed())
-				Expect(buffer.String()).To(ContainSubstring("upload no authorization data"))
+				Expect(writtenLogs.String()).To(ContainSubstring("upload no authorization data"))
 			})
 		})
 		When("AMS_DATA is set", func() {
@@ -204,7 +209,7 @@ var _ = Describe("Supply", func() {
 			})
 			It("creates a warning", func() {
 				Expect(supplier.Run()).To(Succeed())
-				Expect(buffer.String()).To(ContainSubstring("the environment variable AMS_DATA is deprecated."))
+				Expect(writtenLogs.String()).To(ContainSubstring("the environment variable AMS_DATA is deprecated."))
 			})
 			AfterEach(func() {
 				os.Unsetenv("AMS_DATA")
@@ -305,6 +310,8 @@ var _ = Describe("Supply", func() {
 				Expect(supplier.Run()).To(Succeed())
 				Expect(filepath.Join(depDir, "launch.yml")).To(BeARegularFile())
 				Expect(uploadReqSpy.Host).To(Equal("ams.url.from.identity"))
+				Expect(string(keySpy)).To(Equal("identity-key-payload"))
+				Expect(string(certSpy)).To(Equal("identity-cert-payload"))
 			})
 			Context("the bundle gateway url is set", func() {
 				It("should configure access to the gateway", func() {
@@ -322,6 +329,14 @@ var _ = Describe("Supply", func() {
 						Expect(restConfig["bundle_storage"].Credentials.ClientTLS.Cert).To(Equal("/home/vcap/deps/42/ias.crt"))
 						Expect(restConfig["bundle_storage"].Credentials.ClientTLS.PrivateKey).To(Equal("/home/vcap/deps/42/ias.key"))
 						Expect(restConfig["bundle_storage"].URL).To(Equal("https://my-bundle-gateway.org/some/path"))
+					})
+					By("persisting the identity cert/key", func() {
+						cert, err := os.ReadFile(filepath.Join(depDir, "ias.crt"))
+						Expect(err).NotTo(HaveOccurred())
+						Expect(string(cert)).To(Equal("identity-cert-payload"))
+						key, err := os.ReadFile(filepath.Join(depDir, "ias.key"))
+						Expect(err).NotTo(HaveOccurred())
+						Expect(string(key)).To(Equal("identity-key-payload"))
 					})
 					By("making sure there's only one auth method", func() {
 						Expect(restConfig["bundle_storage"].Credentials.S3Signing).To(BeNil())
@@ -346,13 +361,67 @@ var _ = Describe("Supply", func() {
 			Expect(err.Error()).To(ContainSubstring("could not unmarshal VCAP_SERVICES"))
 		})
 	})
+	When("VCAP_SERVICES contains user-provided 'megaclite' service instance from DwC", func() {
+		BeforeEach(func() {
+			vcapServices = testdata.EnvWithMegaclite
+			os.Setenv("AMS_DCL_ROOT", "/policies")
+			os.Setenv("CF_INSTANCE_CERT", "testdata/cf_instance_cert.pem")
+			os.Setenv("CF_INSTANCE_KEY", "testdata/cf_instance_key.pem")
 
+		})
+		AfterEach(func() {
+			os.Unsetenv("AMS_DCL_ROOT")
+			os.Unsetenv("CF_INSTANCE_CERT")
+			os.Unsetenv("CF_INSTANCE_KEY")
+		})
+		It("should succeed", func() {
+			Expect(supplier.Run()).To(Succeed())
+			Expect(filepath.Join(depDir, "launch.yml")).To(BeARegularFile())
+			Expect(uploadReqSpy.Host).To(Equal("megaclite.host"))
+			Expect(string(keySpy)).To(Equal("cf-instance-key-payload"))
+			Expect(string(certSpy)).To(Equal("cf-instance-cert-payload"))
+		})
+		It("should configure OPA to access megaclite", func() {
+			Expect(supplier.Run()).To(Succeed())
+			rawConfig, err := os.ReadFile(filepath.Join(depDir, "opa_config.yml"))
+			Expect(err).NotTo(HaveOccurred())
+			cfg, err := config.ParseConfig(rawConfig, "testId")
+			Expect(err).NotTo(HaveOccurred())
+
+			var restConfig map[string]rest.Config
+			err = json.Unmarshal(cfg.Services, &restConfig)
+			Expect(err).NotTo(HaveOccurred())
+
+			var bundlesConfig map[string]*bundle.Source
+			err = json.Unmarshal(cfg.Bundles, &bundlesConfig)
+			Expect(err).NotTo(HaveOccurred())
+
+			By("specifying ClientTLS", func() {
+				Expect(restConfig).To(HaveKey("bundle_storage"))
+				Expect(restConfig["bundle_storage"].Credentials.ClientTLS.Cert).To(Equal("${CF_INSTANCE_CERT}"))
+				Expect(restConfig["bundle_storage"].Credentials.ClientTLS.PrivateKey).To(Equal("${CF_INSTANCE_KEY}"))
+				Expect(restConfig["bundle_storage"].URL).To(Equal("http://megaclite.host/ams/bundle/"))
+			})
+			By("Using Instance ID placeholder for megaclite", func() {
+				Expect(bundlesConfig).To(HaveKey("dwc-megaclite-ams-instance-id"))
+				Expect(bundlesConfig["dwc-megaclite-ams-instance-id"].Resource).To(Equal("dwc-megaclite-ams-instance-id.tar.gz"))
+			})
+			By("making sure there's only one auth method", func() {
+				Expect(restConfig["bundle_storage"].Credentials.S3Signing).To(BeNil())
+			})
+			By("enabling the OPA dcn plugin", func() {
+				enabled, ok := cfg.Plugins["dcl"]
+				Expect(ok).To(BeTrue())
+				Expect(string(enabled)).To(Equal(`true`))
+			})
+		})
+	})
 })
 
 func expectIsExecutable(fp string) {
 	fi, err := os.Stat(fp)
 	Expect(err).NotTo(HaveOccurred())
-	//Check if executable by all
+	// Check if executable by all
 	Expect(fi.Mode().Perm() & 0111).To(Equal(fs.FileMode(0111)))
 }
 
