@@ -25,8 +25,8 @@ The buildpack expects to find a bound identity service containing "cert" and "ke
     }
 }
 ´´´
-#### DwC Support
-There is also DwC support, where no services are bound directly to app. All communitcation will be proxied by the megclite component of DwC. Therefor a user-provided with name "megaclite" is expected, containing the "url".
+#### Support for DeployWithConfidence (DwC)
+There is also DwC support, where no services are bound directly to the app. All communication will be proxied by the megaclite component of DwC. Therefor a user-provided service with name "megaclite" is expected, containing its "url".
 ### Base Policy Upload
 By default this buildpack doesn't upload any policies. To upload the base policies, provide the environment variable AMS_DCL_ROOT with the value of the path that contains the schema.dcl and the DCL packages. (For example in Spring /META-INF/classes; For other main buildpacks just the absolute folder relative to the project root). The buildpack will then upload all DCL files in all subfolders at the app staging. This enviromnent variable will be probably be replaced with an AMS config file end of Q4 2021(https://jtrack.wdf.sap.corp/browse/SECAUTH-1534)
 
