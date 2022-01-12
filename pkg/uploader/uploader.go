@@ -71,7 +71,7 @@ func (up *Uploader) DoWithRetries(url string, body []byte, maxRetries int) (*htt
 		return nil, fmt.Errorf("DCL upload request unsuccessful: %w", err)
 	}
 	retries := 0
-	for resp.StatusCode == http.StatusForbidden && retries < maxRetries {
+	for resp.StatusCode == http.StatusUnauthorized && retries < maxRetries {
 		if err := drainResponseBody(resp.Body); err != nil {
 			return nil, fmt.Errorf("cannot drain response body: %w", err)
 		}
