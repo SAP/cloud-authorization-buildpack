@@ -355,7 +355,6 @@ var _ = Describe("Supply", func() {
 				})
 			})
 		})
-
 	})
 	When("VCAP_SERVICES is empty", func() {
 		JustBeforeEach(func() {
@@ -420,6 +419,17 @@ var _ = Describe("Supply", func() {
 				Expect(ok).To(BeTrue())
 				Expect(string(enabled)).To(Equal(`true`))
 			})
+		})
+	})
+	When("the identity certificate is expired", func() {
+		BeforeEach(func() {
+			vcapServices = testdata.EnvWithIASAuthX509Expired
+			os.Setenv("AMS_DCL_ROOT", "/policies")
+		})
+		It("fails with proper error message", func() {
+			err = supplier.Run()
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("identity certificate has expired:"))
 		})
 	})
 })

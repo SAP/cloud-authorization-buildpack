@@ -106,6 +106,9 @@ func LoadIASClientCert(log *libbuildpack.Logger) (cert []byte, key []byte, err e
 	if iasCreds.Certificate == "" || iasCreds.Key == "" { // TODO: Provide option for {"credential-type":"X509_PROVIDED"}
 		return cert, key, fmt.Errorf("identity service binding does not contain client certificate. Please use binding parameter {\"credential-type\":\"X509_GENERATED\"}")
 	}
+	if iasCreds.CertificateExpiresAt.Before(time.Now()) {
+		return nil, nil, fmt.Errorf("identity certificate has expired: %s. Please re-create your identity binding", iasCreds.CertificateExpiresAt.String())
+	}
 	return []byte(iasCreds.Certificate), []byte(iasCreds.Key), nil
 }
 
