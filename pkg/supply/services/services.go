@@ -26,7 +26,7 @@ type ObjectStoreCredentials struct {
 	Host            string `json:"host" validate:"required"`
 	Region          string `json:"region" validate:"required"`
 	SecretAccessKey string `json:"secret_access_key" validate:"required"`
-	Uri             string `json:"uri"`
+	URI             string `json:"uri"`
 	Username        string `json:"username"`
 }
 
@@ -93,7 +93,7 @@ func LoadService(log *libbuildpack.Logger, serviceName string) (Service, error) 
 	return filteredServices[0], nil
 }
 
-func LoadIASClientCert(log *libbuildpack.Logger) (cert []byte, key []byte, err error) {
+func LoadIASClientCert(log *libbuildpack.Logger) (cert, key []byte, err error) {
 	iasService, err := LoadService(log, "identity")
 	if err != nil {
 		return cert, key, err

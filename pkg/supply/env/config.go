@@ -40,7 +40,6 @@ func LoadBuildpackConfig(log *libbuildpack.Logger) (Config, error) {
 			LogLevel:     "info",
 			Port:         9888,
 		}, err
-
 	}
 	// End of Deprecated coding
 

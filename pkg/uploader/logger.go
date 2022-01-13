@@ -48,7 +48,6 @@ func (up *Uploader) logResponse(res *http.Response) error {
 		}
 	}
 	return fmt.Errorf("unexpected response on DCL upload: status(%s) body(%s)", res.Status, string(b))
-
 }
 func (up *Uploader) printCompileError(compileError CompileError) error {
 	for file, issues := range compileError.CompileError.DclIssues {

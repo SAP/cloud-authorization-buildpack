@@ -2,6 +2,7 @@ package supply
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -177,7 +178,7 @@ func (s *Supplier) writeProfileDFile(cfg env.Config, amsCreds services.AMSCreden
 		"ADC_URL": fmt.Sprintf("http://localhost:%d/", cfg.Port),
 	}
 
-	if len(amsCreds.BundleURL) == 0 {
+	if amsCreds.BundleURL == "" {
 		values["AWS_ACCESS_KEY_ID"] = amsCreds.ObjectStore.AccessKeyID
 		values["AWS_SECRET_ACCESS_KEY"] = amsCreds.ObjectStore.SecretAccessKey
 		values["AWS_REGION"] = amsCreds.ObjectStore.Region
@@ -192,17 +193,17 @@ func (s *Supplier) writeProfileDFile(cfg env.Config, amsCreds services.AMSCreden
 	if err := os.MkdirAll(s.Stager.ProfileDir(), 0755); err != nil {
 		return fmt.Errorf("couldn't create profile dir: %w", err)
 	}
-	return os.WriteFile(path.Join(s.Stager.ProfileDir(), "0000_opa_env.sh"), b.Bytes(), 0755)
+	return os.WriteFile(path.Join(s.Stager.ProfileDir(), "0000_opa_env.sh"), b.Bytes(), 0755) // nolint
 }
 
 func (s *Supplier) writeOpaConfig(cred services.AMSCredentials, tlsCfg tlsConfig) error {
 	s.Log.Info("writing opa config..")
 
 	var cfg OPAConfig
-	if len(cred.BundleURL) != 0 {
-		cfg = s.createStorageGatewayConfig(cred, tlsCfg)
-	} else {
+	if cred.BundleURL == "" {
 		cfg = s.createDirectS3OpaConfig(*cred.ObjectStore)
+	} else {
+		cfg = s.createStorageGatewayConfig(cred, tlsCfg)
 	}
 	cfg.Plugins = map[string]bool{"dcl": true}
 	filePath := path.Join(s.Stager.DepDir(), "opa_config.yml")
@@ -224,15 +225,15 @@ func (s *Supplier) createDirectS3OpaConfig(osCreds services.ObjectStoreCredentia
 		Service:  serviceKey,
 		Resource: "SAP.tar.gz",
 	}
-	services := make(map[string]RestConfig)
-	services[serviceKey] = RestConfig{
+	svcs := make(map[string]RestConfig)
+	svcs[serviceKey] = RestConfig{
 		URL:         fmt.Sprintf("https://%s/%s", osCreds.Host, osCreds.Bucket),
 		Credentials: Credentials{S3Signing: &S3Signing{AWSEnvCreds: struct{}{}}},
 	}
 
 	return OPAConfig{
 		Bundles:  bundles,
-		Services: services,
+		Services: svcs,
 	}
 }
 
@@ -249,8 +250,8 @@ func (s *Supplier) createStorageGatewayConfig(cred services.AMSCredentials, cfg 
 		Service:  serviceKey,
 		Resource: cred.InstanceID + ".tar.gz",
 	}
-	services := make(map[string]RestConfig)
-	services[serviceKey] = RestConfig{
+	svcs := make(map[string]RestConfig)
+	svcs[serviceKey] = RestConfig{
 		URL: cred.BundleURL,
 		Credentials: Credentials{ClientTLS: &ClientTLS{
 			Cert: cfg.CertPath,
@@ -260,7 +261,7 @@ func (s *Supplier) createStorageGatewayConfig(cred services.AMSCredentials, cfg 
 
 	return OPAConfig{
 		Bundles:  bundles,
-		Services: services,
+		Services: svcs,
 	}
 }
 
@@ -304,11 +305,11 @@ func (s *Supplier) upload(amsCreds services.AMSCredentials, tlsCfg tlsConfig, ro
 	if err != nil {
 		return fmt.Errorf("unable to create AMS client: %s", err)
 	}
-	uploader := uploader.Uploader{
+	u := uploader.Uploader{
 		Log:           s.Log,
 		Root:          path.Join(s.Stager.BuildDir(), rootDir),
 		Client:        client,
 		AMSInstanceID: amsCreds.InstanceID,
 	}
-	return uploader.Do(amsCreds.URL)
+	return u.Do(context.Background(), amsCreds.URL)
 }
