@@ -2,10 +2,10 @@ package uploader
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"path"
@@ -42,7 +42,7 @@ func GetClient(cert, key []byte) (AMSClient, error) {
 	return amsClient, nil
 }
 
-func (up *Uploader) Do(dstURL string) error {
+func (up *Uploader) Do(ctx context.Context, dstURL string) error {
 	up.Log.Info("creating policy archive..")
 	body, err := CreateArchive(up.Log, up.Root)
 	if err != nil {
@@ -53,7 +53,7 @@ func (up *Uploader) Do(dstURL string) error {
 		return fmt.Errorf("invalid destination AMS URL ('%s'): %w", dstURL, err)
 	}
 	u.Path = path.Join(u.Path, "/sap/ams/v1/ams-instances/", up.AMSInstanceID, "/dcl-upload")
-	resp, err := up.DoWithRetries(u.String(), body.Bytes(), maxRetries)
+	resp, err := up.DoWithRetries(ctx, u.String(), body.Bytes(), maxRetries)
 	if err != nil {
 		return fmt.Errorf("could not build upload request: %w", err)
 	}
@@ -65,8 +65,8 @@ const maxRetries = 9
 
 var RetryPeriod = 10 * time.Second
 
-func (up *Uploader) DoWithRetries(url string, body []byte, maxRetries int) (*http.Response, error) {
-	resp, err := up.do(url, body)
+func (up *Uploader) DoWithRetries(ctx context.Context, dstURL string, body []byte, maxRetries int) (*http.Response, error) {
+	resp, err := up.do(ctx, dstURL, body)
 	if err != nil {
 		return nil, fmt.Errorf("DCL upload request unsuccessful: %w", err)
 	}
@@ -77,7 +77,7 @@ func (up *Uploader) DoWithRetries(url string, body []byte, maxRetries int) (*htt
 		}
 		up.Log.Info("certificate is not accepted (yet), retrying after  %s...", RetryPeriod.String())
 		time.Sleep(RetryPeriod)
-		resp, err = up.do(url, body)
+		resp, err = up.do(ctx, dstURL, body)
 		if err != nil {
 			return nil, fmt.Errorf("DCL upload request unsuccessful: %w", err)
 		}
@@ -85,8 +85,8 @@ func (up *Uploader) DoWithRetries(url string, body []byte, maxRetries int) (*htt
 	return resp, nil
 }
 
-func (up *Uploader) do(url string, body []byte) (*http.Response, error) {
-	r, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+func (up *Uploader) do(ctx context.Context, dstURL string, body []byte) (*http.Response, error) {
+	r, err := http.NewRequestWithContext(ctx, http.MethodPost, dstURL, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("could not create DCL upload request %w", err)
 	}
@@ -96,6 +96,6 @@ func (up *Uploader) do(url string, body []byte) (*http.Response, error) {
 
 func drainResponseBody(body io.ReadCloser) error {
 	defer body.Close()
-	_, err := io.Copy(ioutil.Discard, body)
+	_, err := io.Copy(io.Discard, body)
 	return err
 }

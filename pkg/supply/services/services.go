@@ -26,7 +26,7 @@ type ObjectStoreCredentials struct {
 	Host            string `json:"host" validate:"required"`
 	Region          string `json:"region" validate:"required"`
 	SecretAccessKey string `json:"secret_access_key" validate:"required"`
-	Uri             string `json:"uri"`
+	URI             string `json:"uri"`
 	Username        string `json:"username"`
 }
 
@@ -93,7 +93,7 @@ func LoadService(log *libbuildpack.Logger, serviceName string) (Service, error) 
 	return filteredServices[0], nil
 }
 
-func LoadIASClientCert(log *libbuildpack.Logger) (cert []byte, key []byte, err error) {
+func LoadIASClientCert(log *libbuildpack.Logger) (cert, key []byte, err error) {
 	iasService, err := LoadService(log, "identity")
 	if err != nil {
 		return cert, key, err
@@ -105,6 +105,9 @@ func LoadIASClientCert(log *libbuildpack.Logger) (cert []byte, key []byte, err e
 	}
 	if iasCreds.Certificate == "" || iasCreds.Key == "" { // TODO: Provide option for {"credential-type":"X509_PROVIDED"}
 		return cert, key, fmt.Errorf("identity service binding does not contain client certificate. Please use binding parameter {\"credential-type\":\"X509_GENERATED\"}")
+	}
+	if iasCreds.CertificateExpiresAt.Before(time.Now()) {
+		return nil, nil, fmt.Errorf("identity certificate has expired: %s. Please re-create your identity binding", iasCreds.CertificateExpiresAt.String())
 	}
 	return []byte(iasCreds.Certificate), []byte(iasCreds.Key), nil
 }

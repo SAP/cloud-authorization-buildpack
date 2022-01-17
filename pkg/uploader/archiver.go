@@ -6,9 +6,9 @@ import (
 	"compress/gzip"
 	"encoding/base64"
 	"io"
+	"io/ioutil"
 	"strings"
 
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -61,15 +61,14 @@ func CreateArchive(log *libbuildpack.Logger, root string) (*bytes.Buffer, error)
 	return &buf, nil
 }
 
-func crawlDCLs(fi os.FileInfo, file string, root string) (*[]archiveContent, error) {
+func crawlDCLs(fi os.FileInfo, file, root string) (*[]archiveContent, error) {
 	var archive []archiveContent
 	if fi.IsDir() {
-		content, err := ioutil.ReadDir(file)
+		content, err := ioutil.ReadDir(file) // nolint
 		if err != nil {
 			return nil, err
 		}
 		for _, cfi := range content {
-
 			carchive, err := crawlDCLs(cfi, path.Join(file, cfi.Name()), root)
 			if err != nil {
 				return nil, err
@@ -84,13 +83,11 @@ func crawlDCLs(fi os.FileInfo, file string, root string) (*[]archiveContent, err
 			archive = append(*ce, archive...)
 		}
 		return &archive, nil
-	} else {
-		return createContentEntry(fi, file, root)
 	}
-
+	return createContentEntry(fi, file, root)
 }
 
-func createContentEntry(fi os.FileInfo, file string, root string) (*[]archiveContent, error) {
+func createContentEntry(fi os.FileInfo, file, root string) (*[]archiveContent, error) {
 	var result archiveContent
 	if !fi.IsDir() && !strings.HasSuffix(file, ".dcl") {
 		return &[]archiveContent{}, nil

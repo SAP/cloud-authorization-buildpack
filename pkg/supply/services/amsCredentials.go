@@ -75,8 +75,8 @@ func fromAuthz(log *libbuildpack.Logger, serviceName string) (*AMSCredentials, e
 	if err := validate.Struct(amsCreds); err != nil {
 		return nil, err
 	}
-	if len(amsCreds.InstanceID) == 0 {
-		if len(amsService.InstanceID) == 0 {
+	if amsCreds.InstanceID == "" {
+		if amsService.InstanceID == "" {
 			return nil, fmt.Errorf("authorization credentials bound via user-provided-service, however parameter instance_id is missing. Please update the binding")
 		}
 		amsCreds.InstanceID = amsService.InstanceID // legacy mode, until all consumers have bindings with integrated instance_id
