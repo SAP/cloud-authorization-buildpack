@@ -21,7 +21,7 @@ type archiveContent struct {
 	file   string
 }
 
-func CreateArchive(log *libbuildpack.Logger, root string) (io.Reader, error) {
+func CreateArchive(log *libbuildpack.Logger, root string) (*bytes.Buffer, error) {
 	var buf bytes.Buffer
 	zr := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(zr)

@@ -231,19 +231,21 @@ var _ = Describe("Supply", func() {
 					Expect(err.Error()).To(ContainSubstring("your policy is broken"))
 				})
 			})
-			Context("401", func() {
+			Context("401 (proof-token endpoint not ready)", func() {
 				BeforeEach(func() {
+					uploader.RetryPeriod = time.Millisecond * 10
 					mockAMSClient = NewMockAMSClient(mockCtrl)
-					mockAMSClient.EXPECT().Do(gomock.Any()).DoAndReturn(func(req *http.Request) (*http.Response, error) {
-						uploadReqSpy = req
-						return &http.Response{StatusCode: 401, Body: io.NopCloser(strings.NewReader("your policy is broken"))}, nil
-					}).AnyTimes()
-
+					gomock.InOrder(
+						mockAMSClient.EXPECT().Do(gomock.Any()).Return(&http.Response{StatusCode: 401, Body: io.NopCloser(strings.NewReader("could not find certificate"))}, nil),
+						mockAMSClient.EXPECT().Do(gomock.Any()).DoAndReturn(func(req *http.Request) (*http.Response, error) {
+							uploadReqSpy = req
+							return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(""))}, nil
+						}))
 				})
-				It("should log the response body", func() {
-					err := supplier.Run()
-					Expect(err).To(HaveOccurred())
-					Expect(err.Error()).To(ContainSubstring("your policy is broken"))
+				It("retries", func() {
+					Expect(supplier.Run()).To(Succeed())
+					Expect(writtenLogs.String()).To(ContainSubstring("retrying after"))
+					Expect(uploadReqSpy.Body).NotTo(BeNil())
 				})
 			})
 		})
