@@ -20,14 +20,15 @@ By default this buildpack expect to find an "authorization" service binding in t
 It's also possible to bind a user-provided service instead, when it has same structure as the "authorization" binding and is tagged with "authorization". Another way to override this behavior is to provide the environment variable AMS_SERVICE to target another service than "authorization"(e.g. "authorization-dev")
 #### Identity Service 
 The buildpack expects to find a bound identity service containing "cert" and "key" values in the credentials, as well as authorization values (e.g. "authorization_url"). To create such an identity instance you need to provide the following provisioning parameters:
-´´´
+```json
 {
     "credential_type": "X509_GENERATED",
     "authorization": {
         "product_label":"<some text for the UI>"
     }
 }
-´´´
+```
+
 #### Support for DeployWithConfidence (DwC)
 There is also DwC support, where no services are bound directly to the app. All communication will be proxied by the megaclite component of DwC. Therefor a user-provided service with name "megaclite" is expected, containing its "url".
 ### Base Policy Upload
