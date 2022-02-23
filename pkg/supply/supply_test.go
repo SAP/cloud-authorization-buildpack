@@ -311,47 +311,45 @@ var _ = Describe("Supply", func() {
 			It("should succeed", func() {
 				Expect(supplier.Run()).To(Succeed())
 				Expect(filepath.Join(depDir, "launch.yml")).To(BeARegularFile())
-				Expect(uploadReqSpy.Host).To(Equal("ams.url.from.identity"))
 				Expect(string(keySpy)).To(Equal("identity-key-payload"))
 				Expect(string(certSpy)).To(Equal("identity-cert-payload"))
 			})
-			Context("the bundle gateway url is set", func() {
-				It("should configure access to the gateway", func() {
-					Expect(supplier.Run()).To(Succeed())
-					rawConfig, err := os.ReadFile(filepath.Join(depDir, "opa_config.yml"))
-					Expect(err).NotTo(HaveOccurred())
-					cfg, err := config.ParseConfig(rawConfig, "testId")
-					Expect(err).NotTo(HaveOccurred())
+			It("should configure access to the gateway", func() {
+				Expect(supplier.Run()).To(Succeed())
+				rawConfig, err := os.ReadFile(filepath.Join(depDir, "opa_config.yml"))
+				Expect(err).NotTo(HaveOccurred())
+				cfg, err := config.ParseConfig(rawConfig, "testId")
+				Expect(err).NotTo(HaveOccurred())
 
-					var restConfig map[string]rest.Config
-					err = json.Unmarshal(cfg.Services, &restConfig)
+				var restConfig map[string]rest.Config
+				err = json.Unmarshal(cfg.Services, &restConfig)
+				Expect(err).NotTo(HaveOccurred())
+				By("specifying ClientTLS", func() {
+					Expect(restConfig).To(HaveKey("bundle_storage"))
+					Expect(restConfig["bundle_storage"].Credentials.ClientTLS.Cert).To(Equal("/home/vcap/deps/42/ias.crt"))
+					Expect(restConfig["bundle_storage"].Credentials.ClientTLS.PrivateKey).To(Equal("/home/vcap/deps/42/ias.key"))
+				})
+				By("extending the tenant host URL from the identity service", func() {
+					Expect(restConfig["bundle_storage"].URL).To(Equal("https://mytenant.accounts400.ondemand.com/bundle-gateway"))
+				})
+				By("persisting the identity cert/key", func() {
+					cert, err := os.ReadFile(filepath.Join(depDir, "ias.crt"))
 					Expect(err).NotTo(HaveOccurred())
-					By("specifying ClientTLS", func() {
-						Expect(restConfig).To(HaveKey("bundle_storage"))
-						Expect(restConfig["bundle_storage"].Credentials.ClientTLS.Cert).To(Equal("/home/vcap/deps/42/ias.crt"))
-						Expect(restConfig["bundle_storage"].Credentials.ClientTLS.PrivateKey).To(Equal("/home/vcap/deps/42/ias.key"))
-						Expect(restConfig["bundle_storage"].URL).To(Equal("https://my-bundle-gateway.org/some/path"))
-					})
-					By("persisting the identity cert/key", func() {
-						cert, err := os.ReadFile(filepath.Join(depDir, "ias.crt"))
-						Expect(err).NotTo(HaveOccurred())
-						Expect(string(cert)).To(Equal("identity-cert-payload"))
-						key, err := os.ReadFile(filepath.Join(depDir, "ias.key"))
-						Expect(err).NotTo(HaveOccurred())
-						Expect(string(key)).To(Equal("identity-key-payload"))
-					})
-					By("making sure there's only one auth method", func() {
-						Expect(restConfig["bundle_storage"].Credentials.S3Signing).To(BeNil())
-					})
-					By("enabling the OPA dcn plugin", func() {
-						enabled, ok := cfg.Plugins["dcl"]
-						Expect(ok).To(BeTrue())
-						Expect(string(enabled)).To(Equal(`true`))
-					})
-					By("uploading to the correct path", func() {
-						Expect(uploadReqSpy.URL.Path).To(Equal("/some-prefix/sap/ams/v1/ams-instances/00000000-3b4d-4c41-9e5b-9aee7bfa6348/dcl-upload"))
-						Expect(uploadReqSpy.URL.Host).To(Equal("ams.url.from.identity"))
-					})
+					Expect(string(cert)).To(Equal("identity-cert-payload"))
+					key, err := os.ReadFile(filepath.Join(depDir, "ias.key"))
+					Expect(err).NotTo(HaveOccurred())
+					Expect(string(key)).To(Equal("identity-key-payload"))
+				})
+				By("making sure there's only one auth method", func() {
+					Expect(restConfig["bundle_storage"].Credentials.S3Signing).To(BeNil())
+				})
+				By("enabling the OPA dcn plugin", func() {
+					enabled, ok := cfg.Plugins["dcl"]
+					Expect(ok).To(BeTrue())
+					Expect(string(enabled)).To(Equal(`true`))
+				})
+				By("uploading to the correct URL", func() {
+					Expect(uploadReqSpy.URL.String()).To(Equal("https://mytenant.accounts400.ondemand.com/authorization/sap/ams/v1/ams-instances/00000000-3b4d-4c41-9e5b-9aee7bfa6348/dcl-upload"))
 				})
 			})
 		})

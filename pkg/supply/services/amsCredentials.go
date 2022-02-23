@@ -3,6 +3,7 @@ package services
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 
 	"github.com/cloudfoundry/libbuildpack"
@@ -44,12 +45,22 @@ func fromIdentity(log *libbuildpack.Logger) (*AMSCredentials, error) {
 	}
 	validate := validator.New()
 	err = validate.Struct(identityCreds)
+	if err != nil {
+		return nil, fmt.Errorf("invalid binding credentials for identity service with AMS enabled: %w", err)
+	}
+
+	amsURL, err := url.Parse(identityCreds.URL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid tenant URL in identity service %q", identityCreds.URL)
+	}
+	bundleURL := *amsURL // can safely be copied
+	bundleURL.Path = "/bundle-gateway"
+	amsURL.Path = "/authorization"
 	return &AMSCredentials{
-		BundleURL:   identityCreds.AuthzBundleURL,
-		ObjectStore: identityCreds.AuthzObjectStore,
-		URL:         identityCreds.AuthzURL,
-		InstanceID:  identityCreds.AuthzInstanceID,
-	}, err
+		BundleURL:  bundleURL.String(),
+		URL:        amsURL.String(),
+		InstanceID: identityCreds.AuthzInstanceID,
+	}, nil
 }
 
 func loadIdentityCreds(log *libbuildpack.Logger) (UnifiedIdentityCredentials, error) {
