@@ -60,7 +60,6 @@ type IASCredentials struct {
 
 type UnifiedIdentityCredentials struct {
 	IASCredentials
-	AuthzURL        string `json:"authorization_url" validate:"required"`
 	AuthzInstanceID string `json:"authorization_instance_id" validate:"required"`
 }
 

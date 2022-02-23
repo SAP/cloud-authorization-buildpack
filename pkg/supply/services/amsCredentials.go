@@ -40,7 +40,7 @@ func fromIdentity(log *libbuildpack.Logger) (*AMSCredentials, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not load identity credentials: %w", err)
 	}
-	if identityCreds.AuthzURL == "" {
+	if identityCreds.AuthzInstanceID == "" {
 		return nil, nil
 	}
 	validate := validator.New()
