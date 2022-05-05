@@ -25,3 +25,6 @@ var EnvWithIASAuthX509Expired string
 
 //go:embed bindings/env_with_megaclite.json
 var EnvWithMegaclite string
+
+//go:embed bindings/env_with_megaclite_and_ias.json
+var EnvWithMegacliteAndIAS string

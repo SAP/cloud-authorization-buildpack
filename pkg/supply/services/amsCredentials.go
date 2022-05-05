@@ -37,6 +37,9 @@ func fromMegaclite() (*AMSCredentials, error) {
 
 func fromIdentity(log *libbuildpack.Logger) (*AMSCredentials, error) {
 	identityCreds, err := loadIdentityCreds(log)
+	if identityCreds == nil {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, fmt.Errorf("could not load identity credentials: %w", err)
 	}
@@ -63,14 +66,14 @@ func fromIdentity(log *libbuildpack.Logger) (*AMSCredentials, error) {
 	}, nil
 }
 
-func loadIdentityCreds(log *libbuildpack.Logger) (UnifiedIdentityCredentials, error) {
+func loadIdentityCreds(log *libbuildpack.Logger) (*UnifiedIdentityCredentials, error) {
 	iasService, err := LoadService(log, "identity")
-	if err != nil {
-		return UnifiedIdentityCredentials{}, err
+	if iasService == nil {
+		return nil, err
 	}
 	var iasCreds UnifiedIdentityCredentials
 	err = json.Unmarshal(iasService.Credentials, &iasCreds)
-	return iasCreds, err
+	return &iasCreds, err
 }
 
 func fromAuthz(log *libbuildpack.Logger, serviceName string) (*AMSCredentials, error) {

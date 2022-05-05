@@ -63,12 +63,12 @@ type UnifiedIdentityCredentials struct {
 	AuthzInstanceID string `json:"authorization_instance_id" validate:"required"`
 }
 
-func LoadService(log *libbuildpack.Logger, serviceName string) (Service, error) {
+func LoadService(log *libbuildpack.Logger, serviceName string) (*Service, error) {
 	svcsString := os.Getenv("VCAP_SERVICES")
 	var svcs map[string][]Service
 	err := json.Unmarshal([]byte(svcsString), &svcs)
 	if err != nil {
-		return Service{}, fmt.Errorf("could not unmarshal VCAP_SERVICES: %w", err)
+		return nil, fmt.Errorf("could not unmarshal VCAP_SERVICES: %w", err)
 	}
 
 	filteredServices := make([]Service, 0, 1)
@@ -84,10 +84,12 @@ func LoadService(log *libbuildpack.Logger, serviceName string) (Service, error) 
 		}
 	}
 	filteredServices = append(filteredServices, svcs[serviceName]...)
-	if len(filteredServices) != 1 {
-		return Service{}, fmt.Errorf("expect only one service (type %s or user-provided) but got %d", serviceName, len(filteredServices))
+	if len(filteredServices) > 1 {
+		return nil, fmt.Errorf("expect only one service (type %s or user-provided) but got %d", serviceName, len(filteredServices))
+	} else if len(filteredServices) < 1 {
+		return nil, nil
 	}
-	return filteredServices[0], nil
+	return &filteredServices[0], nil
 }
 
 func LoadIASClientCert(log *libbuildpack.Logger) (cert, key []byte, err error) {
@@ -110,14 +112,14 @@ func LoadIASClientCert(log *libbuildpack.Logger) (cert, key []byte, err error) {
 }
 
 func LoadAMSCredentials(log *libbuildpack.Logger, cfg env.Config) (AMSCredentials, error) {
-	amsCreds, err := fromMegaclite()
+	amsCreds, err := fromIdentity(log)
 	if err != nil {
 		return AMSCredentials{}, err
 	}
 	if amsCreds != nil {
 		return *amsCreds, nil
 	}
-	amsCreds, err = fromIdentity(log)
+	amsCreds, err = fromMegaclite()
 	if err != nil {
 		return AMSCredentials{}, err
 	}
