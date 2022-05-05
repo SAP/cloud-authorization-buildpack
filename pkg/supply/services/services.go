@@ -112,7 +112,6 @@ func LoadIASClientCert(log *libbuildpack.Logger) (cert, key []byte, err error) {
 }
 
 func LoadAMSCredentials(log *libbuildpack.Logger, cfg env.Config) (AMSCredentials, error) {
-
 	amsCreds, err := fromIdentity(log)
 	if err != nil {
 		return AMSCredentials{}, err
