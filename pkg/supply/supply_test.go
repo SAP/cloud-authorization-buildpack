@@ -303,6 +303,31 @@ var _ = Describe("Supply", func() {
 				Expect(err).To(HaveOccurred())
 			})
 		})
+		Context("and VCAP_SERVICES contains user-provided 'megaclite' service instance from DwC", func() {
+			BeforeEach(func() {
+				vcapServices = testdata.EnvWithMegacliteAndIAS
+				os.Setenv("AMS_DCL_ROOT", "/policies")
+			})
+			It("should configure access to the gateway", func() {
+				Expect(supplier.Run()).To(Succeed())
+				rawConfig, err := os.ReadFile(filepath.Join(depDir, "opa_config.yml"))
+				Expect(err).NotTo(HaveOccurred())
+				cfg, err := config.ParseConfig(rawConfig, "testId")
+				Expect(err).NotTo(HaveOccurred())
+
+				var restConfig map[string]rest.Config
+				err = json.Unmarshal(cfg.Services, &restConfig)
+				Expect(err).NotTo(HaveOccurred())
+				By("specifying ClientTLS", func() {
+					Expect(restConfig).To(HaveKey("bundle_storage"))
+					Expect(restConfig["bundle_storage"].Credentials.ClientTLS.Cert).To(Equal("/home/vcap/deps/42/ias.crt"))
+					Expect(restConfig["bundle_storage"].Credentials.ClientTLS.PrivateKey).To(Equal("/home/vcap/deps/42/ias.key"))
+				})
+				By("extending the tenant host URL from the identity service", func() {
+					Expect(restConfig["bundle_storage"].URL).To(Equal("https://mytenant.accounts400.ondemand.com/bundle-gateway"))
+				})
+			})
+		})
 		Context("and credential type is x509", func() {
 			BeforeEach(func() {
 				vcapServices = testdata.EnvWithIASAuthX509
