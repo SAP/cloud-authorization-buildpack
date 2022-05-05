@@ -308,7 +308,7 @@ var _ = Describe("Supply", func() {
 				vcapServices = testdata.EnvWithMegacliteAndIAS
 				os.Setenv("AMS_DCL_ROOT", "/policies")
 			})
-			It("should configure access to the gateway", func() {
+			It("should configure access to the gateway directly", func() {
 				Expect(supplier.Run()).To(Succeed())
 				rawConfig, err := os.ReadFile(filepath.Join(depDir, "opa_config.yml"))
 				Expect(err).NotTo(HaveOccurred())
@@ -324,6 +324,7 @@ var _ = Describe("Supply", func() {
 					Expect(restConfig["bundle_storage"].Credentials.ClientTLS.PrivateKey).To(Equal("/home/vcap/deps/42/ias.key"))
 				})
 				By("extending the tenant host URL from the identity service", func() {
+					Expect(restConfig["bundle_storage"].URL).NotTo(ContainSubstring("megaclite.host"))
 					Expect(restConfig["bundle_storage"].URL).To(Equal("https://mytenant.accounts400.ondemand.com/bundle-gateway"))
 				})
 			})
