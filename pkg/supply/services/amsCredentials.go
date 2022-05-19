@@ -46,6 +46,9 @@ func fromIdentity(log *libbuildpack.Logger) (*AMSCredentials, error) {
 	if identityCreds.AuthzInstanceID == "" {
 		return nil, nil
 	}
+	if identityCreds.Certificate == "" || identityCreds.Key == "" { // TODO: Remove the check for KEY once X509_PROVIDED bindings are supported
+		return nil, fmt.Errorf(`invalid bindings credentials for identity service with AMS enabled: service bindings must be created with {"credential-type": "X509_GENERATED"} (more information in the identity broker documentation)`)
+	}
 	validate := validator.New()
 	err = validate.Struct(identityCreds)
 	if err != nil {
