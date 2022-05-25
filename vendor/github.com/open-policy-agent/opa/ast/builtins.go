@@ -33,6 +33,10 @@ var DefaultBuiltins = [...]*Builtin{
 	// Assignment (":=")
 	Assign,
 
+	// Membership, infix "in": `x in xs`
+	Member,
+	MemberWithKey,
+
 	// Comparisons
 	GreaterThan,
 	GreaterThanEq,
@@ -76,6 +80,7 @@ var DefaultBuiltins = [...]*Builtin{
 	// Arrays
 	ArrayConcat,
 	ArraySlice,
+	ArrayReverse,
 
 	// Conversions
 	ToNumber,
@@ -107,6 +112,7 @@ var DefaultBuiltins = [...]*Builtin{
 	Concat,
 	FormatInt,
 	IndexOf,
+	IndexOfN,
 	Substring,
 	Lower,
 	Upper,
@@ -123,6 +129,7 @@ var DefaultBuiltins = [...]*Builtin{
 	TrimSuffix,
 	TrimSpace,
 	Sprintf,
+	StringReverse,
 
 	// Numbers
 	NumbersRange,
@@ -150,6 +157,7 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Object Manipulation
 	ObjectUnion,
+	ObjectUnionN,
 	ObjectRemove,
 	ObjectFilter,
 	ObjectGet,
@@ -195,10 +203,16 @@ var DefaultBuiltins = [...]*Builtin{
 	CryptoSha1,
 	CryptoSha256,
 	CryptoX509ParseCertificateRequest,
+	CryptoX509ParseRSAPrivateKey,
+	CryptoHmacMd5,
+	CryptoHmacSha1,
+	CryptoHmacSha256,
+	CryptoHmacSha512,
 
 	// Graphs
 	WalkBuiltin,
 	ReachableBuiltin,
+	ReachablePathsBuiltin,
 
 	// Sort
 	Sort,
@@ -218,6 +232,8 @@ var DefaultBuiltins = [...]*Builtin{
 
 	// Rego
 	RegoParseModule,
+	RegoMetadataChain,
+	RegoMetadataRule,
 
 	// OPA
 	OPARuntime,
@@ -225,13 +241,14 @@ var DefaultBuiltins = [...]*Builtin{
 	// Tracing
 	Trace,
 
-	// CIDR
+	// Networking
 	NetCIDROverlap,
 	NetCIDRIntersects,
 	NetCIDRContains,
 	NetCIDRContainsMatches,
 	NetCIDRExpand,
 	NetCIDRMerge,
+	NetLookupIPAddr,
 
 	// Glob
 	GlobMatch,
@@ -246,6 +263,10 @@ var DefaultBuiltins = [...]*Builtin{
 	//SemVers
 	SemVerIsValid,
 	SemVerCompare,
+
+	// Printing
+	Print,
+	InternalPrint,
 }
 
 // BuiltinMap provides a convenient mapping of built-in names to
@@ -260,6 +281,7 @@ var IgnoreDuringPartialEval = []*Builtin{
 	HTTPSend,
 	UUIDRFC4122,
 	RandIntn,
+	NetLookupIPAddr,
 }
 
 /**
@@ -286,6 +308,34 @@ var Assign = &Builtin{
 	Infix: ":=",
 	Decl: types.NewFunction(
 		types.Args(types.A, types.A),
+		types.B,
+	),
+}
+
+// Member represents the `in` (infix) operator.
+var Member = &Builtin{
+	Name:  "internal.member_2",
+	Infix: "in",
+	Decl: types.NewFunction(
+		types.Args(
+			types.A,
+			types.A,
+		),
+		types.B,
+	),
+}
+
+// MemberWithKey represents the `in` (infix) operator when used
+// with two terms on the lhs, i.e., `k, v in obj`.
+var MemberWithKey = &Builtin{
+	Name:  "internal.member_3",
+	Infix: "in",
+	Decl: types.NewFunction(
+		types.Args(
+			types.A,
+			types.A,
+			types.A,
+		),
 		types.B,
 	),
 }
@@ -615,36 +665,6 @@ var Min = &Builtin{
 	),
 }
 
-// All takes a list and returns true if all of the items
-// are true. A collection of length 0 returns true.
-var All = &Builtin{
-	Name: "all",
-	Decl: types.NewFunction(
-		types.Args(
-			types.NewAny(
-				types.NewSet(types.A),
-				types.NewArray(nil, types.A),
-			),
-		),
-		types.B,
-	),
-}
-
-// Any takes a collection and returns true if any of the items
-// is true. A collection of length 0 returns false.
-var Any = &Builtin{
-	Name: "any",
-	Decl: types.NewFunction(
-		types.Args(
-			types.NewAny(
-				types.NewSet(types.A),
-				types.NewArray(nil, types.A),
-			),
-		),
-		types.B,
-	),
-}
-
 /**
  * Arrays
  */
@@ -669,6 +689,17 @@ var ArraySlice = &Builtin{
 			types.NewArray(nil, types.A),
 			types.NewNumber(),
 			types.NewNumber(),
+		),
+		types.NewArray(nil, types.A),
+	),
+}
+
+// ArrayReverse returns a given array, reversed
+var ArrayReverse = &Builtin{
+	Name: "array.reverse",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewArray(nil, types.A),
 		),
 		types.NewArray(nil, types.A),
 	),
@@ -836,6 +867,18 @@ var IndexOf = &Builtin{
 			types.S,
 		),
 		types.N,
+	),
+}
+
+// IndexOfN returns a list of all the indexes of a substring contained inside a string
+var IndexOfN = &Builtin{
+	Name: "indexof_n",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.NewArray(nil, types.N),
 	),
 }
 
@@ -1032,6 +1075,17 @@ var Sprintf = &Builtin{
 		types.Args(
 			types.S,
 			types.NewArray(nil, types.A),
+		),
+		types.S,
+	),
+}
+
+// StringReverse returns the given string, reversed.
+var StringReverse = &Builtin{
+	Name: "strings.reverse",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
 		),
 		types.S,
 	),
@@ -1243,6 +1297,20 @@ var ObjectUnion = &Builtin{
 			types.NewObject(
 				nil,
 				types.NewDynamicProperty(types.A, types.A),
+			),
+		),
+		types.A,
+	),
+}
+
+// ObjectUnionN creates a new object that is the asymmetric union of all objects merged from left to right
+var ObjectUnionN = &Builtin{
+	Name: "object.union_n",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewArray(
+				nil,
+				types.NewObject(nil, types.NewDynamicProperty(types.A, types.A)),
 			),
 		),
 		types.A,
@@ -1797,6 +1865,16 @@ var CryptoX509ParseCertificateRequest = &Builtin{
 	),
 }
 
+// CryptoX509ParseRSAPrivateKey returns a JWK for signing a JWT from the given
+// PEM-encoded RSA private key.
+var CryptoX509ParseRSAPrivateKey = &Builtin{
+	Name: "crypto.x509.parse_rsa_private_key",
+	Decl: types.NewFunction(
+		types.Args(types.S),
+		types.NewObject(nil, types.NewDynamicProperty(types.S, types.A)),
+	),
+}
+
 // CryptoMd5 returns a string representing the input string hashed with the md5 function
 var CryptoMd5 = &Builtin{
 	Name: "crypto.md5",
@@ -1820,6 +1898,58 @@ var CryptoSha256 = &Builtin{
 	Name: "crypto.sha256",
 	Decl: types.NewFunction(
 		types.Args(types.S),
+		types.S,
+	),
+}
+
+// CryptoHmacMd5 returns a string representing the MD-5 HMAC of the input message using the input key
+// Inputs are message, key
+var CryptoHmacMd5 = &Builtin{
+	Name: "crypto.hmac.md5",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.S,
+	),
+}
+
+// CryptoHmacSha1 returns a string representing the SHA-1 HMAC of the input message using the input key
+// Inputs are message, key
+var CryptoHmacSha1 = &Builtin{
+	Name: "crypto.hmac.sha1",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.S,
+	),
+}
+
+// CryptoHmacSha256 returns a string representing the SHA-256 HMAC of the input message using the input key
+// Inputs are message, key
+var CryptoHmacSha256 = &Builtin{
+	Name: "crypto.hmac.sha256",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
+		types.S,
+	),
+}
+
+// CryptoHmacSha512 returns a string representing the SHA-512 HMAC of the input message using the input key
+// Inputs are message, key
+var CryptoHmacSha512 = &Builtin{
+	Name: "crypto.hmac.sha512",
+	Decl: types.NewFunction(
+		types.Args(
+			types.S,
+			types.S,
+		),
 		types.S,
 	),
 }
@@ -1862,6 +1992,26 @@ var ReachableBuiltin = &Builtin{
 			types.NewAny(types.NewSet(types.A), types.NewArray(nil, types.A)),
 		),
 		types.NewSet(types.A),
+	),
+}
+
+// ReachablePathsBuiltin computes the set of reachable paths in the graph from a set
+// of starting nodes.
+var ReachablePathsBuiltin = &Builtin{
+	Name: "graph.reachable_paths",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewObject(
+				nil,
+				types.NewDynamicProperty(
+					types.A,
+					types.NewAny(
+						types.NewSet(types.A),
+						types.NewArray(nil, types.A)),
+				)),
+			types.NewAny(types.NewSet(types.A), types.NewArray(nil, types.A)),
+		),
+		types.NewSet(types.NewArray(nil, types.A)),
 	),
 }
 
@@ -2013,6 +2163,24 @@ var RegoParseModule = &Builtin{
 	),
 }
 
+// RegoMetadataChain returns the chain of metadata for the active rule
+var RegoMetadataChain = &Builtin{
+	Name: "rego.metadata.chain",
+	Decl: types.NewFunction(
+		types.Args(),
+		types.NewArray(nil, types.A),
+	),
+}
+
+// RegoMetadataRule returns the metadata for the active rule
+var RegoMetadataRule = &Builtin{
+	Name: "rego.metadata.rule",
+	Decl: types.NewFunction(
+		types.Args(),
+		types.A,
+	),
+}
+
 /**
  * OPA
  */
@@ -2097,7 +2265,7 @@ var GlobQuoteMeta = &Builtin{
 }
 
 /**
- * Net CIDR
+ * Networking
  */
 
 // NetCIDRIntersects checks if a cidr intersects with another cidr and returns true or false
@@ -2177,6 +2345,17 @@ var netCidrContainsMatchesOperandType = types.NewAny(
 	)),
 )
 
+// NetLookupIPAddr returns the set of IP addresses (as strings, both v4 and v6)
+// that the passed-in name (string) resolves to using the standard name resolution
+// mechanisms available.
+var NetLookupIPAddr = &Builtin{
+	Name: "net.lookup_ip_addr",
+	Decl: types.NewFunction(
+		types.Args(types.S),
+		types.NewSet(types.S),
+	),
+}
+
 /**
  * Semantic Versions
  */
@@ -2205,6 +2384,27 @@ var SemVerCompare = &Builtin{
 		),
 		types.N,
 	),
+}
+
+/**
+ * Printing
+ */
+
+// Print is a special built-in function that writes zero or more operands
+// to a message buffer. The caller controls how the buffer is displayed. The
+// operands may be of any type. Furthermore, unlike other built-in functions,
+// undefined operands DO NOT cause the print() function to fail during
+// evaluation.
+var Print = &Builtin{
+	Name: "print",
+	Decl: types.NewVariadicFunction(nil, types.A, nil),
+}
+
+// InternalPrint represents the internal implementation of the print() function.
+// The compiler rewrites print() calls to refer to the internal implementation.
+var InternalPrint = &Builtin{
+	Name: "internal.print",
+	Decl: types.NewFunction([]types.Type{types.NewArray(nil, types.NewSet(types.A))}, nil),
 }
 
 /**
@@ -2306,13 +2506,51 @@ var RegexMatchDeprecated = &Builtin{
 	),
 }
 
+// All takes a list and returns true if all of the items
+// are true. A collection of length 0 returns true.
+var All = &Builtin{
+	Name: "all",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewAny(
+				types.NewSet(types.A),
+				types.NewArray(nil, types.A),
+			),
+		),
+		types.B,
+	),
+	deprecated: true,
+}
+
+// Any takes a collection and returns true if any of the items
+// is true. A collection of length 0 returns false.
+var Any = &Builtin{
+	Name: "any",
+	Decl: types.NewFunction(
+		types.Args(
+			types.NewAny(
+				types.NewSet(types.A),
+				types.NewArray(nil, types.A),
+			),
+		),
+		types.B,
+	),
+	deprecated: true,
+}
+
 // Builtin represents a built-in function supported by OPA. Every built-in
 // function is uniquely identified by a name.
 type Builtin struct {
-	Name     string          `json:"name"`               // Unique name of built-in function, e.g., <name>(arg1,arg2,...,argN)
-	Decl     *types.Function `json:"decl"`               // Built-in function type declaration.
-	Infix    string          `json:"infix,omitempty"`    // Unique name of infix operator. Default should be unset.
-	Relation bool            `json:"relation,omitempty"` // Indicates if the built-in acts as a relation.
+	Name       string          `json:"name"`               // Unique name of built-in function, e.g., <name>(arg1,arg2,...,argN)
+	Decl       *types.Function `json:"decl"`               // Built-in function type declaration.
+	Infix      string          `json:"infix,omitempty"`    // Unique name of infix operator. Default should be unset.
+	Relation   bool            `json:"relation,omitempty"` // Indicates if the built-in acts as a relation.
+	deprecated bool            // Indicates if the built-in has been deprecated.
+}
+
+// IsDeprecated returns true if the Builtin function is deprecated and will be removed in a future release.
+func (b *Builtin) IsDeprecated() bool {
+	return b.deprecated
 }
 
 // Expr creates a new expression for the built-in with the given operands.
