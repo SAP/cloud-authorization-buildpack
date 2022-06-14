@@ -37,7 +37,7 @@ func (up *Uploader) logResponse(res *http.Response) error {
 	}
 	b, err := io.ReadAll(res.Body)
 	if err != nil {
-		return fmt.Errorf("unexpected response on DCL upload: status(%s)", res.Status)
+		return fmt.Errorf("unexpected response on DCL upload to %s: status(%s)", res.Request.URL, res.Status)
 	}
 	if res.StatusCode == http.StatusBadRequest {
 		var ce CompileError
@@ -47,7 +47,7 @@ func (up *Uploader) logResponse(res *http.Response) error {
 			}
 		}
 	}
-	return fmt.Errorf("unexpected response on DCL upload: status(%s) body(%s)", res.Status, string(b))
+	return fmt.Errorf("unexpected response on DCL upload to %s: status(%s) body(%s)", res.Request.URL, res.Status, string(b))
 }
 func (up *Uploader) printCompileError(compileError CompileError) error {
 	for file, issues := range compileError.CompileError.DclIssues {
