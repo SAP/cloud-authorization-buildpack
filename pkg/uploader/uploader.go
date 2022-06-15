@@ -58,7 +58,7 @@ func (up *Uploader) Do(ctx context.Context, dstURL string) error {
 		return fmt.Errorf("could not build upload request: %w", err)
 	}
 	defer resp.Body.Close()
-	return up.logResponse(resp)
+	return up.logResponse(resp, u.String())
 }
 
 const maxRetries = 9

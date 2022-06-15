@@ -30,14 +30,14 @@ type CompileError struct {
 const severityError = "ERROR"
 const severityWarning = "WARNING"
 
-func (up *Uploader) logResponse(res *http.Response) error {
+func (up *Uploader) logResponse(res *http.Response, reqURL string) error {
 	if res.StatusCode == http.StatusOK || res.StatusCode == http.StatusCreated || res.StatusCode == http.StatusNotModified {
 		up.Log.Info("Base DCLs uploaded and compiled successfully")
 		return nil
 	}
 	b, err := io.ReadAll(res.Body)
 	if err != nil {
-		return fmt.Errorf("unexpected response on DCL upload: status(%s)", res.Status)
+		return fmt.Errorf("unexpected response on DCL upload to %s: status(%s)", reqURL, res.Status)
 	}
 	if res.StatusCode == http.StatusBadRequest {
 		var ce CompileError
@@ -47,7 +47,7 @@ func (up *Uploader) logResponse(res *http.Response) error {
 			}
 		}
 	}
-	return fmt.Errorf("unexpected response on DCL upload: status(%s) body(%s)", res.Status, string(b))
+	return fmt.Errorf("unexpected response on DCL upload to %s: status(%s) body(%s)", reqURL, res.Status, string(b))
 }
 func (up *Uploader) printCompileError(compileError CompileError) error {
 	for file, issues := range compileError.CompileError.DclIssues {

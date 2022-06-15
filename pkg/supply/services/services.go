@@ -7,8 +7,9 @@ import (
 	"os"
 	"time"
 
-	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/env"
 	"github.com/cloudfoundry/libbuildpack"
+
+	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/env"
 )
 
 const MegacliteID = "dwc-megaclite-ams-instance-id"
@@ -121,6 +122,7 @@ func LoadAMSCredentials(log *libbuildpack.Logger, cfg env.Config) (AMSCredential
 	}
 	amsCreds, err = fromMegaclite()
 	if err != nil {
+		log.Info("using megaclite proxy to upload AMS DCLs and download AMS bundles")
 		return AMSCredentials{}, err
 	}
 	if amsCreds != nil {
