@@ -76,7 +76,7 @@ type handle struct {
 	db *store
 }
 
-func (db *store) NewTransaction(ctx context.Context, params ...storage.TransactionParams) (storage.Transaction, error) {
+func (db *store) NewTransaction(_ context.Context, params ...storage.TransactionParams) (storage.Transaction, error) {
 	var write bool
 	var context *storage.Context
 	if len(params) > 0 {
@@ -90,6 +90,74 @@ func (db *store) NewTransaction(ctx context.Context, params ...storage.Transacti
 		db.rmu.RLock()
 	}
 	return newTransaction(xid, write, context, db), nil
+}
+
+// Truncate implements the storage.Store interface. This method must be called within a transaction.
+func (db *store) Truncate(ctx context.Context, txn storage.Transaction, _ storage.TransactionParams, it storage.Iterator) error {
+	var update *storage.Update
+	var err error
+
+	underlying, err := db.underlying(txn)
+	if err != nil {
+		return err
+	}
+
+	for {
+		update, err = it.Next()
+		if err != nil {
+			break
+		}
+
+		if update.IsPolicy {
+			err = underlying.UpsertPolicy(update.Path.String(), update.Value)
+			if err != nil {
+				return err
+			}
+		} else {
+			if len(update.Path) > 0 {
+				var obj interface{}
+				err = util.Unmarshal(update.Value, &obj)
+				if err != nil {
+					return err
+				}
+
+				err = underlying.Write(storage.AddOp, update.Path, obj)
+				if err != nil {
+					return err
+				}
+			} else {
+				// write operation at root path
+
+				var val map[string]interface{}
+				err := util.Unmarshal(update.Value, &val)
+				if err != nil {
+					return invalidPatchError(rootMustBeObjectMsg)
+				}
+
+				for k := range val {
+					newPath, ok := storage.ParsePathEscaped("/" + k)
+					if !ok {
+						return fmt.Errorf("storage path invalid: %v", newPath)
+					}
+
+					if err := storage.MakeDir(ctx, db, txn, newPath[:len(newPath)-1]); err != nil {
+						return err
+					}
+
+					err = underlying.Write(storage.AddOp, newPath, val[k])
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+
+	if err != nil && err != io.EOF {
+		return err
+	}
+
+	return nil
 }
 
 func (db *store) Commit(ctx context.Context, txn storage.Transaction) error {
@@ -112,7 +180,7 @@ func (db *store) Commit(ctx context.Context, txn storage.Transaction) error {
 	return nil
 }
 
-func (db *store) Abort(ctx context.Context, txn storage.Transaction) {
+func (db *store) Abort(_ context.Context, txn storage.Transaction) {
 	underlying, err := db.underlying(txn)
 	if err != nil {
 		panic(err)
@@ -160,7 +228,7 @@ func (db *store) DeletePolicy(_ context.Context, txn storage.Transaction, id str
 	return underlying.DeletePolicy(id)
 }
 
-func (db *store) Register(ctx context.Context, txn storage.Transaction, config storage.TriggerConfig) (storage.TriggerHandle, error) {
+func (db *store) Register(_ context.Context, txn storage.Transaction, config storage.TriggerConfig) (storage.TriggerHandle, error) {
 	underlying, err := db.underlying(txn)
 	if err != nil {
 		return nil, err
@@ -176,7 +244,7 @@ func (db *store) Register(ctx context.Context, txn storage.Transaction, config s
 	return h, nil
 }
 
-func (db *store) Read(ctx context.Context, txn storage.Transaction, path storage.Path) (interface{}, error) {
+func (db *store) Read(_ context.Context, txn storage.Transaction, path storage.Path) (interface{}, error) {
 	underlying, err := db.underlying(txn)
 	if err != nil {
 		return nil, err
@@ -184,7 +252,7 @@ func (db *store) Read(ctx context.Context, txn storage.Transaction, path storage
 	return underlying.Read(path)
 }
 
-func (db *store) Write(ctx context.Context, txn storage.Transaction, op storage.PatchOp, path storage.Path, value interface{}) error {
+func (db *store) Write(_ context.Context, txn storage.Transaction, op storage.PatchOp, path storage.Path, value interface{}) error {
 	underlying, err := db.underlying(txn)
 	if err != nil {
 		return err
@@ -196,7 +264,7 @@ func (db *store) Write(ctx context.Context, txn storage.Transaction, op storage.
 	return underlying.Write(op, path, *val)
 }
 
-func (h *handle) Unregister(ctx context.Context, txn storage.Transaction) {
+func (h *handle) Unregister(_ context.Context, txn storage.Transaction) {
 	underlying, err := h.db.underlying(txn)
 	if err != nil {
 		panic(err)
@@ -239,8 +307,8 @@ func (db *store) underlying(txn storage.Transaction) (*transaction, error) {
 	return underlying, nil
 }
 
-var rootMustBeObjectMsg = "root must be object"
-var rootCannotBeRemovedMsg = "root cannot be removed"
+const rootMustBeObjectMsg = "root must be object"
+const rootCannotBeRemovedMsg = "root cannot be removed"
 
 func invalidPatchError(f string, a ...interface{}) *storage.Error {
 	return &storage.Error{

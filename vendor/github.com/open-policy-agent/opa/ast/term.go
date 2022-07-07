@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"math/big"
 	"net/url"
 	"regexp"
@@ -394,7 +395,8 @@ func (term *Term) Get(name *Term) *Term {
 	return nil
 }
 
-// Hash returns the hash code of the Term's value.
+// Hash returns the hash code of the Term's Value. Its Location
+// is ignored.
 func (term *Term) Hash() int {
 	return term.Value.Hash()
 }
@@ -483,6 +485,20 @@ func ContainsComprehensions(v interface{}) bool {
 	WalkClosures(v, func(x interface{}) bool {
 		switch x.(type) {
 		case *ArrayComprehension, *ObjectComprehension, *SetComprehension:
+			found = true
+			return found
+		}
+		return found
+	})
+	return found
+}
+
+// ContainsClosures returns true if the Value v contains closures.
+func ContainsClosures(v interface{}) bool {
+	found := false
+	WalkClosures(v, func(x interface{}) bool {
+		switch x.(type) {
+		case *ArrayComprehension, *ObjectComprehension, *SetComprehension, *Every:
 			found = true
 			return found
 		}
@@ -842,7 +858,10 @@ func PtrRef(head *Term, s string) (Ref, error) {
 		return Ref{head}, nil
 	}
 	parts := strings.Split(s, "/")
-	ref := make(Ref, len(parts)+1)
+	if max := math.MaxInt32; len(parts) >= max {
+		return nil, fmt.Errorf("path too long: %s, %d > %d (max)", s, len(parts), max)
+	}
+	ref := make(Ref, uint(len(parts))+1)
 	ref[0] = head
 	for i := 0; i < len(parts); i++ {
 		var err error
@@ -1066,31 +1085,57 @@ func (ref Ref) OutputVars() VarSet {
 	return vis.Vars()
 }
 
+func (ref Ref) toArray() *Array {
+	a := NewArray()
+	for _, term := range ref {
+		if _, ok := term.Value.(String); ok {
+			a = a.Append(term)
+		} else {
+			a = a.Append(StringTerm(term.Value.String()))
+		}
+	}
+	return a
+}
+
 // QueryIterator defines the interface for querying AST documents with references.
 type QueryIterator func(map[Var]Value, Value) error
 
 // ArrayTerm creates a new Term with an Array value.
 func ArrayTerm(a ...*Term) *Term {
-	return &Term{Value: &Array{a, 0}}
+	return NewTerm(NewArray(a...))
 }
 
 // NewArray creates an Array with the terms provided. The array will
 // use the provided term slice.
 func NewArray(a ...*Term) *Array {
-	return &Array{a, 0}
+	hs := make([]int, len(a))
+	for i, e := range a {
+		hs[i] = e.Value.Hash()
+	}
+	arr := &Array{elems: a, hashs: hs, ground: termSliceIsGround(a)}
+	arr.rehash()
+	return arr
 }
 
 // Array represents an array as defined by the language. Arrays are similar to the
 // same types as defined by JSON with the exception that they can contain Vars
 // and References.
 type Array struct {
-	elems []*Term
-	hash  int
+	elems  []*Term
+	hashs  []int // element hashes
+	hash   int
+	ground bool
 }
 
 // Copy returns a deep copy of arr.
 func (arr *Array) Copy() *Array {
-	return &Array{termSliceCopy(arr.elems), arr.hash}
+	cpy := make([]int, len(arr.elems))
+	copy(cpy, arr.hashs)
+	return &Array{
+		elems:  termSliceCopy(arr.elems),
+		hashs:  cpy,
+		hash:   arr.hash,
+		ground: arr.IsGround()}
 }
 
 // Equal returns true if arr is equal to other.
@@ -1150,28 +1195,24 @@ func (arr *Array) Sorted() *Array {
 	}
 	sort.Sort(termSlice(cpy))
 	a := NewArray(cpy...)
-	a.hash = arr.hash
+	a.hashs = arr.hashs
 	return a
 }
 
 // Hash returns the hash code for the Value.
 func (arr *Array) Hash() int {
-	if arr.hash == 0 {
-		arr.hash = termSliceHash(arr.elems)
-	}
-
 	return arr.hash
 }
 
 // IsGround returns true if all of the Array elements are ground.
 func (arr *Array) IsGround() bool {
-	return termSliceIsGround(arr.elems)
+	return arr.ground
 }
 
 // MarshalJSON returns JSON encoded bytes representing arr.
 func (arr *Array) MarshalJSON() ([]byte, error) {
 	if len(arr.elems) == 0 {
-		return json.Marshal([]interface{}{})
+		return []byte(`[]`), nil
 	}
 	return json.Marshal(arr.elems)
 }
@@ -1199,10 +1240,19 @@ func (arr *Array) Elem(i int) *Term {
 	return arr.elems[i]
 }
 
+// rehash updates the cached hash of arr.
+func (arr *Array) rehash() {
+	arr.hash = 0
+	for _, h := range arr.hashs {
+		arr.hash += h
+	}
+}
+
 // set sets the element i of arr.
 func (arr *Array) set(i int, v *Term) {
+	arr.ground = arr.ground && v.IsGround()
 	arr.elems[i] = v
-	arr.hash = 0
+	arr.hashs[i] = v.Value.Hash()
 }
 
 // Slice returns a slice of arr starting from i index to j. -1
@@ -1210,11 +1260,22 @@ func (arr *Array) set(i int, v *Term) {
 // copy and any modifications to either of arrays may be reflected to
 // the other.
 func (arr *Array) Slice(i, j int) *Array {
+	var elems []*Term
+	var hashs []int
 	if j == -1 {
-		return &Array{elems: arr.elems[i:]}
+		elems = arr.elems[i:]
+		hashs = arr.hashs[i:]
+	} else {
+		elems = arr.elems[i:j]
+		hashs = arr.hashs[i:j]
 	}
+	// If arr is ground, the slice is, too.
+	// If it's not, the slice could still be.
+	gr := arr.ground || termSliceIsGround(elems)
 
-	return &Array{elems: arr.elems[i:j]}
+	s := &Array{elems: elems, hashs: hashs, ground: gr}
+	s.rehash()
+	return s
 }
 
 // Iter calls f on each element in arr. If f returns an error,
@@ -1251,7 +1312,9 @@ func (arr *Array) Foreach(f func(*Term)) {
 func (arr *Array) Append(v *Term) *Array {
 	cpy := *arr
 	cpy.elems = append(arr.elems, v)
-	cpy.hash = 0
+	cpy.hashs = append(arr.hashs, v.Value.Hash())
+	cpy.hash = arr.hash + v.Value.Hash()
+	cpy.ground = arr.ground && v.IsGround()
 	return &cpy
 }
 
@@ -1329,11 +1392,6 @@ func (s *set) IsGround() bool {
 
 // Hash returns a hash code for s.
 func (s *set) Hash() int {
-	if s.hash == 0 {
-		s.Foreach(func(x *Term) {
-			s.hash += x.Hash()
-		})
-	}
 	return s.hash
 }
 
@@ -1343,15 +1401,12 @@ func (s *set) String() string {
 	}
 	var b strings.Builder
 	b.WriteRune('{')
-	sorted := s.Sorted()
-	first := true
-	sorted.Foreach(func(x *Term) {
-		if !first {
+	for i := range s.keys {
+		if i > 0 {
 			b.WriteString(", ")
 		}
-		first = false
-		b.WriteString(x.Value.String())
-	})
+		b.WriteString(s.keys[i].Value.String())
+	}
 	b.WriteRune('}')
 	return b.String()
 }
@@ -1367,8 +1422,6 @@ func (s *set) Compare(other Value) int {
 		return 1
 	}
 	t := other.(*set)
-	sort.Sort(termSlice(s.keys))
-	sort.Sort(termSlice(t.keys))
 	return termSliceCompare(s.keys, t.keys)
 }
 
@@ -1509,7 +1562,7 @@ func (s *set) Len() int {
 // MarshalJSON returns JSON encoded bytes representing s.
 func (s *set) MarshalJSON() ([]byte, error) {
 	if s.keys == nil {
-		return json.Marshal([]interface{}{})
+		return []byte(`[]`), nil
 	}
 	return json.Marshal(s.keys)
 }
@@ -1517,9 +1570,7 @@ func (s *set) MarshalJSON() ([]byte, error) {
 // Sorted returns an Array that contains the sorted elements of s.
 func (s *set) Sorted() *Array {
 	cpy := make([]*Term, len(s.keys))
-	for i := range s.keys {
-		cpy[i] = s.keys[i]
-	}
+	copy(cpy, s.keys)
 	sort.Sort(termSlice(cpy))
 	return NewArray(cpy...)
 }
@@ -1531,6 +1582,7 @@ func (s *set) Slice() []*Term {
 
 func (s *set) insert(x *Term) {
 	hash := x.Hash()
+	insertHash := hash
 	// This `equal` utility is duplicated and manually inlined a number of
 	// time in this file.  Inlining it avoids heap allocations, so it makes
 	// a big performance difference: some operations like lookup become twice
@@ -1608,18 +1660,27 @@ func (s *set) insert(x *Term) {
 		equal = func(y Value) bool { return Compare(x, y) == 0 }
 	}
 
-	for curr, ok := s.elems[hash]; ok; {
+	for curr, ok := s.elems[insertHash]; ok; {
 		if equal(curr.Value) {
 			return
 		}
 
-		hash++
-		curr, ok = s.elems[hash]
+		insertHash++
+		curr, ok = s.elems[insertHash]
 	}
 
-	s.elems[hash] = x
-	s.keys = append(s.keys, x)
-	s.hash = 0
+	s.elems[insertHash] = x
+	i := sort.Search(len(s.keys), func(i int) bool { return Compare(x, s.keys[i]) < 0 })
+	if i < len(s.keys) {
+		// insert at position `i`:
+		s.keys = append(s.keys, nil)   // add some space
+		copy(s.keys[i+1:], s.keys[i:]) // move things over
+		s.keys[i] = x                  // drop it in position
+	} else {
+		s.keys = append(s.keys, x)
+	}
+
+	s.hash += hash
 	s.ground = s.ground && x.IsGround()
 }
 
@@ -1800,9 +1861,6 @@ func (obj *object) Compare(other Value) int {
 	}
 	a := obj
 	b := other.(*object)
-	// TODO: Ideally Compare would be immutable; the following sorts happen in place.
-	sort.Sort(a.keys)
-	sort.Sort(b.keys)
 	minLen := len(a.keys)
 	if len(b.keys) < len(a.keys) {
 		minLen = len(b.keys)
@@ -1857,14 +1915,6 @@ func (obj *object) Get(k *Term) *Term {
 
 // Hash returns the hash code for the Value.
 func (obj *object) Hash() int {
-	if obj.hash == 0 {
-		for h, curr := range obj.elems {
-			for ; curr != nil; curr = curr.next {
-				obj.hash += h
-				obj.hash += curr.value.Hash()
-			}
-		}
-	}
 	return obj.hash
 }
 
@@ -2055,8 +2105,7 @@ func (obj object) String() string {
 	var b strings.Builder
 	b.WriteRune('{')
 
-	sorted := objectElemSliceSorted(obj.keys)
-	for i, elem := range sorted {
+	for i, elem := range obj.keys {
 		if i > 0 {
 			b.WriteString(", ")
 		}
@@ -2250,7 +2299,6 @@ func (obj *object) insert(k, v *Term) {
 			}
 
 			curr.value = v
-			obj.hash = 0
 			return
 		}
 	}
@@ -2260,8 +2308,16 @@ func (obj *object) insert(k, v *Term) {
 		next:  head,
 	}
 	obj.elems[hash] = elem
-	obj.keys = append(obj.keys, elem)
-	obj.hash = 0
+	i := sort.Search(len(obj.keys), func(i int) bool { return Compare(elem.key, obj.keys[i].key) < 0 })
+	if i < len(obj.keys) {
+		// insert at position `i`:
+		obj.keys = append(obj.keys, nil)   // add some space
+		copy(obj.keys[i+1:], obj.keys[i:]) // move things over
+		obj.keys[i] = elem                 // drop it in position
+	} else {
+		obj.keys = append(obj.keys, elem)
+	}
+	obj.hash += hash + v.Hash()
 
 	if k.IsGround() {
 		obj.ground++
@@ -2557,15 +2613,6 @@ func (c Call) String() string {
 		args[i-1] = c[i].String()
 	}
 	return fmt.Sprintf("%v(%v)", c[0], strings.Join(args, ", "))
-}
-
-func objectElemSliceSorted(a objectElemSlice) objectElemSlice {
-	b := make(objectElemSlice, len(a))
-	for i := range b {
-		b[i] = a[i]
-	}
-	sort.Sort(b)
-	return b
 }
 
 func termSliceCopy(a []*Term) []*Term {

@@ -14,16 +14,14 @@ import (
 	"net/http"
 	"path"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
-
-	"github.com/open-policy-agent/opa/plugins"
-
-	"github.com/pkg/errors"
 
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/logging"
 	"github.com/open-policy-agent/opa/metrics"
+	"github.com/open-policy-agent/opa/plugins"
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"github.com/open-policy-agent/opa/util"
 )
@@ -48,21 +46,24 @@ type Update struct {
 // updates from the remote HTTP endpoint that the client is configured to
 // connect to.
 type Downloader struct {
-	config            Config                        // downloader configuration for tuning polling and other downloader behaviour
-	client            rest.Client                   // HTTP client to use for bundle downloading
-	path              string                        // path to use in bundle download request
-	trigger           chan chan struct{}            // channel to signal downloads when manual triggering is enabled
-	stop              chan chan struct{}            // used to signal plugin to stop running
-	f                 func(context.Context, Update) // callback function invoked when download updates occur
-	etag              string                        // HTTP Etag for caching purposes
-	sizeLimitBytes    *int64                        // max bundle file size in bytes (passed to reader)
-	bvc               *bundle.VerificationConfig
-	respHdrTimeoutSec int64
-	wg                sync.WaitGroup
-	logger            logging.Logger
-	mtx               sync.Mutex
-	stopped           bool
-	persist           bool
+	config             Config                        // downloader configuration for tuning polling and other downloader behaviour
+	client             rest.Client                   // HTTP client to use for bundle downloading
+	path               string                        // path to use in bundle download request
+	trigger            chan chan struct{}            // channel to signal downloads when manual triggering is enabled
+	stop               chan chan struct{}            // used to signal plugin to stop running
+	f                  func(context.Context, Update) // callback function invoked when download updates occur
+	etag               string                        // HTTP Etag for caching purposes
+	sizeLimitBytes     *int64                        // max bundle file size in bytes (passed to reader)
+	bvc                *bundle.VerificationConfig
+	respHdrTimeoutSec  int64
+	wg                 sync.WaitGroup
+	logger             logging.Logger
+	mtx                sync.Mutex
+	stopped            bool
+	persist            bool
+	longPollingEnabled bool
+	lazyLoadingMode    bool
+	bundleName         string
 }
 
 type downloaderResponse struct {
@@ -75,12 +76,13 @@ type downloaderResponse struct {
 // New returns a new Downloader that can be started.
 func New(config Config, client rest.Client, path string) *Downloader {
 	return &Downloader{
-		config:  config,
-		client:  client,
-		path:    path,
-		trigger: make(chan chan struct{}),
-		stop:    make(chan chan struct{}),
-		logger:  client.Logger(),
+		config:             config,
+		client:             client,
+		path:               path,
+		trigger:            make(chan chan struct{}),
+		stop:               make(chan chan struct{}),
+		logger:             client.Logger(),
+		longPollingEnabled: config.Polling.LongPollingTimeoutSeconds != nil,
 	}
 }
 
@@ -115,6 +117,21 @@ func (d *Downloader) WithBundlePersistence(persist bool) *Downloader {
 	return d
 }
 
+// WithLazyLoadingMode specifies how the downloaded bundle should be read.
+// If true, data files in the bundle will not be deserialized
+// and the check to validate that the bundle data does not contain paths
+// outside the bundle's roots will not be performed while reading the bundle.
+func (d *Downloader) WithLazyLoadingMode(yes bool) *Downloader {
+	d.lazyLoadingMode = yes
+	return d
+}
+
+// WithBundleName specifies the name of the downloaded bundle.
+func (d *Downloader) WithBundleName(bundleName string) *Downloader {
+	d.bundleName = bundleName
+	return d
+}
+
 // ClearCache is deprecated. Use SetCache instead.
 func (d *Downloader) ClearCache() {
 	d.etag = ""
@@ -131,7 +148,7 @@ func (d *Downloader) Trigger(ctx context.Context) error {
 	done := make(chan error)
 
 	go func() {
-		_, err := d.oneShot(ctx)
+		err := d.oneShot(ctx)
 		if err != nil {
 			d.logger.Error("Bundle download failed: %v.", err)
 			if ctx.Err() == nil {
@@ -197,7 +214,7 @@ func (d *Downloader) loop(ctx context.Context) {
 
 		var delay time.Duration
 
-		longPoll, err := d.oneShot(ctx)
+		err := d.oneShot(ctx)
 
 		if ctx.Err() != nil {
 			return
@@ -206,16 +223,11 @@ func (d *Downloader) loop(ctx context.Context) {
 		if err != nil {
 			delay = util.DefaultBackoff(float64(minRetryDelay), float64(*d.config.Polling.MaxDelaySeconds), retry)
 		} else {
-			if !longPoll {
-				if d.config.Polling.LongPollingTimeoutSeconds != nil {
-					d.config.Polling.LongPollingTimeoutSeconds = nil
-				}
-
+			if !d.longPollingEnabled || d.config.Polling.LongPollingTimeoutSeconds == nil {
 				// revert the response header timeout value on the http client's transport
 				if *d.client.Config().ResponseHeaderTimeoutSeconds == 0 {
 					d.client = d.client.SetResponseHeaderTimeout(&d.respHdrTimeoutSec)
 				}
-
 				min := float64(*d.config.Polling.MinDelaySeconds)
 				max := float64(*d.config.Polling.MaxDelaySeconds)
 				delay = time.Duration(((max - min) * rand.Float64()) + min)
@@ -237,7 +249,7 @@ func (d *Downloader) loop(ctx context.Context) {
 	}
 }
 
-func (d *Downloader) oneShot(ctx context.Context) (bool, error) {
+func (d *Downloader) oneShot(ctx context.Context) error {
 	m := metrics.New()
 	resp, err := d.download(ctx, m)
 
@@ -247,17 +259,16 @@ func (d *Downloader) oneShot(ctx context.Context) (bool, error) {
 		if d.f != nil {
 			d.f(ctx, Update{ETag: "", Bundle: nil, Error: err, Metrics: m, Raw: nil})
 		}
-
-		return false, err
+		return err
 	}
 
 	d.etag = resp.etag
+	d.longPollingEnabled = resp.longPoll
 
 	if d.f != nil {
 		d.f(ctx, Update{ETag: resp.etag, Bundle: resp.b, Error: nil, Metrics: m, Raw: resp.raw})
 	}
-
-	return resp.longPoll, nil
+	return nil
 }
 
 func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*downloaderResponse, error) {
@@ -265,8 +276,11 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 
 	d.client = d.client.WithHeader("If-None-Match", d.etag)
 
-	if d.config.Polling.LongPollingTimeoutSeconds != nil {
-		d.client = d.client.WithHeader("Prefer", fmt.Sprintf("wait=%s", strconv.FormatInt(*d.config.Polling.LongPollingTimeoutSeconds, 10)))
+	preferences := []string{fmt.Sprintf("modes=%v,%v", defaultBundleMode, deltaBundleMode)}
+
+	if d.longPollingEnabled && d.config.Polling.LongPollingTimeoutSeconds != nil {
+		wait := fmt.Sprintf("wait=%s", strconv.FormatInt(*d.config.Polling.LongPollingTimeoutSeconds, 10))
+		preferences = append(preferences, wait)
 
 		// fetch existing response header timeout value on the http client's transport and
 		// clear it for the long poll request
@@ -278,9 +292,14 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 		}
 	}
 
+	preferValue := fmt.Sprintf("%v", strings.Join(preferences, ";"))
+	d.client = d.client.WithHeader("Prefer", preferValue)
+
+	m.Timer(metrics.BundleRequest).Start()
 	resp, err := d.client.Do(ctx, "GET", d.path)
+	m.Timer(metrics.BundleRequest).Stop()
 	if err != nil {
-		return nil, errors.Wrap(err, "request failed")
+		return nil, fmt.Errorf("request failed: %w", err)
 	}
 
 	defer util.Close(resp)
@@ -302,10 +321,35 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 				loader = bundle.NewTarballLoaderWithBaseURL(resp.Body, baseURL)
 			}
 
-			reader := bundle.NewCustomReader(loader).WithMetrics(m).WithBundleVerificationConfig(d.bvc)
+			etag := resp.Header.Get("ETag")
+
+			reader := bundle.NewCustomReader(loader).
+				WithMetrics(m).
+				WithBundleVerificationConfig(d.bvc).
+				WithBundleEtag(etag).
+				WithLazyLoadingMode(d.lazyLoadingMode).
+				WithBundleName(d.bundleName)
 			if d.sizeLimitBytes != nil {
 				reader = reader.WithSizeLimitBytes(*d.sizeLimitBytes)
 			}
+
+			if d.logger.GetLevel() >= logging.Debug {
+				expectedBundleContentType := []string{
+					"application/gzip",
+					"application/octet-stream",
+					"application/vnd.openpolicyagent.bundles",
+				}
+
+				contentType := resp.Header.Get("content-type")
+				if !contains(contentType, expectedBundleContentType) {
+					d.logger.Debug("Content-Type response header set to %v. Expected one of %v. "+
+						"Possibly not a bundle being downloaded.",
+						contentType,
+						expectedBundleContentType,
+					)
+				}
+			}
+
 			b, err := reader.Read()
 			if err != nil {
 				return nil, err
@@ -314,7 +358,7 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 			return &downloaderResponse{
 				b:        &b,
 				raw:      &buf,
-				etag:     resp.Header.Get("ETag"),
+				etag:     etag,
 				longPoll: isLongPollSupported(resp.Header),
 			}, nil
 		}
@@ -335,17 +379,30 @@ func (d *Downloader) download(ctx context.Context, m metrics.Metrics) (*download
 			b:        nil,
 			raw:      nil,
 			etag:     etag,
-			longPoll: isLongPollSupported(resp.Header),
+			longPoll: d.longPollingEnabled,
 		}, nil
-	case http.StatusNotFound:
-		return nil, fmt.Errorf("server replied with not found")
-	case http.StatusUnauthorized:
-		return nil, fmt.Errorf("server replied with not authorized")
 	default:
-		return nil, fmt.Errorf("server replied with HTTP %v", resp.StatusCode)
+		return nil, HTTPError{StatusCode: resp.StatusCode}
 	}
 }
 
 func isLongPollSupported(header http.Header) bool {
 	return header.Get("Content-Type") == "application/vnd.openpolicyagent.bundles"
+}
+
+type HTTPError struct {
+	StatusCode int
+}
+
+func (e HTTPError) Error() string {
+	return fmt.Sprintf("server replied with %s", http.StatusText(e.StatusCode))
+}
+
+func contains(s string, strings []string) bool {
+	for _, str := range strings {
+		if s == str {
+			return true
+		}
+	}
+	return false
 }

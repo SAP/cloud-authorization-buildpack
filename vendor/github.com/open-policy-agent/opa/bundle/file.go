@@ -4,14 +4,16 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 
-	"github.com/pkg/errors"
+	"github.com/open-policy-agent/opa/storage"
 )
 
 // Descriptor contains information about a file and
@@ -22,6 +24,42 @@ type Descriptor struct {
 	reader    io.Reader
 	closer    io.Closer
 	closeOnce *sync.Once
+}
+
+// lazyFile defers reading the file until the first call of Read
+type lazyFile struct {
+	path string
+	file *os.File
+}
+
+// newLazyFile creates a new instance of lazyFile
+func newLazyFile(path string) *lazyFile {
+	return &lazyFile{path: path}
+}
+
+// Read implements io.Reader. It will check if the file has been opened
+// and open it if it has not before attempting to read using the file's
+// read method
+func (f *lazyFile) Read(b []byte) (int, error) {
+	var err error
+
+	if f.file == nil {
+		if f.file, err = os.Open(f.path); err != nil {
+			return 0, fmt.Errorf("failed to open file %s: %w", f.path, err)
+		}
+	}
+
+	return f.file.Read(b)
+}
+
+// Close closes the lazy file if it has been opened using the file's
+// close method
+func (f *lazyFile) Close() error {
+	if f.file != nil {
+		return f.file.Close()
+	}
+
+	return nil
 }
 
 func newDescriptor(url, path string, reader io.Reader) *Descriptor {
@@ -118,7 +156,7 @@ func (d *dirLoader) NextFile() (*Descriptor, error) {
 			return nil
 		})
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to list files")
+			return nil, fmt.Errorf("failed to list files: %w", err)
 		}
 	}
 
@@ -130,10 +168,7 @@ func (d *dirLoader) NextFile() (*Descriptor, error) {
 
 	fileName := d.files[d.idx]
 	d.idx++
-	fh, err := os.Open(fileName)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to open file %s", fileName)
-	}
+	fh := newLazyFile(fileName)
 
 	// Trim off the root directory and return path as if chrooted
 	cleanedPath := strings.TrimPrefix(fileName, d.root)
@@ -160,6 +195,8 @@ type tarballLoader struct {
 type file struct {
 	name   string
 	reader io.Reader
+	path   storage.Path
+	raw    []byte
 }
 
 // NewTarballLoader is deprecated. Use NewTarballLoaderWithBaseURL instead.
@@ -187,7 +224,7 @@ func (t *tarballLoader) NextFile() (*Descriptor, error) {
 	if t.tr == nil {
 		gr, err := gzip.NewReader(t.r)
 		if err != nil {
-			return nil, errors.Wrap(err, "archive read failed")
+			return nil, fmt.Errorf("archive read failed: %w", err)
 		}
 
 		t.tr = tar.NewReader(gr)
@@ -212,7 +249,7 @@ func (t *tarballLoader) NextFile() (*Descriptor, error) {
 
 				var buf bytes.Buffer
 				if _, err := io.Copy(&buf, t.tr); err != nil {
-					return nil, errors.Wrapf(err, "failed to copy file %s", header.Name)
+					return nil, fmt.Errorf("failed to copy file %s: %w", header.Name, err)
 				}
 
 				f.reader = &buf
@@ -232,4 +269,74 @@ func (t *tarballLoader) NextFile() (*Descriptor, error) {
 	t.idx++
 
 	return newDescriptor(path.Join(t.baseURL, f.name), f.name, f.reader), nil
+}
+
+// Next implements the storage.Iterator interface.
+// It iterates to the next policy or data file in the directory tree
+// and returns a storage.Update for the file.
+func (it *iterator) Next() (*storage.Update, error) {
+
+	if it.files == nil {
+		it.files = []file{}
+
+		for _, item := range it.raw {
+			f := file{name: item.Path}
+
+			fpath := strings.TrimLeft(filepath.ToSlash(filepath.Dir(f.name)), "/.")
+			if strings.HasSuffix(f.name, RegoExt) {
+				fpath = strings.Trim(f.name, "/")
+			}
+
+			p, ok := storage.ParsePathEscaped("/" + fpath)
+			if !ok {
+				return nil, fmt.Errorf("storage path invalid: %v", f.name)
+			}
+			f.path = p
+
+			f.raw = item.Value
+
+			it.files = append(it.files, f)
+		}
+
+		sortFilePathAscend(it.files)
+	}
+
+	// If done reading files then just return io.EOF
+	// errors for each NextFile() call
+	if it.idx >= len(it.files) {
+		return nil, io.EOF
+	}
+
+	f := it.files[it.idx]
+	it.idx++
+
+	isPolicy := false
+	if strings.HasSuffix(f.name, RegoExt) {
+		isPolicy = true
+	}
+
+	return &storage.Update{
+		Path:     f.path,
+		Value:    f.raw,
+		IsPolicy: isPolicy,
+	}, nil
+}
+
+type iterator struct {
+	raw   []Raw
+	files []file
+	idx   int
+}
+
+func NewIterator(raw []Raw) storage.Iterator {
+	it := iterator{
+		raw: raw,
+	}
+	return &it
+}
+
+func sortFilePathAscend(files []file) {
+	sort.Slice(files, func(i, j int) bool {
+		return len(files[i].path) < len(files[j].path)
+	})
 }
