@@ -16,7 +16,6 @@ import (
 
 	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/env"
 	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/services"
-
 	"github.com/SAP/cloud-authorization-buildpack/pkg/uploader"
 )
 
