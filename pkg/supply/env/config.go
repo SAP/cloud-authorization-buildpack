@@ -8,6 +8,7 @@ import (
 )
 
 const ServiceName = "authorization"
+const HeaderInstanceID = "X-Ams-Instance-Id"
 
 type Config struct {
 	Root         string

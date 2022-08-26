@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/buildpackapplifecycle/buildpackrunner/resources"
-	"github.com/SAP/cloud-authorization-buildpack/pkg/uploader"
 	"github.com/cloudfoundry/libbuildpack"
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
@@ -25,6 +24,9 @@ import (
 	"github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/plugins/rest"
 	"gopkg.in/yaml.v2"
+
+	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/env"
+	"github.com/SAP/cloud-authorization-buildpack/pkg/uploader"
 
 	"github.com/SAP/cloud-authorization-buildpack/pkg/supply"
 	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/testdata"
@@ -339,6 +341,11 @@ var _ = Describe("Supply", func() {
 				Expect(filepath.Join(depDir, "launch.yml")).To(BeARegularFile())
 				Expect(string(keySpy)).To(Equal("identity-key-payload"))
 				Expect(string(certSpy)).To(Equal("identity-cert-payload"))
+			})
+			It("sets the ams instance id http header when uploading the bundle", func() {
+				Expect(supplier.Run()).To(Succeed())
+				expectedValue := []string{"00000000-3b4d-4c41-9e5b-9aee7bfa6348"}
+				Expect(uploadReqSpy.Header).Should(HaveKeyWithValue(env.HeaderInstanceID, expectedValue))
 			})
 			It("should configure access to the gateway", func() {
 				Expect(supplier.Run()).To(Succeed())

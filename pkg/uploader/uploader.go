@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/cloudfoundry/libbuildpack"
+
+	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/env"
 )
 
 type Uploader struct {
@@ -90,6 +92,7 @@ func (up *Uploader) do(ctx context.Context, dstURL string, body []byte) (*http.R
 	if err != nil {
 		return nil, fmt.Errorf("could not create DCL upload request %w", err)
 	}
+	r.Header.Set(env.HeaderInstanceID, up.AMSInstanceID)
 	r.Header.Set("Content-Type", "application/gzip")
 	return up.Client.Do(r)
 }

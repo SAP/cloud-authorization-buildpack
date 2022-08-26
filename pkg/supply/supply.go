@@ -10,11 +10,12 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/env"
-	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/services"
 	"github.com/cloudfoundry/libbuildpack"
 	"github.com/open-policy-agent/opa/download"
 	"github.com/open-policy-agent/opa/plugins/bundle"
+
+	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/env"
+	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/services"
 
 	"github.com/SAP/cloud-authorization-buildpack/pkg/uploader"
 )
@@ -161,7 +162,8 @@ type Credentials struct {
 }
 
 type RestConfig struct {
-	URL         string      `json:"url"`
+	URL         string `json:"url"`
+	Headers     map[string]string
 	Credentials Credentials `json:"credentials"`
 }
 
@@ -252,7 +254,8 @@ func (s *Supplier) createStorageGatewayConfig(cred services.AMSCredentials, cfg 
 	}
 	svcs := make(map[string]RestConfig)
 	svcs[serviceKey] = RestConfig{
-		URL: cred.BundleURL,
+		URL:     cred.BundleURL,
+		Headers: map[string]string{env.HeaderInstanceID: cred.InstanceID},
 		Credentials: Credentials{ClientTLS: &ClientTLS{
 			Cert: cfg.CertPath,
 			Key:  cfg.KeyPath,
