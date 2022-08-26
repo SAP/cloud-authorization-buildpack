@@ -10,12 +10,12 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/env"
-	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/services"
 	"github.com/cloudfoundry/libbuildpack"
 	"github.com/open-policy-agent/opa/download"
 	"github.com/open-policy-agent/opa/plugins/bundle"
 
+	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/env"
+	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/services"
 	"github.com/SAP/cloud-authorization-buildpack/pkg/uploader"
 )
 
@@ -161,7 +161,8 @@ type Credentials struct {
 }
 
 type RestConfig struct {
-	URL         string      `json:"url"`
+	URL         string `json:"url"`
+	Headers     map[string]string
 	Credentials Credentials `json:"credentials"`
 }
 
@@ -193,7 +194,7 @@ func (s *Supplier) writeProfileDFile(cfg env.Config, amsCreds services.AMSCreden
 	if err := os.MkdirAll(s.Stager.ProfileDir(), 0755); err != nil {
 		return fmt.Errorf("couldn't create profile dir: %w", err)
 	}
-	return os.WriteFile(path.Join(s.Stager.ProfileDir(), "0000_opa_env.sh"), b.Bytes(), 0755) // nolint
+	return os.WriteFile(path.Join(s.Stager.ProfileDir(), "0000_opa_env.sh"), b.Bytes(), 0755) //nolint
 }
 
 func (s *Supplier) writeOpaConfig(cred services.AMSCredentials, tlsCfg tlsConfig) error {
@@ -252,7 +253,8 @@ func (s *Supplier) createStorageGatewayConfig(cred services.AMSCredentials, cfg 
 	}
 	svcs := make(map[string]RestConfig)
 	svcs[serviceKey] = RestConfig{
-		URL: cred.BundleURL,
+		URL:     cred.BundleURL,
+		Headers: map[string]string{env.HeaderInstanceID: cred.InstanceID},
 		Credentials: Credentials{ClientTLS: &ClientTLS{
 			Cert: cfg.CertPath,
 			Key:  cfg.KeyPath,

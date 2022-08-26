@@ -112,6 +112,9 @@ issues:
     - linters:
       - revive
       text: "^exported: "
+    - linters:
+        - staticcheck
+      text: "SA1019:"
   # List of regexps of issue texts to exclude, empty list by default.
   # But independently from this option we use default exclude patterns,
   # it can be disabled by `exclude-use-default: false`. To list all

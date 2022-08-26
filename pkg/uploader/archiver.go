@@ -7,11 +7,10 @@ import (
 	"encoding/base64"
 	"io"
 	"io/ioutil"
-	"strings"
-
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/cloudfoundry/libbuildpack"
 )
@@ -64,7 +63,7 @@ func CreateArchive(log *libbuildpack.Logger, root string) (*bytes.Buffer, error)
 func crawlDCLs(fi os.FileInfo, file, root string) (*[]archiveContent, error) {
 	var archive []archiveContent
 	if fi.IsDir() {
-		content, err := ioutil.ReadDir(file) // nolint
+		content, err := ioutil.ReadDir(file) //nolint
 		if err != nil {
 			return nil, err
 		}
