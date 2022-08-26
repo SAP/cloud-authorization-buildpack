@@ -194,7 +194,7 @@ func (s *Supplier) writeProfileDFile(cfg env.Config, amsCreds services.AMSCreden
 	if err := os.MkdirAll(s.Stager.ProfileDir(), 0755); err != nil {
 		return fmt.Errorf("couldn't create profile dir: %w", err)
 	}
-	return os.WriteFile(path.Join(s.Stager.ProfileDir(), "0000_opa_env.sh"), b.Bytes(), 0755) // nolint
+	return os.WriteFile(path.Join(s.Stager.ProfileDir(), "0000_opa_env.sh"), b.Bytes(), 0755) //nolint
 }
 
 func (s *Supplier) writeOpaConfig(cred services.AMSCredentials, tlsCfg tlsConfig) error {
