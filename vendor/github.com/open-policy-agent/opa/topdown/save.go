@@ -279,7 +279,7 @@ func newSaveSupport() *saveSupport {
 }
 
 func (s *saveSupport) List() []*ast.Module {
-	result := []*ast.Module{}
+	result := make([]*ast.Module, 0, len(s.modules))
 	for _, module := range s.modules {
 		result = append(result, module)
 	}
@@ -347,7 +347,7 @@ func saveRequired(c *ast.Compiler, ic *inliningControl, icIgnoreInternal bool, s
 				} else if ic.Disabled(v.ConstantPrefix(), icIgnoreInternal) {
 					found = true
 				} else {
-					for _, rule := range c.GetRulesDynamic(v) {
+					for _, rule := range c.GetRulesDynamicWithOpts(v, ast.RulesOptions{IncludeHiddenModules: false}) {
 						if saveRequired(c, ic, icIgnoreInternal, ss, b, rule, true) {
 							found = true
 							break

@@ -11,6 +11,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/gorilla/mux"
 	"github.com/open-policy-agent/opa/ast"
 	"github.com/open-policy-agent/opa/bundle"
 	"github.com/open-policy-agent/opa/config"
@@ -24,6 +27,7 @@ import (
 	"github.com/open-policy-agent/opa/resolver/wasm"
 	"github.com/open-policy-agent/opa/storage"
 	"github.com/open-policy-agent/opa/topdown/cache"
+	"github.com/open-policy-agent/opa/topdown/print"
 )
 
 // Factory defines the interface OPA uses to instantiate your plugin.
@@ -167,7 +171,7 @@ type Manager struct {
 	services                     map[string]rest.Client
 	keys                         map[string]*keys.Config
 	plugins                      []namedplugin
-	registeredTriggers           []func(txn storage.Transaction)
+	registeredTriggers           []func(storage.Transaction)
 	mtx                          sync.Mutex
 	pluginStatus                 map[string]*Status
 	pluginStatusListeners        map[string]StatusListener
@@ -182,6 +186,10 @@ type Manager struct {
 	consoleLogger                logging.Logger
 	serverInitialized            chan struct{}
 	serverInitializedOnce        sync.Once
+	printHook                    print.Hook
+	enablePrintStatements        bool
+	router                       *mux.Router
+	prometheusRegister           prometheus.Registerer
 }
 
 type managerContextKey string
@@ -222,6 +230,46 @@ func getWasmResolversOnContext(context *storage.Context) []*wasm.Resolver {
 		return nil
 	}
 	return resolvers
+}
+
+func validateTriggerMode(mode TriggerMode) error {
+	switch mode {
+	case TriggerPeriodic, TriggerManual:
+		return nil
+	default:
+		return fmt.Errorf("invalid trigger mode %q (want %q or %q)", mode, TriggerPeriodic, TriggerManual)
+	}
+}
+
+// ValidateAndInjectDefaultsForTriggerMode validates the trigger mode and injects default values
+func ValidateAndInjectDefaultsForTriggerMode(a, b *TriggerMode) (*TriggerMode, error) {
+
+	if a == nil && b != nil {
+		err := validateTriggerMode(*b)
+		if err != nil {
+			return nil, err
+		}
+		return b, nil
+	} else if a != nil && b == nil {
+		err := validateTriggerMode(*a)
+		if err != nil {
+			return nil, err
+		}
+		return a, nil
+	} else if a != nil && b != nil {
+		if *a != *b {
+			return nil, fmt.Errorf("trigger mode mismatch: %s and %s (hint: check discovery configuration)", *a, *b)
+		}
+		err := validateTriggerMode(*a)
+		if err != nil {
+			return nil, err
+		}
+		return a, nil
+
+	} else {
+		t := DefaultTriggerMode
+		return &t, nil
+	}
 }
 
 type namedplugin struct {
@@ -281,6 +329,31 @@ func ConsoleLogger(logger logging.Logger) func(*Manager) {
 	}
 }
 
+func EnablePrintStatements(yes bool) func(*Manager) {
+	return func(m *Manager) {
+		m.enablePrintStatements = yes
+	}
+}
+
+func PrintHook(h print.Hook) func(*Manager) {
+	return func(m *Manager) {
+		m.printHook = h
+	}
+}
+
+func WithRouter(r *mux.Router) func(*Manager) {
+	return func(m *Manager) {
+		m.router = r
+	}
+}
+
+// WithPrometheusRegister sets the passed prometheus.Registerer to be used by plugins
+func WithPrometheusRegister(prometheusRegister prometheus.Registerer) func(*Manager) {
+	return func(m *Manager) {
+		m.prometheusRegister = prometheusRegister
+	}
+}
+
 // New creates a new Manager using config.
 func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*Manager, error) {
 
@@ -311,6 +384,10 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		serverInitialized:            make(chan struct{}),
 	}
 
+	for _, f := range opts {
+		f(m)
+	}
+
 	if m.logger == nil {
 		m.logger = logging.Get()
 	}
@@ -325,16 +402,13 @@ func New(raw []byte, id string, store storage.Store, opts ...func(*Manager)) (*M
 		Keys:       keys,
 		Logger:     m.logger,
 	}
+
 	services, err := cfg.ParseServicesConfig(serviceOpts)
 	if err != nil {
 		return nil, err
 	}
 
 	m.services = services
-
-	for _, f := range opts {
-		f(m)
-	}
 
 	return m, nil
 }
@@ -355,11 +429,12 @@ func (m *Manager) Init(ctx context.Context) error {
 	err := storage.Txn(ctx, m.Store, params, func(txn storage.Transaction) error {
 
 		result, err := initload.InsertAndCompile(ctx, initload.InsertAndCompileOptions{
-			Store:     m.Store,
-			Txn:       txn,
-			Files:     m.initFiles,
-			Bundles:   m.initBundles,
-			MaxErrors: m.maxErrors,
+			Store:                 m.Store,
+			Txn:                   txn,
+			Files:                 m.initFiles,
+			Bundles:               m.initBundles,
+			MaxErrors:             m.maxErrors,
+			EnablePrintStatements: m.enablePrintStatements,
 		})
 
 		if err != nil {
@@ -462,9 +537,16 @@ func (m *Manager) setCompiler(compiler *ast.Compiler) {
 	m.compiler = compiler
 }
 
+// GetRouter returns the managers router if set
+func (m *Manager) GetRouter() *mux.Router {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+	return m.router
+}
+
 // RegisterCompilerTrigger registers for change notifications when the compiler
 // is changed.
-func (m *Manager) RegisterCompilerTrigger(f func(txn storage.Transaction)) {
+func (m *Manager) RegisterCompilerTrigger(f func(storage.Transaction)) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	m.registeredTriggers = append(m.registeredTriggers, f)
@@ -516,8 +598,11 @@ func (m *Manager) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop stops the manager, stopping all the plugins registered with it. Any plugin that needs to perform cleanup should
-// do so within the duration of the graceful shutdown period passed with the context as a timeout.
+// Stop stops the manager, stopping all the plugins registered with it.
+// Any plugin that needs to perform cleanup should do so within the duration
+// of the graceful shutdown period passed with the context as a timeout.
+// Note that a graceful shutdown period configured with the Manager instance
+// will override the timeout of the passed in context (if applicable).
 func (m *Manager) Stop(ctx context.Context) {
 	var toStop []Plugin
 
@@ -530,10 +615,20 @@ func (m *Manager) Stop(ctx context.Context) {
 		}
 	}()
 
-	ctx, cancel := context.WithTimeout(ctx, time.Duration(m.gracefulShutdownPeriod)*time.Second)
+	var cancel context.CancelFunc
+	if m.gracefulShutdownPeriod > 0 {
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(m.gracefulShutdownPeriod)*time.Second)
+	} else {
+		ctx, cancel = context.WithCancel(ctx)
+	}
 	defer cancel()
 	for i := range toStop {
 		toStop[i].Stop(ctx)
+	}
+	if c, ok := m.Store.(interface{ Close(context.Context) error }); ok {
+		if err := c.Close(ctx); err != nil {
+			m.logger.Error("Error closing store: %v", err)
+		}
 	}
 }
 
@@ -655,7 +750,7 @@ func (m *Manager) onCommit(ctx context.Context, txn storage.Transaction, event s
 	// compiler on the context but the server does not (nor would users
 	// implementing their own policy loading.)
 	if compiler == nil && event.PolicyChanged() {
-		compiler, _ = loadCompilerFromStore(ctx, m.Store, txn)
+		compiler, _ = loadCompilerFromStore(ctx, m.Store, txn, m.enablePrintStatements)
 	}
 
 	if compiler != nil {
@@ -687,7 +782,7 @@ func (m *Manager) onCommit(ctx context.Context, txn storage.Transaction, event s
 	}
 }
 
-func loadCompilerFromStore(ctx context.Context, store storage.Store, txn storage.Transaction) (*ast.Compiler, error) {
+func loadCompilerFromStore(ctx context.Context, store storage.Store, txn storage.Transaction, enablePrintStatements bool) (*ast.Compiler, error) {
 	policies, err := store.ListPolicies(ctx, txn)
 	if err != nil {
 		return nil, err
@@ -706,7 +801,7 @@ func loadCompilerFromStore(ctx context.Context, store storage.Store, txn storage
 		modules[policy] = module
 	}
 
-	compiler := ast.NewCompiler()
+	compiler := ast.NewCompiler().WithEnablePrintStatements(enablePrintStatements)
 	compiler.Compile(modules)
 	return compiler, nil
 }
@@ -726,10 +821,6 @@ func requiresWasmResolverReload(event storage.TriggerEvent) bool {
 func (m *Manager) updateWasmResolversData(ctx context.Context, event storage.TriggerEvent) error {
 	m.wasmResolversMtx.Lock()
 	defer m.wasmResolversMtx.Unlock()
-
-	if len(m.wasmResolvers) == 0 {
-		return nil
-	}
 
 	for _, resolver := range m.wasmResolvers {
 		for _, dataEvent := range event.Data {
@@ -782,6 +873,14 @@ func (m *Manager) ConsoleLogger() logging.Logger {
 	return m.consoleLogger
 }
 
+func (m *Manager) PrintHook() print.Hook {
+	return m.printHook
+}
+
+func (m *Manager) EnablePrintStatements() bool {
+	return m.enablePrintStatements
+}
+
 // ServerInitialized signals a channel indicating that the OPA
 // server has finished initialization.
 func (m *Manager) ServerInitialized() {
@@ -804,4 +903,9 @@ func (m *Manager) RegisterCacheTrigger(trigger func(*cache.Config)) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	m.registeredCacheTriggers = append(m.registeredCacheTriggers, trigger)
+}
+
+// PrometheusRegister gets the prometheus.Registerer for this plugin manager.
+func (m *Manager) PrometheusRegister() prometheus.Registerer {
+	return m.prometheusRegister
 }

@@ -15,6 +15,8 @@ import (
 	"github.com/open-policy-agent/opa/metrics"
 	"github.com/open-policy-agent/opa/topdown/builtins"
 	"github.com/open-policy-agent/opa/topdown/cache"
+	"github.com/open-policy-agent/opa/topdown/print"
+	"github.com/open-policy-agent/opa/tracing"
 )
 
 type (
@@ -47,7 +49,10 @@ type (
 		TraceEnabled           bool                  // indicates whether tracing is enabled for the evaluation
 		QueryID                uint64                // identifies query being evaluated
 		ParentID               uint64                // identifies parent of query being evaluated
+		PrintHook              print.Hook            // provides callback function to use for printing
+		DistributedTracingOpts tracing.Options       // options to be used by distributed tracing.
 		rand                   *rand.Rand            // randomization source for non-security-sensitive operations
+		Capabilities           *ast.Capabilities
 	}
 
 	// BuiltinFunc defines an interface for implementing built-in functions.
