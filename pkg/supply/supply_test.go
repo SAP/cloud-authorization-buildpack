@@ -186,7 +186,7 @@ var _ = Describe("Supply", func() {
 			Expect(uploadReqSpy.Body).NotTo(BeNil())
 			files := getTgzFileNames(uploadReqSpy.Body)
 			Expect(files).To(ContainElements("myPolicies0/policy0.dcl", "myPolicies1/policy1.dcl", "schema.dcl"))
-			Expect(files).NotTo(ContainElements("data.json.license", "non-dcl-file.xyz", ContainSubstring("data.json")))
+			Expect(files).NotTo(ContainElements("non-dcl-file.xyz", ContainSubstring("data.json")))
 		})
 		When("AMS_DCL_ROOT is not set", func() {
 			BeforeEach(func() {
@@ -207,7 +207,7 @@ var _ = Describe("Supply", func() {
 				Expect(uploadReqSpy.Body).NotTo(BeNil())
 				files := getTgzFileNames(uploadReqSpy.Body)
 				Expect(files).To(ContainElements("myPolicies0/policy0.dcl", "myPolicies1/policy1.dcl", "schema.dcl"))
-				Expect(files).NotTo(ContainElements("data.json.license", "non-dcl-file.xyz", ContainSubstring("data.json")))
+				Expect(files).NotTo(ContainElements("non-dcl-file.xyz", ContainSubstring("data.json")))
 			})
 			It("creates a warning", func() {
 				Expect(supplier.Run()).To(Succeed())
