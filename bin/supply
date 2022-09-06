@@ -13,7 +13,7 @@ source "$BUILDPACK_DIR/scripts/install_go.sh"
 output_dir=$(mktemp -d -t supplyXXX)
 
 echo "-----> Running go build supply"
-echo "**Warning** Using a buildpack branch directly is discouraged. Use the latest released version: https://github.com/SAP/cloud-authorization-buildpack/releases/latest/download/opa_buildpack.zip"
+>&2 echo "**Warning** Using a buildpack branch directly is discouraged. Use the latest released version: https://github.com/SAP/cloud-authorization-buildpack/releases/latest/download/opa_buildpack.zip"
 pushd $BUILDPACK_DIR
 GOROOT=$GoInstallDir $GoInstallDir/bin/go build -o $output_dir/supply ./cmd/supply
 
