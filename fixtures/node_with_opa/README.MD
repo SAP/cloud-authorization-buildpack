@@ -27,7 +27,6 @@ curl localhost:8999
 Navigate to the directory fixtures/node_with_opa
 
 ```sh
-cf create-service authorization application ams-node-opa -c ams.json
-cf create-service identity application ias-node-opa -c ias.json
+cf create-service identity application ias-node-opa -c identity.json
 cf push
 ```
