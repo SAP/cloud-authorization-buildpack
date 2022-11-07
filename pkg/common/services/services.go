@@ -6,10 +6,6 @@ import (
 	"fmt"
 	"os"
 	"time"
-
-	"github.com/cloudfoundry/libbuildpack"
-
-	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/env"
 )
 
 const MegacliteID = "dwc-megaclite-ams-instance-id"
@@ -64,7 +60,7 @@ type UnifiedIdentityCredentials struct {
 	AuthzInstanceID string `json:"authorization_instance_id" validate:"required"`
 }
 
-func LoadService(log *libbuildpack.Logger, serviceName string) (*Service, error) {
+func LoadService(log Logger, serviceName string) (*Service, error) {
 	svcsString := os.Getenv("VCAP_SERVICES")
 	var svcs map[string][]Service
 	err := json.Unmarshal([]byte(svcsString), &svcs)
@@ -93,7 +89,7 @@ func LoadService(log *libbuildpack.Logger, serviceName string) (*Service, error)
 	return &filteredServices[0], nil
 }
 
-func LoadIASClientCert(log *libbuildpack.Logger) (cert, key []byte, err error) {
+func LoadIASClientCert(log Logger) (cert, key []byte, err error) {
 	iasService, err := LoadService(log, "identity")
 	if err != nil {
 		return cert, key, err
@@ -112,7 +108,7 @@ func LoadIASClientCert(log *libbuildpack.Logger) (cert, key []byte, err error) {
 	return []byte(iasCreds.Certificate), []byte(iasCreds.Key), nil
 }
 
-func LoadAMSCredentials(log *libbuildpack.Logger, cfg env.Config) (AMSCredentials, error) {
+func LoadAMSCredentials(log Logger) (AMSCredentials, error) {
 	amsCreds, err := fromIdentity(log)
 	if err != nil {
 		return AMSCredentials{}, err
@@ -123,14 +119,6 @@ func LoadAMSCredentials(log *libbuildpack.Logger, cfg env.Config) (AMSCredential
 	amsCreds, err = fromMegaclite()
 	if err != nil {
 		log.Info("using megaclite proxy to upload AMS DCLs and download AMS bundles")
-		return AMSCredentials{}, err
-	}
-	if amsCreds != nil {
-		return *amsCreds, nil
-	}
-	log.Warning("no AMS credentials as part of identity service. Resorting to standalone authorization service broker")
-	amsCreds, err = fromAuthz(log, cfg.ServiceName)
-	if err != nil {
 		return AMSCredentials{}, err
 	}
 	if amsCreds != nil {

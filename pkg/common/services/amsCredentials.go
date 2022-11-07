@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/cloudfoundry/libbuildpack"
 	"github.com/go-playground/validator/v10"
 )
 
@@ -35,7 +34,7 @@ func fromMegaclite() (*AMSCredentials, error) {
 	return nil, nil
 }
 
-func fromIdentity(log *libbuildpack.Logger) (*AMSCredentials, error) {
+func fromIdentity(log Logger) (*AMSCredentials, error) {
 	identityCreds, err := loadIdentityCreds(log)
 	if identityCreds == nil {
 		return nil, nil
@@ -69,7 +68,7 @@ func fromIdentity(log *libbuildpack.Logger) (*AMSCredentials, error) {
 	}, nil
 }
 
-func loadIdentityCreds(log *libbuildpack.Logger) (*UnifiedIdentityCredentials, error) {
+func loadIdentityCreds(log Logger) (*UnifiedIdentityCredentials, error) {
 	iasService, err := LoadService(log, "identity")
 	if iasService == nil {
 		return nil, err
@@ -77,26 +76,4 @@ func loadIdentityCreds(log *libbuildpack.Logger) (*UnifiedIdentityCredentials, e
 	var iasCreds UnifiedIdentityCredentials
 	err = json.Unmarshal(iasService.Credentials, &iasCreds)
 	return &iasCreds, err
-}
-
-func fromAuthz(log *libbuildpack.Logger, serviceName string) (*AMSCredentials, error) {
-	amsService, err := LoadService(log, serviceName)
-	if err != nil {
-		return nil, err
-	}
-	var amsCreds AMSCredentials
-	if err := json.Unmarshal(amsService.Credentials, &amsCreds); err != nil {
-		return nil, err
-	}
-	validate := validator.New()
-	if err := validate.Struct(amsCreds); err != nil {
-		return nil, err
-	}
-	if amsCreds.InstanceID == "" {
-		if amsService.InstanceID == "" {
-			return nil, fmt.Errorf("authorization credentials bound via user-provided-service, however parameter instance_id is missing. Please update the binding")
-		}
-		amsCreds.InstanceID = amsService.InstanceID // legacy mode, until all consumers have bindings with integrated instance_id
-	}
-	return &amsCreds, err
 }

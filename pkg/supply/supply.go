@@ -8,14 +8,13 @@ import (
 	"io"
 	"os"
 	"path"
-	"path/filepath"
 
 	"github.com/cloudfoundry/libbuildpack"
 	"github.com/open-policy-agent/opa/download"
 	"github.com/open-policy-agent/opa/plugins/bundle"
 
+	"github.com/SAP/cloud-authorization-buildpack/pkg/common/services"
 	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/env"
-	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/services"
 	"github.com/SAP/cloud-authorization-buildpack/pkg/uploader"
 )
 
@@ -77,7 +76,7 @@ func (s *Supplier) Run() error {
 	if err != nil {
 		return fmt.Errorf("could not load buildpack Config: %w", err)
 	}
-	amsCreds, err := services.LoadAMSCredentials(s.Log, cfg)
+	amsCreds, err := services.LoadAMSCredentials(s.Log)
 	if err != nil {
 		return fmt.Errorf("could not load AMSCredentials: %w", err)
 	}
@@ -87,6 +86,9 @@ func (s *Supplier) Run() error {
 	}
 	if err := s.supplyOPABinary(); err != nil {
 		return fmt.Errorf("could not supply opa binary: %w", err)
+	}
+	if err := s.supplyCertCopier(); err != nil {
+		return fmt.Errorf("could not supply cert-copier binary: %w", err)
 	}
 	if err := s.writeLaunchConfig(cfg); err != nil {
 		return fmt.Errorf("could not write launch config: %w", err)
@@ -133,11 +135,7 @@ func (s *Supplier) getTLSConfig(amsCreds *services.AMSCredentials) (tlsConfig, e
 	if err != nil {
 		return tlsConfig{}, fmt.Errorf("unable to load identity client certificate: %s", err)
 	}
-	err = os.WriteFile(path.Join(s.Stager.DepDir(), "ias.crt"), cert, 0600)
-	if err != nil {
-		return tlsConfig{}, fmt.Errorf("unable to write IAS client certificate: %s", err)
-	}
-	err = os.WriteFile(filepath.Join(s.Stager.DepDir(), "ias.key"), key, 0600)
+	// The identity cert is written to the deps directory during app startup by the separate app vcap-cert-copier.go
 	return tlsConfig{
 		CertPath: path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.crt"),
 		KeyPath:  path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.key"),
@@ -248,7 +246,8 @@ func (s *Supplier) createStorageGatewayConfig(cred services.AMSCredentials, cfg 
 				MaxDelaySeconds: newInt64P(20),
 			},
 		},
-		Service:  serviceKey,
+		Service: serviceKey,
+
 		Resource: cred.InstanceID + ".tar.gz",
 	}
 	svcs := make(map[string]RestConfig)
@@ -270,9 +269,10 @@ func (s *Supplier) createStorageGatewayConfig(cred services.AMSCredentials, cfg 
 func (s *Supplier) writeLaunchConfig(cfg env.Config) error {
 	s.Log.Info("writing launch.yml..")
 	cmd := fmt.Sprintf(
-		`"/home/vcap/deps/%s" run -s -c "/home/vcap/deps/%s" -l '%s' -a '127.0.0.1:%d' --skip-version-check`,
-		path.Join(s.Stager.DepsIdx(), "opa"),
-		path.Join(s.Stager.DepsIdx(), "opa_config.yml"),
+		`%q && %q run -s -c %q -l '%s' -a '127.0.0.1:%d' --skip-version-check`,
+		path.Join("/home", "vcap", "deps", s.Stager.DepsIdx(), "bin", "cert-copier"),
+		path.Join("/home", "vcap", "deps", s.Stager.DepsIdx(), "opa"),
+		path.Join("/home", "vcap", "deps", s.Stager.DepsIdx(), "opa_config.yml"),
 		cfg.LogLevel,
 		9888)
 	s.Log.Debug("OPA start command: '%s'", cmd)
@@ -300,6 +300,17 @@ func (s *Supplier) supplyOPABinary() error {
 	}
 	// The packager overwrites the permissions, so we need to make it executable again
 	return os.Chmod(path.Join(s.Stager.DepDir(), opaDep.Name), 0755)
+}
+
+func (s *Supplier) supplyCertCopier() error {
+	destFile := path.Join(s.Stager.DepDir(), "bin", "cert-copier")
+	err := libbuildpack.CopyFile(path.Join(s.BuildpackDir, "bin", "cert-copier"), destFile)
+	if err != nil {
+		return fmt.Errorf("couldn't copy cert-copier dependency: %w", err)
+	}
+
+	// The packager overwrites the permissions, so we need to make it executable again
+	return os.Chmod(destFile, 0755)
 }
 
 func (s *Supplier) upload(amsCreds services.AMSCredentials, tlsCfg tlsConfig, rootDir string) error {

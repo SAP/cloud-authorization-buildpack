@@ -1,6 +1,6 @@
 module github.com/SAP/cloud-authorization-buildpack
 
-go 1.17
+go 1.19
 
 require (
 	code.cloudfoundry.org/buildpackapplifecycle v0.0.0-20210512134323-e6b576c815a1
