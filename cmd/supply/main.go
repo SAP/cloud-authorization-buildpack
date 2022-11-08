@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"path"
 	"path/filepath"
 	"time"
 
@@ -65,13 +66,14 @@ func main() {
 		os.Exit(14)
 	}
 	s := supply.Supplier{
-		Manifest:     manifest,
-		Installer:    installer,
-		Stager:       stager,
-		Command:      &libbuildpack.Command{},
-		Log:          logger,
-		BuildpackDir: buildpackDir,
-		GetClient:    uploader.GetClient,
+		Manifest:      manifest,
+		Installer:     installer,
+		Stager:        stager,
+		Command:       &libbuildpack.Command{},
+		Log:           logger,
+		BuildpackDir:  buildpackDir,
+		GetClient:     uploader.GetClient,
+		CertCopierDir: path.Join(stager.DepDir(), "bin", "cert-copier"),
 	}
 
 	err = s.Run()

@@ -118,10 +118,10 @@ func LoadAMSCredentials(log Logger) (AMSCredentials, error) {
 	}
 	amsCreds, err = fromMegaclite()
 	if err != nil {
-		log.Info("using megaclite proxy to upload AMS DCLs and download AMS bundles")
 		return AMSCredentials{}, err
 	}
 	if amsCreds != nil {
+		log.Info("using megaclite proxy to upload AMS DCLs and download AMS bundles")
 		return *amsCreds, nil
 	}
 	return AMSCredentials{}, errors.New("cannot find authorization-enabled identity service")

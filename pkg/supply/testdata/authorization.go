@@ -12,7 +12,7 @@ var EnvWithAuthorizationDev string
 var EnvWithUPSBundleURL string
 
 //go:embed bindings/env_with_user_provided_service.json
-var EnvWithUserProvidedAuthorization string
+var EnvWithUserProvidedIAS string
 
 //go:embed bindings/env_with_ias_auth_with_client_secret.json
 var EnvWithIASAuthWithClientSecret string

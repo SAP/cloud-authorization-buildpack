@@ -27,12 +27,20 @@ func main() {
 		os.Exit(0)
 	}
 
-	amsStagerDepDir, err := getAMSDependencyDir()
+	depsRoot := path.Join("/home", "vcap", "deps")
+	amsStagerDepDir, err := getAMSDependencyDir(depsRoot)
 	if err != nil {
 		log.Error("Error starting AMS sidecar: %v", err)
 		os.Exit(1)
 	}
-	err = copyCertToDisk(log, amsStagerDepDir)
+
+	cert, key, err := services.LoadIASClientCert(log)
+	if err != nil {
+		log.Error("Error starting AMS sidecar: unable to load identity client certificate: %v", err)
+		os.Exit(1)
+	}
+
+	err = copyCertToDisk(amsStagerDepDir, cert, key)
 	if err != nil {
 		log.Error("Error starting AMS sidecar: %v", err)
 		os.Exit(1)
@@ -45,9 +53,8 @@ type DependencyConfig struct {
 	Name string `yaml:"name"`
 }
 
-func getAMSDependencyDir() (string, error) {
-	depsDir := path.Join("/home", "vcap", "deps")
-	depDirs, err := os.ReadDir(depsDir)
+func getAMSDependencyDir(depsRoot string) (string, error) {
+	depDirs, err := os.ReadDir(depsRoot)
 	if err != nil {
 		return "", fmt.Errorf("error listing dependency directories: %w", err)
 	}
@@ -58,7 +65,7 @@ func getAMSDependencyDir() (string, error) {
 			continue
 		}
 
-		currentAbsoluteDir := path.Join(depsDir, dir.Name())
+		currentAbsoluteDir := path.Join(depsRoot, dir.Name())
 		configFile, err := os.ReadFile(path.Join(currentAbsoluteDir, "config.yml"))
 		if err != nil {
 			intermediateErrs = append(intermediateErrs, fmt.Errorf("error reading config file of dependency %d: %w", i, err))
@@ -80,12 +87,8 @@ func getAMSDependencyDir() (string, error) {
 	return "", fmt.Errorf("could not find ams dependency directory")
 }
 
-func copyCertToDisk(log services.Logger, amsDependencyDir string) error {
-	cert, key, err := services.LoadIASClientCert(log)
-	if err != nil {
-		return fmt.Errorf("unable to load identity client certificate: %s", err)
-	}
-	err = os.WriteFile(path.Join(amsDependencyDir, "ias.crt"), cert, 0600)
+func copyCertToDisk(amsDependencyDir string, cert, key []byte) error {
+	err := os.WriteFile(path.Join(amsDependencyDir, "ias.crt"), cert, 0600)
 	if err != nil {
 		return fmt.Errorf("unable to write IAS client certificate: %s", err)
 	}

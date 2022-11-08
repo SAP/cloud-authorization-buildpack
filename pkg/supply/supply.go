@@ -37,13 +37,14 @@ type Command interface {
 }
 
 type Supplier struct {
-	Manifest     Manifest
-	Installer    Installer
-	Stager       *libbuildpack.Stager
-	Command      Command
-	Log          *libbuildpack.Logger
-	BuildpackDir string
-	GetClient    func(cert, key []byte) (uploader.AMSClient, error)
+	Manifest      Manifest
+	Installer     Installer
+	Stager        *libbuildpack.Stager
+	Command       Command
+	Log           *libbuildpack.Logger
+	BuildpackDir  string
+	GetClient     func(cert, key []byte) (uploader.AMSClient, error)
+	CertCopierDir string
 }
 
 type Cloudfoundry struct {
@@ -177,12 +178,6 @@ func (s *Supplier) writeProfileDFile(cfg env.Config, amsCreds services.AMSCreden
 		"ADC_URL": fmt.Sprintf("http://localhost:%d/", cfg.Port),
 	}
 
-	if amsCreds.BundleURL == "" {
-		values["AWS_ACCESS_KEY_ID"] = amsCreds.ObjectStore.AccessKeyID
-		values["AWS_SECRET_ACCESS_KEY"] = amsCreds.ObjectStore.SecretAccessKey
-		values["AWS_REGION"] = amsCreds.ObjectStore.Region
-	}
-
 	var b bytes.Buffer
 	for k, v := range values {
 		b.WriteString(fmt.Sprintf("export %s=%s\n", k, v))
@@ -304,7 +299,7 @@ func (s *Supplier) supplyOPABinary() error {
 
 func (s *Supplier) supplyCertCopier() error {
 	destFile := path.Join(s.Stager.DepDir(), "bin", "cert-copier")
-	err := libbuildpack.CopyFile(path.Join(s.BuildpackDir, "bin", "cert-copier"), destFile)
+	err := libbuildpack.CopyFile(path.Join(s.CertCopierDir, "cert-copier"), destFile)
 	if err != nil {
 		return fmt.Errorf("couldn't copy cert-copier dependency: %w", err)
 	}
