@@ -97,7 +97,7 @@ func (s *Supplier) Run() error {
 	if err := s.writeOpaConfig(amsCreds, tlsCfg); err != nil {
 		return fmt.Errorf("could not write opa config: %w", err)
 	}
-	if err := s.writeProfileDFile(cfg, amsCreds); err != nil {
+	if err := s.writeProfileDFile(cfg); err != nil {
 		return fmt.Errorf("could not write profileD file: %w", err)
 	}
 	if cfg.ShouldUpload {
@@ -171,7 +171,7 @@ type OPAConfig struct {
 	Plugins  map[string]bool           `json:"plugins,omitempty"`
 }
 
-func (s *Supplier) writeProfileDFile(cfg env.Config, amsCreds services.AMSCredentials) error {
+func (s *Supplier) writeProfileDFile(cfg env.Config) error {
 	s.Log.Info("writing profileD file..")
 	values := map[string]string{
 		"OPA_URL": fmt.Sprintf("http://localhost:%d/", cfg.Port),

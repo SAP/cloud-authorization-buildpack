@@ -57,7 +57,7 @@ var _ = Describe("Supply", func() {
 		Expect(err).To(BeNil())
 		certCopierDir, err = os.MkdirTemp("", "certCopierDir")
 		Expect(err).To(BeNil())
-		err := os.WriteFile(path.Join(certCopierDir, "cert-copier"), []byte("dummy file"), 0755)
+		err := os.WriteFile(path.Join(certCopierDir, "cert-copier"), []byte("dummy file"), 0755) //nolint
 		Expect(err).To(BeNil())
 		Expect(os.MkdirAll(path.Join(buildDir, "policies"), os.ModePerm)).To(Succeed())
 		Expect(libbuildpack.CopyDirectory(path.Join("testdata", "policies"), path.Join(buildDir, "policies"))).To(Succeed())
