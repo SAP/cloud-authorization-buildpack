@@ -91,12 +91,12 @@ var _ = Describe("Supply", func() {
 		m, err := libbuildpack.NewManifest(buildpackDir, logger, time.Now())
 		Expect(err).NotTo(HaveOccurred())
 		supplier = &supply.Supplier{
-			Stager:            bps,
-			Manifest:          m,
-			Installer:         libbuildpack.NewInstaller(m),
-			Log:               logger,
-			BuildpackDir:      buildpackDir,
-			CertCopierDestDir: certCopierDir,
+			Stager:              bps,
+			Manifest:            m,
+			Installer:           libbuildpack.NewInstaller(m),
+			Log:                 logger,
+			BuildpackDir:        buildpackDir,
+			CertCopierSourceDir: certCopierDir,
 			GetClient: func(cert, key []byte) (uploader.AMSClient, error) {
 				certSpy = cert
 				keySpy = key
