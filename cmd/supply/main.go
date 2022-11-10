@@ -73,7 +73,7 @@ func main() {
 		Log:           logger,
 		BuildpackDir:  buildpackDir,
 		GetClient:     uploader.GetClient,
-		CertCopierDir: path.Join(stager.DepDir(), "bin", "cert-copier"),
+		CertCopierDir: path.Join(stager.DepDir(), "bin"),
 	}
 
 	err = s.Run()
