@@ -66,14 +66,14 @@ func main() {
 		os.Exit(14)
 	}
 	s := supply.Supplier{
-		Manifest:      manifest,
-		Installer:     installer,
-		Stager:        stager,
-		Command:       &libbuildpack.Command{},
-		Log:           logger,
-		BuildpackDir:  buildpackDir,
-		GetClient:     uploader.GetClient,
-		CertCopierDir: path.Join(stager.DepDir(), "bin"),
+		Manifest:          manifest,
+		Installer:         installer,
+		Stager:            stager,
+		Command:           &libbuildpack.Command{},
+		Log:               logger,
+		BuildpackDir:      buildpackDir,
+		GetClient:         uploader.GetClient,
+		CertCopierDestDir: path.Join(stager.DepDir(), "bin"),
 	}
 
 	err = s.Run()

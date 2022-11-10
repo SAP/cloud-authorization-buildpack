@@ -37,14 +37,14 @@ type Command interface {
 }
 
 type Supplier struct {
-	Manifest      Manifest
-	Installer     Installer
-	Stager        *libbuildpack.Stager
-	Command       Command
-	Log           *libbuildpack.Logger
-	BuildpackDir  string
-	GetClient     func(cert, key []byte) (uploader.AMSClient, error)
-	CertCopierDir string
+	Manifest          Manifest
+	Installer         Installer
+	Stager            *libbuildpack.Stager
+	Command           Command
+	Log               *libbuildpack.Logger
+	BuildpackDir      string
+	GetClient         func(cert, key []byte) (uploader.AMSClient, error)
+	CertCopierDestDir string
 }
 
 type Cloudfoundry struct {
@@ -298,8 +298,9 @@ func (s *Supplier) supplyOPABinary() error {
 }
 
 func (s *Supplier) supplyCertCopier() error {
-	destFile := path.Join(s.Stager.DepDir(), "bin", "cert-copier")
-	err := libbuildpack.CopyFile(path.Join(s.CertCopierDir, "cert-copier"), destFile)
+	sourceFile := path.Join(s.BuildpackDir, "bin", "cert-copier")
+	destFile := path.Join(s.CertCopierDestDir, "cert-copier")
+	err := libbuildpack.CopyFile(sourceFile, destFile)
 	if err != nil {
 		return fmt.Errorf("couldn't copy cert-copier dependency: %w", err)
 	}
