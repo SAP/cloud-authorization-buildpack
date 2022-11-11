@@ -46,7 +46,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	log.Info("Successfully copied ias cert to disk, terminating cert-copy helper. This will result in an Exit status 0 in the app logs. The main AMS sidecar is not effected")
+	log.Info("Successfully copied ias cert to folder '%s' on disk, terminating cert-copy helper. This will result in an Exit status 0 in the app logs. The main AMS sidecar is not effected", amsStagerDepDir)
 }
 
 type DependencyConfig struct {
