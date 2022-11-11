@@ -270,7 +270,7 @@ func (s *Supplier) writeLaunchConfig(cfg env.Config) error {
 		path.Join("/home", "vcap", "deps", s.Stager.DepsIdx(), "opa_config.yml"),
 		cfg.LogLevel,
 		9888)
-	s.Log.Debug("OPA start command: '%s'", cmd)
+	s.Log.Info("OPA start command: '%s'", cmd)
 	launchData := LaunchData{
 		[]Process{
 			{
