@@ -28,7 +28,7 @@ func main() {
 	}
 
 	depsRoot := path.Join("/home", "vcap", "deps")
-	amsStagerDepDir, err := getAMSDependencyDir(depsRoot)
+	amsStagerDepDirs, err := getAMSDependencyDirs(depsRoot)
 	if err != nil {
 		log.Error("Error starting AMS sidecar: %v", err)
 		os.Exit(1)
@@ -40,26 +40,36 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = copyCertToDisk(amsStagerDepDir, cert, key)
-	if err != nil {
-		log.Error("Error starting AMS sidecar: %v", err)
-		os.Exit(1)
+	for _, dir := range amsStagerDepDirs {
+		err = copyCertToDisk(dir, cert, key)
+		if err != nil {
+			log.Error("Error starting AMS sidecar: %v", err)
+			os.Exit(1)
+		}
 	}
 
-	log.Info("Successfully copied ias cert to folder '%s' on disk, terminating cert-copy helper. This will result in an Exit status 0 in the app logs. The main AMS sidecar is not effected", amsStagerDepDir)
+	if len(amsStagerDepDirs) == 1 {
+		log.Info("Successfully copied ias cert to folder '%s' on disk, terminating cert-copy helper. This will result in an Exit status 0 in the app logs. The main AMS sidecar is not effected", amsStagerDepDirs[0])
+	} else {
+		log.Error("**Warning** The AMS buildpack has been supplied '%d' times! This may result in unexpected behaviour! Please check your app manifest (e.g. cf create-app-manifest <app-name>) that the AMS buildpack is only supplied once.", len(amsStagerDepDirs))
+		log.Error("**Warning** The AMS buildpack has been supplied '%d' times! This may result in unexpected behaviour! Please check your app manifest (e.g. cf create-app-manifest <app-name>) that the AMS buildpack is only supplied once.", len(amsStagerDepDirs))
+		log.Error("**Warning** The AMS buildpack has been supplied '%d' times! This may result in unexpected behaviour! Please check your app manifest (e.g. cf create-app-manifest <app-name>) that the AMS buildpack is only supplied once.", len(amsStagerDepDirs))
+		log.Info("Successfully copied ias cert to folders '%s' on disk, terminating cert-copy helper. This will result in an Exit status 0 in the app logs. The main AMS sidecar is not effected", amsStagerDepDirs)
+	}
 }
 
 type DependencyConfig struct {
 	Name string `yaml:"name"`
 }
 
-func getAMSDependencyDir(depsRoot string) (string, error) {
+func getAMSDependencyDirs(depsRoot string) ([]string, error) {
 	depDirs, err := os.ReadDir(depsRoot)
 	if err != nil {
-		return "", fmt.Errorf("error listing dependency directories: %w", err)
+		return nil, fmt.Errorf("error listing dependency directories: %w", err)
 	}
 
 	var intermediateErrs []error
+	var res []string
 	for i, dir := range depDirs {
 		if !dir.IsDir() {
 			continue
@@ -77,14 +87,18 @@ func getAMSDependencyDir(depsRoot string) (string, error) {
 		}
 
 		if config.Name == amsBuildpackName {
-			return currentAbsoluteDir, nil
+			res = append(res, currentAbsoluteDir)
 		}
 	}
 
 	if len(intermediateErrs) > 0 {
-		return "", fmt.Errorf("could not find ams dependency directory, following intermediate errors appeared: %v", intermediateErrs)
+		return nil, fmt.Errorf("could not find ams dependency directory, following intermediate errors appeared: %v", intermediateErrs)
 	}
-	return "", fmt.Errorf("could not find ams dependency directory")
+	if len(res) == 0 {
+		return nil, fmt.Errorf("could not find ams dependency directory")
+	}
+
+	return res, nil
 }
 
 func copyCertToDisk(amsDependencyDir string, cert, key []byte) error {

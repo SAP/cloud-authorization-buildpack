@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -12,24 +13,24 @@ func Test_getAMSDependencyDir(t *testing.T) {
 	tests := []struct {
 		name           string
 		dependencyRoot string
-		want           string
-		wantErr        bool
+		want           []string
+		wantErr        assert.ErrorAssertionFunc
 	}{
-		{name: "AMS on pos 0", dependencyRoot: "./testdata/pos0", want: "testdata/pos0/0", wantErr: false},
-		{name: "AMS on pos 1", dependencyRoot: "./testdata/pos1", want: "testdata/pos1/1", wantErr: false},
-		{name: "AMS on pos 1, others have errors", dependencyRoot: "./testdata/pos1-others-have-errors", want: "testdata/pos1-others-have-errors/1", wantErr: false},
-		{name: "AMS missing", dependencyRoot: "./testdata/ams-missing", want: "", wantErr: true},
+		{name: "AMS on pos 0", dependencyRoot: "./testdata/pos0", want: []string{"testdata/pos0/0"}, wantErr: assert.NoError},
+		{name: "AMS on pos 1", dependencyRoot: "./testdata/pos1", want: []string{"testdata/pos1/1"}, wantErr: assert.NoError},
+		{name: "AMS on pos 1, others have errors", dependencyRoot: "./testdata/pos1-others-have-errors", want: []string{"testdata/pos1-others-have-errors/1"}, wantErr: assert.NoError},
+		{name: "AMS missing", dependencyRoot: "./testdata/ams-missing", want: nil, wantErr: assert.Error},
+		{name: "AMS buildpack supplied twice", dependencyRoot: "./testdata/duplicate-opa-mitigation", want: []string{"testdata/duplicate-opa-mitigation/0", "testdata/duplicate-opa-mitigation/1"}, wantErr: assert.NoError},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getAMSDependencyDir(tt.dependencyRoot)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("getAMSDependencyDir() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("getAMSDependencyDir() got = %v, want %v", got, tt.want)
-			}
+			t.Run(tt.name, func(t *testing.T) {
+				got, err := getAMSDependencyDirs(tt.dependencyRoot)
+				if !tt.wantErr(t, err, fmt.Sprintf("getAMSDependencyDirs(%v)", tt.dependencyRoot)) {
+					return
+				}
+				assert.Equalf(t, tt.want, got, "getAMSDependencyDirs(%v)", tt.dependencyRoot)
+			})
 		})
 	}
 }
