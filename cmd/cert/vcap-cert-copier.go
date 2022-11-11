@@ -51,9 +51,9 @@ func main() {
 	if len(amsStagerDepDirs) == 1 {
 		log.Info("Successfully copied ias cert to folder '%s' on disk, terminating cert-copy helper. This will result in an Exit status 0 in the app logs. The main AMS sidecar is not effected", amsStagerDepDirs[0])
 	} else {
-		log.Error("**Warning** The AMS buildpack has been supplied '%d' times! This may result in unexpected behaviour! Please check your app manifest (e.g. cf create-app-manifest <app-name>) that the AMS buildpack is only supplied once.", len(amsStagerDepDirs))
-		log.Error("**Warning** The AMS buildpack has been supplied '%d' times! This may result in unexpected behaviour! Please check your app manifest (e.g. cf create-app-manifest <app-name>) that the AMS buildpack is only supplied once.", len(amsStagerDepDirs))
-		log.Error("**Warning** The AMS buildpack has been supplied '%d' times! This may result in unexpected behaviour! Please check your app manifest (e.g. cf create-app-manifest <app-name>) that the AMS buildpack is only supplied once.", len(amsStagerDepDirs))
+		log.Error("**Warning** The AMS buildpack has been supplied '%d' times! This may result in unexpected behavior! Please check your app manifest (e.g. cf create-app-manifest <app-name>) that the AMS buildpack is only supplied once.", len(amsStagerDepDirs))
+		log.Error("**Warning** The AMS buildpack has been supplied '%d' times! This may result in unexpected behavior! Please check your app manifest (e.g. cf create-app-manifest <app-name>) that the AMS buildpack is only supplied once.", len(amsStagerDepDirs))
+		log.Error("**Warning** The AMS buildpack has been supplied '%d' times! This may result in unexpected behavior! Please check your app manifest (e.g. cf create-app-manifest <app-name>) that the AMS buildpack is only supplied once.", len(amsStagerDepDirs))
 		log.Info("Successfully copied ias cert to folders '%s' on disk, terminating cert-copy helper. This will result in an Exit status 0 in the app logs. The main AMS sidecar is not effected", amsStagerDepDirs)
 	}
 }
