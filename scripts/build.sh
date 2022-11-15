@@ -10,4 +10,5 @@ echo "Removing bash supply script (won't be used in packaged buildpack)"
 rm "$SCRIPT_DIR/../bin/supply" || echo "$SCRIPT_DIR/../bin/supply not found"
 echo "Building sources.."
 ENABLE_CGO=0 GOARCH=amd64 GOOS=linux go build -o bin/supply ./cmd/supply
+ENABLE_CGO=0 GOARCH=amd64 GOOS=linux go build -o bin/cert-to-disk ./cmd/cert
 echo "Done"

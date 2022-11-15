@@ -8,14 +8,13 @@ import (
 	"io"
 	"os"
 	"path"
-	"path/filepath"
 
 	"github.com/cloudfoundry/libbuildpack"
 	"github.com/open-policy-agent/opa/download"
 	"github.com/open-policy-agent/opa/plugins/bundle"
 
+	"github.com/SAP/cloud-authorization-buildpack/pkg/common/services"
 	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/env"
-	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/services"
 	"github.com/SAP/cloud-authorization-buildpack/pkg/uploader"
 )
 
@@ -38,13 +37,14 @@ type Command interface {
 }
 
 type Supplier struct {
-	Manifest     Manifest
-	Installer    Installer
-	Stager       *libbuildpack.Stager
-	Command      Command
-	Log          *libbuildpack.Logger
-	BuildpackDir string
-	GetClient    func(cert, key []byte) (uploader.AMSClient, error)
+	Manifest            Manifest
+	Installer           Installer
+	Stager              *libbuildpack.Stager
+	Command             Command
+	Log                 *libbuildpack.Logger
+	BuildpackDir        string
+	GetClient           func(cert, key []byte) (uploader.AMSClient, error)
+	CertCopierSourceDir string
 }
 
 type Cloudfoundry struct {
@@ -77,7 +77,7 @@ func (s *Supplier) Run() error {
 	if err != nil {
 		return fmt.Errorf("could not load buildpack Config: %w", err)
 	}
-	amsCreds, err := services.LoadAMSCredentials(s.Log, cfg)
+	amsCreds, err := services.LoadAMSCredentials(s.Log)
 	if err != nil {
 		return fmt.Errorf("could not load AMSCredentials: %w", err)
 	}
@@ -88,13 +88,16 @@ func (s *Supplier) Run() error {
 	if err := s.supplyOPABinary(); err != nil {
 		return fmt.Errorf("could not supply opa binary: %w", err)
 	}
+	if err := s.supplyCertCopier(); err != nil {
+		return fmt.Errorf("could not supply cert-to-disk binary: %w", err)
+	}
 	if err := s.writeLaunchConfig(cfg); err != nil {
 		return fmt.Errorf("could not write launch config: %w", err)
 	}
 	if err := s.writeOpaConfig(amsCreds, tlsCfg); err != nil {
 		return fmt.Errorf("could not write opa config: %w", err)
 	}
-	if err := s.writeProfileDFile(cfg, amsCreds); err != nil {
+	if err := s.writeProfileDFile(cfg); err != nil {
 		return fmt.Errorf("could not write profileD file: %w", err)
 	}
 	if cfg.ShouldUpload {
@@ -133,11 +136,7 @@ func (s *Supplier) getTLSConfig(amsCreds *services.AMSCredentials) (tlsConfig, e
 	if err != nil {
 		return tlsConfig{}, fmt.Errorf("unable to load identity client certificate: %s", err)
 	}
-	err = os.WriteFile(path.Join(s.Stager.DepDir(), "ias.crt"), cert, 0600)
-	if err != nil {
-		return tlsConfig{}, fmt.Errorf("unable to write IAS client certificate: %s", err)
-	}
-	err = os.WriteFile(filepath.Join(s.Stager.DepDir(), "ias.key"), key, 0600)
+	// The identity cert is written to the deps directory during app startup by the separate app cert-to-disk.go
 	return tlsConfig{
 		CertPath: path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.crt"),
 		KeyPath:  path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.key"),
@@ -172,17 +171,11 @@ type OPAConfig struct {
 	Plugins  map[string]bool           `json:"plugins,omitempty"`
 }
 
-func (s *Supplier) writeProfileDFile(cfg env.Config, amsCreds services.AMSCredentials) error {
+func (s *Supplier) writeProfileDFile(cfg env.Config) error {
 	s.Log.Info("writing profileD file..")
 	values := map[string]string{
 		"OPA_URL": fmt.Sprintf("http://localhost:%d/", cfg.Port),
 		"ADC_URL": fmt.Sprintf("http://localhost:%d/", cfg.Port),
-	}
-
-	if amsCreds.BundleURL == "" {
-		values["AWS_ACCESS_KEY_ID"] = amsCreds.ObjectStore.AccessKeyID
-		values["AWS_SECRET_ACCESS_KEY"] = amsCreds.ObjectStore.SecretAccessKey
-		values["AWS_REGION"] = amsCreds.ObjectStore.Region
 	}
 
 	var b bytes.Buffer
@@ -248,7 +241,8 @@ func (s *Supplier) createStorageGatewayConfig(cred services.AMSCredentials, cfg 
 				MaxDelaySeconds: newInt64P(20),
 			},
 		},
-		Service:  serviceKey,
+		Service: serviceKey,
+
 		Resource: cred.InstanceID + ".tar.gz",
 	}
 	svcs := make(map[string]RestConfig)
@@ -270,12 +264,14 @@ func (s *Supplier) createStorageGatewayConfig(cred services.AMSCredentials, cfg 
 func (s *Supplier) writeLaunchConfig(cfg env.Config) error {
 	s.Log.Info("writing launch.yml..")
 	cmd := fmt.Sprintf(
-		`"/home/vcap/deps/%s" run -s -c "/home/vcap/deps/%s" -l '%s' -a '127.0.0.1:%d' --skip-version-check`,
-		path.Join(s.Stager.DepsIdx(), "opa"),
-		path.Join(s.Stager.DepsIdx(), "opa_config.yml"),
+		`%q %q && %q run -s -c %q -l '%s' -a '127.0.0.1:%d' --skip-version-check`,
+		path.Join("/home", "vcap", "deps", s.Stager.DepsIdx(), "bin", "cert-to-disk"),
+		path.Join("/home", "vcap", "deps", s.Stager.DepsIdx()),
+		path.Join("/home", "vcap", "deps", s.Stager.DepsIdx(), "opa"),
+		path.Join("/home", "vcap", "deps", s.Stager.DepsIdx(), "opa_config.yml"),
 		cfg.LogLevel,
 		9888)
-	s.Log.Debug("OPA start command: '%s'", cmd)
+	s.Log.Info("OPA start command: '%s'", cmd)
 	launchData := LaunchData{
 		[]Process{
 			{
@@ -300,6 +296,18 @@ func (s *Supplier) supplyOPABinary() error {
 	}
 	// The packager overwrites the permissions, so we need to make it executable again
 	return os.Chmod(path.Join(s.Stager.DepDir(), opaDep.Name), 0755)
+}
+
+func (s *Supplier) supplyCertCopier() error {
+	sourceFile := path.Join(s.CertCopierSourceDir, "cert-to-disk")
+	destFile := path.Join(s.Stager.DepDir(), "bin", "cert-to-disk")
+	err := libbuildpack.CopyFile(sourceFile, destFile)
+	if err != nil {
+		return fmt.Errorf("couldn't copy cert-to-disk dependency: %w", err)
+	}
+
+	// The packager overwrites the permissions, so we need to make it executable again
+	return os.Chmod(destFile, 0755)
 }
 
 func (s *Supplier) upload(amsCreds services.AMSCredentials, tlsCfg tlsConfig, rootDir string) error {

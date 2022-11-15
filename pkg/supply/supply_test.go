@@ -27,9 +27,9 @@ import (
 
 	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/env"
 	"github.com/SAP/cloud-authorization-buildpack/pkg/uploader"
+	"github.com/SAP/cloud-authorization-buildpack/resources/testdata"
 
 	"github.com/SAP/cloud-authorization-buildpack/pkg/supply"
-	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/testdata"
 )
 
 var _ = Describe("Supply", func() {
@@ -41,6 +41,7 @@ var _ = Describe("Supply", func() {
 		depsDir         string
 		depsIdx         string
 		depDir          string
+		certCopierDir   string
 		supplier        *supply.Supplier
 		logger          *libbuildpack.Logger
 		mockCtrl        *gomock.Controller
@@ -53,6 +54,10 @@ var _ = Describe("Supply", func() {
 		depsDir, err = os.MkdirTemp("", "test")
 		Expect(err).To(BeNil())
 		buildDir, err = os.MkdirTemp("", "buildDir")
+		Expect(err).To(BeNil())
+		certCopierDir, err = os.MkdirTemp("", "certCopierDir")
+		Expect(err).To(BeNil())
+		err := os.WriteFile(path.Join(certCopierDir, "cert-to-disk"), []byte("dummy file"), 0755) //nolint
 		Expect(err).To(BeNil())
 		Expect(os.MkdirAll(path.Join(buildDir, "policies"), os.ModePerm)).To(Succeed())
 		Expect(libbuildpack.CopyDirectory(path.Join("testdata", "policies"), path.Join(buildDir, "policies"))).To(Succeed())
@@ -86,11 +91,12 @@ var _ = Describe("Supply", func() {
 		m, err := libbuildpack.NewManifest(buildpackDir, logger, time.Now())
 		Expect(err).NotTo(HaveOccurred())
 		supplier = &supply.Supplier{
-			Stager:       bps,
-			Manifest:     m,
-			Installer:    libbuildpack.NewInstaller(m),
-			Log:          logger,
-			BuildpackDir: buildpackDir,
+			Stager:              bps,
+			Manifest:            m,
+			Installer:           libbuildpack.NewInstaller(m),
+			Log:                 logger,
+			BuildpackDir:        buildpackDir,
+			CertCopierSourceDir: certCopierDir,
 			GetClient: func(cert, key []byte) (uploader.AMSClient, error) {
 				certSpy = cert
 				keySpy = key
@@ -109,190 +115,6 @@ var _ = Describe("Supply", func() {
 		Expect(os.Unsetenv("AMS_SERVICE")).To(Succeed())
 		Expect(os.Unsetenv("CF_STACK")).To(Succeed())
 		Expect(os.Unsetenv("VCAP_SERVICES")).To(Succeed())
-	})
-	When("VCAP_SERVICES contains a 'authorization' service", func() {
-		BeforeEach(func() {
-			vcapServices = testdata.EnvWithAuthorization
-			os.Setenv("AMS_DCL_ROOT", "/policies")
-		})
-		It("creates a valid launch.yml", func() {
-			Expect(supplier.Run()).To(Succeed())
-			launchConfig, err := os.Open(filepath.Join(depDir, "launch.yml"))
-			Expect(err).NotTo(HaveOccurred())
-			var ld resources.LaunchData
-			err = yaml.NewDecoder(launchConfig).Decode(&ld)
-			Expect(err).NotTo(HaveOccurred())
-
-			By("specifying proper options", func() {
-				Expect(ld.Processes).To(HaveLen(1))
-				Expect(ld.Processes[0].Type).To(Equal("opa"))
-				Expect(ld.Processes[0].Platforms.Cloudfoundry.SidecarFor).To(Equal([]string{"web"}))
-				cmd := `"/home/vcap/deps/42/opa" run -s -c "/home/vcap/deps/42/opa_config.yml" -l 'error' -a '127.0.0.1:9888' --skip-version-check`
-				Expect(ld.Processes[0].Command).To(Equal(cmd))
-				Expect(ld.Processes[0].Limits.Memory).To(Equal(100))
-				Expect(writtenLogs.String()).To(ContainSubstring("writing launch.yml"))
-			})
-		})
-		It("creates the correct opa config", func() {
-			Expect(supplier.Run()).To(Succeed())
-			Expect(writtenLogs.String()).To(ContainSubstring("writing opa config"))
-
-			rawConfig, err := os.ReadFile(filepath.Join(depDir, "opa_config.yml"))
-			Expect(err).NotTo(HaveOccurred())
-			cfg, err := config.ParseConfig(rawConfig, "testId")
-			Expect(err).NotTo(HaveOccurred())
-
-			var serviceKey string
-			By("specifying the correct bundle options", func() {
-				var bundleConfig map[string]bundle.Source
-				err = json.Unmarshal(cfg.Bundles, &bundleConfig)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(bundleConfig).To(HaveKey("SAP"))
-				serviceKey = bundleConfig["SAP"].Service
-				Expect(serviceKey).NotTo(BeEmpty())
-				Expect(bundleConfig["SAP"].Resource).To(Equal("SAP.tar.gz"))
-				Expect(*bundleConfig["SAP"].Polling.MinDelaySeconds).To(Equal(int64(10)))
-				Expect(*bundleConfig["SAP"].Polling.MaxDelaySeconds).To(Equal(int64(20)))
-			})
-			By("specifying proper s3 rest config", func() {
-				var restConfig map[string]rest.Config
-				err = json.Unmarshal(cfg.Services, &restConfig)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(restConfig).To(HaveKey(serviceKey))
-				Expect(restConfig[serviceKey].Credentials.ClientTLS).To(BeNil())
-				Expect(restConfig[serviceKey].Credentials.S3Signing).NotTo(BeNil())
-				Expect(restConfig[serviceKey].URL).To(Equal("https://s3-eu-central-1.amazonaws.com/my-bucket"))
-			})
-			By("enabling the OPA dcn plugin", func() {
-				enabled, ok := cfg.Plugins["dcl"]
-				Expect(ok).To(BeTrue())
-				Expect(string(enabled)).To(Equal(`true`))
-			})
-		})
-		It("creates the correct env vars", func() {
-			Expect(supplier.Run()).To(Succeed())
-			env, err := os.ReadFile(path.Join(buildDir, ".profile.d", "0000_opa_env.sh"))
-			Expect(err).NotTo(HaveOccurred())
-			expectIsExecutable(path.Join(buildDir, ".profile.d", "0000_opa_env.sh"))
-			Expect(string(env)).To(ContainSubstring(`export OPA_URL=http://localhost:9888`))
-			Expect(string(env)).To(ContainSubstring("export AWS_ACCESS_KEY_ID=myawstestaccesskeyid"))
-		})
-		It("provides the OPA executable", func() {
-			Expect(supplier.Run()).To(Succeed())
-			expectIsExecutable(filepath.Join(depDir, "opa"))
-		})
-		It("uploads DCL and json files in a bundle", func() {
-			Expect(supplier.Run()).To(Succeed())
-			Expect(uploadReqSpy.Body).NotTo(BeNil())
-			files := getTgzFileNames(uploadReqSpy.Body)
-			Expect(files).To(ContainElements("myPolicies0/policy0.dcl", "myPolicies1/policy1.dcl", "schema.dcl"))
-			Expect(files).NotTo(ContainElements("non-dcl-file.xyz", ContainSubstring("data.json")))
-		})
-		When("AMS_DCL_ROOT is not set", func() {
-			BeforeEach(func() {
-				Expect(os.Unsetenv("AMS_DCL_ROOT")).To(Succeed())
-				Expect(os.Unsetenv("AMS_SERVICE")).To(Succeed())
-			})
-			It("creates a warning", func() {
-				Expect(supplier.Run()).To(Succeed())
-				Expect(writtenLogs.String()).To(ContainSubstring("upload no authorization data"))
-			})
-		})
-		When("AMS_DATA is set", func() {
-			BeforeEach(func() {
-				os.Setenv("AMS_DATA", "{\"root\":\"/policies\"}")
-			})
-			It("uploads DCL and json files in a bundle", func() {
-				Expect(supplier.Run()).To(Succeed())
-				Expect(uploadReqSpy.Body).NotTo(BeNil())
-				files := getTgzFileNames(uploadReqSpy.Body)
-				Expect(files).To(ContainElements("myPolicies0/policy0.dcl", "myPolicies1/policy1.dcl", "schema.dcl"))
-				Expect(files).NotTo(ContainElements("non-dcl-file.xyz", ContainSubstring("data.json")))
-			})
-			It("creates a warning", func() {
-				Expect(supplier.Run()).To(Succeed())
-				Expect(writtenLogs.String()).To(ContainSubstring("the environment variable AMS_DATA is deprecated."))
-			})
-			AfterEach(func() {
-				os.Unsetenv("AMS_DATA")
-			})
-		})
-		When("the AMS server returns an error", func() {
-			Context("400", func() {
-				BeforeEach(func() {
-					mockAMSClient = NewMockAMSClient(mockCtrl)
-					mockAMSClient.EXPECT().Do(gomock.Any()).DoAndReturn(func(req *http.Request) (*http.Response, error) {
-						uploadReqSpy = req
-						return &http.Response{StatusCode: 400, Body: io.NopCloser(strings.NewReader("your policy is broken"))}, nil
-					}).AnyTimes()
-
-				})
-				It("should log the response body", func() {
-					err := supplier.Run()
-					Expect(err).To(HaveOccurred())
-					Expect(err.Error()).To(ContainSubstring("your policy is broken"))
-				})
-			})
-			Context("401 (proof-token endpoint not ready)", func() {
-				BeforeEach(func() {
-					uploader.RetryPeriod = time.Millisecond * 10
-					mockAMSClient = NewMockAMSClient(mockCtrl)
-					gomock.InOrder(
-						mockAMSClient.EXPECT().Do(gomock.Any()).Return(&http.Response{StatusCode: 401, Body: io.NopCloser(strings.NewReader("could not find certificate"))}, nil),
-						mockAMSClient.EXPECT().Do(gomock.Any()).DoAndReturn(func(req *http.Request) (*http.Response, error) {
-							uploadReqSpy = req
-							return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(""))}, nil
-						}))
-				})
-				It("retries", func() {
-					Expect(supplier.Run()).To(Succeed())
-					Expect(writtenLogs.String()).To(ContainSubstring("retrying after"))
-					Expect(uploadReqSpy.Body).NotTo(BeNil())
-				})
-			})
-		})
-		When("AMS_LOG_LEVEL is set to info", func() {
-			BeforeEach(func() { os.Setenv("AMS_LOG_LEVEL", "info") })
-			AfterEach(func() { os.Unsetenv("AMS_LOG_LEVEL") })
-			It("should start OPA with log level 'info'", func() {
-				Expect(supplier.Run()).To(Succeed())
-				launchConfig, err := os.Open(filepath.Join(depDir, "launch.yml"))
-				Expect(err).NotTo(HaveOccurred())
-
-				var ld resources.LaunchData
-				err = yaml.NewDecoder(launchConfig).Decode(&ld)
-				Expect(err).NotTo(HaveOccurred())
-				Expect(ld.Processes[0].Command).To(ContainSubstring("-l 'info'"))
-			})
-		})
-	})
-	When("service_name is set", func() {
-		BeforeEach(func() {
-			vcapServices = testdata.EnvWithAuthorizationDev
-			os.Setenv("AMS_DCL_ROOT", "/policies")
-			os.Setenv("AMS_SERVICE", "authorization-dev")
-		})
-		It("should succeed", func() {
-			Expect(supplier.Run()).To(Succeed())
-		})
-		When("the bundle URL is set", func() {
-			BeforeEach(func() {
-				vcapServices = testdata.EnvWithUPSBundleURL
-			})
-			It("should succeed", func() {
-				Expect(supplier.Run()).To(Succeed())
-			})
-		})
-
-	})
-	When("the bound AMS service is user-provided", func() {
-		BeforeEach(func() {
-			vcapServices = testdata.EnvWithUserProvidedAuthorization
-			os.Setenv("AMS_DCL_ROOT", "/policies")
-		})
-		It("should succeed", func() {
-			Expect(supplier.Run()).To(Succeed())
-		})
 	})
 	When("AMS credentials are included in the IAS credentials", func() {
 		Context("and credential type is not x509", func() {
@@ -347,6 +169,51 @@ var _ = Describe("Supply", func() {
 				expectedValue := []string{"00000000-3b4d-4c41-9e5b-9aee7bfa6348"}
 				Expect(uploadReqSpy.Header).Should(HaveKeyWithValue(env.HeaderInstanceID, expectedValue))
 			})
+			It("creates a valid launch.yml", func() {
+				Expect(supplier.Run()).To(Succeed())
+				launchConfig, err := os.Open(filepath.Join(depDir, "launch.yml"))
+				Expect(err).NotTo(HaveOccurred())
+				var ld resources.LaunchData
+				err = yaml.NewDecoder(launchConfig).Decode(&ld)
+				Expect(err).NotTo(HaveOccurred())
+
+				By("specifying proper options", func() {
+					Expect(ld.Processes).To(HaveLen(1))
+					Expect(ld.Processes[0].Type).To(Equal("opa"))
+					Expect(ld.Processes[0].Platforms.Cloudfoundry.SidecarFor).To(Equal([]string{"web"}))
+					cmd := `"/home/vcap/deps/42/bin/cert-to-disk" "/home/vcap/deps/42" && "/home/vcap/deps/42/opa" run -s -c "/home/vcap/deps/42/opa_config.yml" -l 'error' -a '127.0.0.1:9888' --skip-version-check`
+					Expect(ld.Processes[0].Command).To(Equal(cmd))
+					Expect(ld.Processes[0].Limits.Memory).To(Equal(100))
+					Expect(writtenLogs.String()).To(ContainSubstring("writing launch.yml"))
+				})
+			})
+			It("creates the correct opa config", func() {
+				Expect(supplier.Run()).To(Succeed())
+				Expect(writtenLogs.String()).To(ContainSubstring("writing opa config"))
+
+				rawConfig, err := os.ReadFile(filepath.Join(depDir, "opa_config.yml"))
+				Expect(err).NotTo(HaveOccurred())
+				cfg, err := config.ParseConfig(rawConfig, "testId")
+				Expect(err).NotTo(HaveOccurred())
+
+				var serviceKey string
+				By("specifying the correct bundle options", func() {
+					var bundleConfig map[string]bundle.Source
+					err = json.Unmarshal(cfg.Bundles, &bundleConfig)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(bundleConfig).To(HaveKey("00000000-3b4d-4c41-9e5b-9aee7bfa6348"))
+					serviceKey = bundleConfig["00000000-3b4d-4c41-9e5b-9aee7bfa6348"].Service
+					Expect(serviceKey).NotTo(BeEmpty())
+					Expect(bundleConfig["00000000-3b4d-4c41-9e5b-9aee7bfa6348"].Resource).To(Equal("00000000-3b4d-4c41-9e5b-9aee7bfa6348.tar.gz"))
+					Expect(*bundleConfig["00000000-3b4d-4c41-9e5b-9aee7bfa6348"].Polling.MinDelaySeconds).To(Equal(int64(10)))
+					Expect(*bundleConfig["00000000-3b4d-4c41-9e5b-9aee7bfa6348"].Polling.MaxDelaySeconds).To(Equal(int64(20)))
+				})
+				By("enabling the OPA dcn plugin", func() {
+					enabled, ok := cfg.Plugins["dcl"]
+					Expect(ok).To(BeTrue())
+					Expect(string(enabled)).To(Equal(`true`))
+				})
+			})
 			It("should configure access to the gateway", func() {
 				Expect(supplier.Run()).To(Succeed())
 				rawConfig, err := os.ReadFile(filepath.Join(depDir, "opa_config.yml"))
@@ -365,14 +232,6 @@ var _ = Describe("Supply", func() {
 				By("extending the tenant host URL from the identity service", func() {
 					Expect(restConfig["bundle_storage"].URL).To(Equal("https://mytenant.accounts400.ondemand.com/bundle-gateway"))
 				})
-				By("persisting the identity cert/key", func() {
-					cert, err := os.ReadFile(filepath.Join(depDir, "ias.crt"))
-					Expect(err).NotTo(HaveOccurred())
-					Expect(string(cert)).To(Equal("identity-cert-payload"))
-					key, err := os.ReadFile(filepath.Join(depDir, "ias.key"))
-					Expect(err).NotTo(HaveOccurred())
-					Expect(string(key)).To(Equal("identity-key-payload"))
-				})
 				By("making sure there's only one auth method", func() {
 					Expect(restConfig["bundle_storage"].Credentials.S3Signing).To(BeNil())
 				})
@@ -385,6 +244,114 @@ var _ = Describe("Supply", func() {
 					Expect(uploadReqSpy.URL.String()).To(Equal("https://mytenant.accounts400.ondemand.com/authorization/sap/ams/v1/ams-instances/00000000-3b4d-4c41-9e5b-9aee7bfa6348/dcl-upload"))
 				})
 			})
+			It("creates the correct env vars", func() {
+				Expect(supplier.Run()).To(Succeed())
+				env, err := os.ReadFile(path.Join(buildDir, ".profile.d", "0000_opa_env.sh"))
+				Expect(err).NotTo(HaveOccurred())
+				expectIsExecutable(path.Join(buildDir, ".profile.d", "0000_opa_env.sh"))
+				Expect(string(env)).To(ContainSubstring(`export OPA_URL=http://localhost:9888`))
+			})
+			It("provides the OPA executable", func() {
+				Expect(supplier.Run()).To(Succeed())
+				expectIsExecutable(filepath.Join(depDir, "opa"))
+			})
+			It("provides cert-to-disk executable", func() {
+				Expect(supplier.Run()).To(Succeed())
+				expectIsExecutable(filepath.Join(depDir, "bin", "cert-to-disk"))
+			})
+			It("uploads DCL and json files in a bundle", func() {
+				Expect(supplier.Run()).To(Succeed())
+				Expect(uploadReqSpy.Body).NotTo(BeNil())
+				files := getTgzFileNames(uploadReqSpy.Body)
+				Expect(files).To(ContainElements("myPolicies0/policy0.dcl", "myPolicies1/policy1.dcl", "schema.dcl"))
+				Expect(files).NotTo(ContainElements("non-dcl-file.xyz", ContainSubstring("data.json")))
+			})
+			When("AMS_DCL_ROOT is not set", func() {
+				BeforeEach(func() {
+					Expect(os.Unsetenv("AMS_DCL_ROOT")).To(Succeed())
+					Expect(os.Unsetenv("AMS_SERVICE")).To(Succeed())
+				})
+				It("creates a warning", func() {
+					Expect(supplier.Run()).To(Succeed())
+					Expect(writtenLogs.String()).To(ContainSubstring("upload no authorization data"))
+				})
+			})
+			When("AMS_DATA is set", func() {
+				BeforeEach(func() {
+					os.Setenv("AMS_DATA", "{\"root\":\"/policies\"}")
+				})
+				It("uploads DCL and json files in a bundle", func() {
+					Expect(supplier.Run()).To(Succeed())
+					Expect(uploadReqSpy.Body).NotTo(BeNil())
+					files := getTgzFileNames(uploadReqSpy.Body)
+					Expect(files).To(ContainElements("myPolicies0/policy0.dcl", "myPolicies1/policy1.dcl", "schema.dcl"))
+					Expect(files).NotTo(ContainElements("non-dcl-file.xyz", ContainSubstring("data.json")))
+				})
+				It("creates a warning", func() {
+					Expect(supplier.Run()).To(Succeed())
+					Expect(writtenLogs.String()).To(ContainSubstring("the environment variable AMS_DATA is deprecated."))
+				})
+				AfterEach(func() {
+					os.Unsetenv("AMS_DATA")
+				})
+			})
+			When("the AMS server returns an error", func() {
+				Context("400", func() {
+					BeforeEach(func() {
+						mockAMSClient = NewMockAMSClient(mockCtrl)
+						mockAMSClient.EXPECT().Do(gomock.Any()).DoAndReturn(func(req *http.Request) (*http.Response, error) {
+							uploadReqSpy = req
+							return &http.Response{StatusCode: 400, Body: io.NopCloser(strings.NewReader("your policy is broken"))}, nil
+						}).AnyTimes()
+
+					})
+					It("should log the response body", func() {
+						err := supplier.Run()
+						Expect(err).To(HaveOccurred())
+						Expect(err.Error()).To(ContainSubstring("your policy is broken"))
+					})
+				})
+				Context("401 (proof-token endpoint not ready)", func() {
+					BeforeEach(func() {
+						uploader.RetryPeriod = time.Millisecond * 10
+						mockAMSClient = NewMockAMSClient(mockCtrl)
+						gomock.InOrder(
+							mockAMSClient.EXPECT().Do(gomock.Any()).Return(&http.Response{StatusCode: 401, Body: io.NopCloser(strings.NewReader("could not find certificate"))}, nil),
+							mockAMSClient.EXPECT().Do(gomock.Any()).DoAndReturn(func(req *http.Request) (*http.Response, error) {
+								uploadReqSpy = req
+								return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(""))}, nil
+							}))
+					})
+					It("retries", func() {
+						Expect(supplier.Run()).To(Succeed())
+						Expect(writtenLogs.String()).To(ContainSubstring("retrying after"))
+						Expect(uploadReqSpy.Body).NotTo(BeNil())
+					})
+				})
+			})
+			When("AMS_LOG_LEVEL is set to info", func() {
+				BeforeEach(func() { os.Setenv("AMS_LOG_LEVEL", "info") })
+				AfterEach(func() { os.Unsetenv("AMS_LOG_LEVEL") })
+				It("should start OPA with log level 'info'", func() {
+					Expect(supplier.Run()).To(Succeed())
+					launchConfig, err := os.Open(filepath.Join(depDir, "launch.yml"))
+					Expect(err).NotTo(HaveOccurred())
+
+					var ld resources.LaunchData
+					err = yaml.NewDecoder(launchConfig).Decode(&ld)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(ld.Processes[0].Command).To(ContainSubstring("-l 'info'"))
+				})
+			})
+		})
+	})
+	When("the bound AMS enabled IAS service is user-provided", func() {
+		BeforeEach(func() {
+			vcapServices = testdata.EnvWithUserProvidedIAS
+			os.Setenv("AMS_DCL_ROOT", "/policies")
+		})
+		It("should succeed", func() {
+			Expect(supplier.Run()).To(Succeed())
 		})
 	})
 	When("VCAP_SERVICES is empty", func() {
