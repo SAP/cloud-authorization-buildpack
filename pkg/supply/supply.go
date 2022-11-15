@@ -89,7 +89,7 @@ func (s *Supplier) Run() error {
 		return fmt.Errorf("could not supply opa binary: %w", err)
 	}
 	if err := s.supplyCertCopier(); err != nil {
-		return fmt.Errorf("could not supply cert-copier binary: %w", err)
+		return fmt.Errorf("could not supply cert-to-disk binary: %w", err)
 	}
 	if err := s.writeLaunchConfig(cfg); err != nil {
 		return fmt.Errorf("could not write launch config: %w", err)
@@ -136,7 +136,7 @@ func (s *Supplier) getTLSConfig(amsCreds *services.AMSCredentials) (tlsConfig, e
 	if err != nil {
 		return tlsConfig{}, fmt.Errorf("unable to load identity client certificate: %s", err)
 	}
-	// The identity cert is written to the deps directory during app startup by the separate app vcap-cert-copier.go
+	// The identity cert is written to the deps directory during app startup by the separate app cert-to-disk.go
 	return tlsConfig{
 		CertPath: path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.crt"),
 		KeyPath:  path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.key"),
@@ -264,8 +264,9 @@ func (s *Supplier) createStorageGatewayConfig(cred services.AMSCredentials, cfg 
 func (s *Supplier) writeLaunchConfig(cfg env.Config) error {
 	s.Log.Info("writing launch.yml..")
 	cmd := fmt.Sprintf(
-		`%q && %q run -s -c %q -l '%s' -a '127.0.0.1:%d' --skip-version-check`,
-		path.Join("/home", "vcap", "deps", s.Stager.DepsIdx(), "bin", "cert-copier"),
+		`%q %q && %q run -s -c %q -l '%s' -a '127.0.0.1:%d' --skip-version-check`,
+		path.Join("/home", "vcap", "deps", s.Stager.DepsIdx(), "bin", "cert-to-disk"),
+		path.Join("/home", "vcap", "deps", s.Stager.DepsIdx()),
 		path.Join("/home", "vcap", "deps", s.Stager.DepsIdx(), "opa"),
 		path.Join("/home", "vcap", "deps", s.Stager.DepsIdx(), "opa_config.yml"),
 		cfg.LogLevel,
@@ -298,11 +299,11 @@ func (s *Supplier) supplyOPABinary() error {
 }
 
 func (s *Supplier) supplyCertCopier() error {
-	sourceFile := path.Join(s.CertCopierSourceDir, "cert-copier")
-	destFile := path.Join(s.Stager.DepDir(), "bin", "cert-copier")
+	sourceFile := path.Join(s.CertCopierSourceDir, "cert-to-disk")
+	destFile := path.Join(s.Stager.DepDir(), "bin", "cert-to-disk")
 	err := libbuildpack.CopyFile(sourceFile, destFile)
 	if err != nil {
-		return fmt.Errorf("couldn't copy cert-copier dependency: %w", err)
+		return fmt.Errorf("couldn't copy cert-to-disk dependency: %w", err)
 	}
 
 	// The packager overwrites the permissions, so we need to make it executable again

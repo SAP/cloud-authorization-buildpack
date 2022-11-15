@@ -2,15 +2,6 @@ package testdata
 
 import _ "embed"
 
-//go:embed bindings/env_with_authorization.json
-var EnvWithAuthorization string
-
-//go:embed bindings/env_with_authorization_dev.json
-var EnvWithAuthorizationDev string
-
-//go:embed bindings/authorization-dev_bundle-url.json
-var EnvWithUPSBundleURL string
-
 //go:embed bindings/env_with_user_provided_service.json
 var EnvWithUserProvidedIAS string
 

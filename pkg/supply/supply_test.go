@@ -27,9 +27,9 @@ import (
 
 	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/env"
 	"github.com/SAP/cloud-authorization-buildpack/pkg/uploader"
+	"github.com/SAP/cloud-authorization-buildpack/resources/testdata"
 
 	"github.com/SAP/cloud-authorization-buildpack/pkg/supply"
-	"github.com/SAP/cloud-authorization-buildpack/pkg/supply/testdata"
 )
 
 var _ = Describe("Supply", func() {
@@ -57,7 +57,7 @@ var _ = Describe("Supply", func() {
 		Expect(err).To(BeNil())
 		certCopierDir, err = os.MkdirTemp("", "certCopierDir")
 		Expect(err).To(BeNil())
-		err := os.WriteFile(path.Join(certCopierDir, "cert-copier"), []byte("dummy file"), 0755) //nolint
+		err := os.WriteFile(path.Join(certCopierDir, "cert-to-disk"), []byte("dummy file"), 0755) //nolint
 		Expect(err).To(BeNil())
 		Expect(os.MkdirAll(path.Join(buildDir, "policies"), os.ModePerm)).To(Succeed())
 		Expect(libbuildpack.CopyDirectory(path.Join("testdata", "policies"), path.Join(buildDir, "policies"))).To(Succeed())
@@ -181,7 +181,7 @@ var _ = Describe("Supply", func() {
 					Expect(ld.Processes).To(HaveLen(1))
 					Expect(ld.Processes[0].Type).To(Equal("opa"))
 					Expect(ld.Processes[0].Platforms.Cloudfoundry.SidecarFor).To(Equal([]string{"web"}))
-					cmd := `"/home/vcap/deps/42/bin/cert-copier" && "/home/vcap/deps/42/opa" run -s -c "/home/vcap/deps/42/opa_config.yml" -l 'error' -a '127.0.0.1:9888' --skip-version-check`
+					cmd := `"/home/vcap/deps/42/bin/cert-to-disk" && "/home/vcap/deps/42/opa" run -s -c "/home/vcap/deps/42/opa_config.yml" -l 'error' -a '127.0.0.1:9888' --skip-version-check`
 					Expect(ld.Processes[0].Command).To(Equal(cmd))
 					Expect(ld.Processes[0].Limits.Memory).To(Equal(100))
 					Expect(writtenLogs.String()).To(ContainSubstring("writing launch.yml"))
@@ -255,9 +255,9 @@ var _ = Describe("Supply", func() {
 				Expect(supplier.Run()).To(Succeed())
 				expectIsExecutable(filepath.Join(depDir, "opa"))
 			})
-			It("provides cert-copier executable", func() {
+			It("provides cert-to-disk executable", func() {
 				Expect(supplier.Run()).To(Succeed())
-				expectIsExecutable(filepath.Join(depDir, "bin", "cert-copier"))
+				expectIsExecutable(filepath.Join(depDir, "bin", "cert-to-disk"))
 			})
 			It("uploads DCL and json files in a bundle", func() {
 				Expect(supplier.Run()).To(Succeed())

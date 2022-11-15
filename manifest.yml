@@ -19,7 +19,7 @@ include_files:
   - README.md
   - VERSION
   - bin/supply
-  - bin/cert-copier
+  - bin/cert-to-disk
   - manifest.yml
   - LICENSE
 pre_package: scripts/build.sh
