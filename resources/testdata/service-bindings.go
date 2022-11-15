@@ -19,3 +19,6 @@ var EnvWithMegaclite string
 
 //go:embed bindings/env_with_megaclite_and_ias.json
 var EnvWithMegacliteAndIAS string
+
+//go:embed bindings/env_all_missing.json
+var EnvWithAllMissing string

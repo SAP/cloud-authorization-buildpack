@@ -39,6 +39,7 @@ func Test_loadCert(t *testing.T) {
 		{name: "IAS X509 Expired", testdata: testdata.EnvWithIASAuthX509Expired, wantCert: nil, wantKey: nil, wantErr: assert.Error},
 		{name: "Env with megaclite", testdata: testdata.EnvWithMegaclite, wantCert: nil, wantKey: nil, wantErr: assertErrorIsMegacliteMode},
 		{name: "User-provided IAS X509", testdata: testdata.EnvWithUserProvidedIAS, wantCert: []byte("identity-cert-payload"), wantKey: []byte("identity-key-payload"), wantErr: assert.NoError},
+		{name: "Service binding missing", testdata: testdata.EnvWithAllMissing, wantCert: nil, wantKey: nil, wantErr: assert.Error},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
