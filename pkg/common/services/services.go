@@ -8,7 +8,18 @@ import (
 	"time"
 )
 
-const MegacliteID = "dwc-megaclite-ams-instance-id"
+const (
+	AmsServerPath        = "authorization"
+	AmsBundleGatewayPath = "bundle-gateway"
+
+	MegacliteID                   = "dwc-megaclite-ams-instance-id"
+	MegacliteAmsServerPath        = "/ams/proxy/"
+	MegacliteAmsBundleGatewayPath = "/ams/bundle/"
+)
+
+var (
+	ErrServiceNotFound = errors.New("service not found")
+)
 
 type Service struct {
 	Name        string          `json:"name"`
@@ -17,35 +28,10 @@ type Service struct {
 	InstanceID  string          `json:"instance_guid"`
 }
 
-type ObjectStoreCredentials struct {
-	AccessKeyID     string `json:"access_key_id" validate:"required"`
-	Bucket          string `json:"bucket" validate:"required"`
-	Host            string `json:"host" validate:"required"`
-	Region          string `json:"region" validate:"required"`
-	SecretAccessKey string `json:"secret_access_key" validate:"required"`
-	URI             string `json:"uri"`
-	Username        string `json:"username"`
-}
-
-// AMSCredentials are credentials from the legacy standalone authorization broker
-type AMSCredentials struct {
-	BundleURL   string                  `json:"bundle_url" validate:"required_without=ObjectStore"`
-	ObjectStore *ObjectStoreCredentials `json:"object_store" validate:"required_without=BundleURL"`
-	URL         string                  `json:"url" validate:"required"`
-	InstanceID  string                  `json:"instance_id"`
-}
-
-type MegacliteService struct {
-	Name        string `json:"name"`
-	Credentials struct {
-		URL string `json:"url"`
-	} `json:"credentials"`
-}
-
 type IASCredentials struct {
 	Certificate          string    `json:"certificate" validate:"required"`
 	CertificateExpiresAt time.Time `json:"certificate_expires_at"`
-	Clientid             string    `json:"clientid"`
+	ClientID             string    `json:"clientid"`
 	Domain               string    `json:"domain"`
 	Domains              []string  `json:"domains"`
 	Key                  string    `json:"key" validate:"required"`
@@ -53,11 +39,17 @@ type IASCredentials struct {
 	ProoftokenURL        string    `json:"prooftoken_url"`
 	URL                  string    `json:"url"`
 	ZoneUUID             string    `json:"zone_uuid"`
+
+	AmsInstanceID string `json:"authorization_instance_id"  validate:"required"`
+	AmsClientID   string `json:"authorization_client_id"`
+
+	// derived values
+	AmsServerURL        string
+	AmsBundleGatewayURL string
 }
 
-type UnifiedIdentityCredentials struct {
-	IASCredentials
-	AuthzInstanceID string `json:"authorization_instance_id" validate:"required"`
+type MegacliteCredentials struct {
+	URL string `json:"url"`
 }
 
 func LoadService(log Logger, serviceName string) (*Service, error) {
@@ -71,9 +63,15 @@ func LoadService(log Logger, serviceName string) (*Service, error) {
 	filteredServices := make([]Service, 0, 1)
 	if ups, ok := svcs["user-provided"]; ok {
 		for i := range ups {
+			if ups[i].Name == serviceName {
+				log.Info("Detected user-provided '%s' service '%s' via its name", serviceName, ups[i].Name)
+				ups[i].InstanceID = "" // delete since it's the instance id of the user-provided-service, not the actual instance
+				filteredServices = append(filteredServices, ups[i])
+				continue
+			}
 			for _, t := range ups[i].Tags {
 				if t == serviceName {
-					log.Info("Detected user-provided %s service '%s", serviceName, ups[i].Name)
+					log.Info("Detected user-provided '%s' service '%s' via its tag '%s'", serviceName, ups[i].Name, t)
 					ups[i].InstanceID = "" // delete since it's the instance id of the user-provided-service, not the actual instance
 					filteredServices = append(filteredServices, ups[i])
 				}
@@ -84,45 +82,25 @@ func LoadService(log Logger, serviceName string) (*Service, error) {
 	if len(filteredServices) > 1 {
 		return nil, fmt.Errorf("expect only one service (type %s or user-provided) but got %d", serviceName, len(filteredServices))
 	} else if len(filteredServices) < 1 {
-		return nil, nil
+		return nil, ErrServiceNotFound
 	}
 	return &filteredServices[0], nil
 }
 
-func LoadIASClientCert(log Logger) (cert, key []byte, err error) {
-	iasService, err := LoadService(log, "identity")
-	if err != nil {
-		return cert, key, err
+func LoadServiceCredentials(log Logger) (*IASCredentials, error) {
+	creds, err := fromIdentity(log)
+	if !errors.Is(err, ErrServiceNotFound) { // if service is not found try to find megaclite
+		return creds, err // return creds or err (one of them is nil)
 	}
-	var iasCreds IASCredentials
-	err = json.Unmarshal(iasService.Credentials, &iasCreds)
-	if err != nil {
-		return cert, key, err
-	}
-	if iasCreds.Certificate == "" || iasCreds.Key == "" { // TODO: Provide option for {"credential-type":"X509_PROVIDED"}
-		return cert, key, fmt.Errorf("identity service binding does not contain client certificate. Please use binding parameter {\"credential-type\":\"X509_GENERATED\"}")
-	}
-	if iasCreds.CertificateExpiresAt.Before(time.Now()) {
-		return nil, nil, fmt.Errorf("identity certificate has expired: %s. Please re-create your identity binding", iasCreds.CertificateExpiresAt.String())
-	}
-	return []byte(iasCreds.Certificate), []byte(iasCreds.Key), nil
-}
 
-func LoadAMSCredentials(log Logger) (AMSCredentials, error) {
-	amsCreds, err := fromIdentity(log)
+	creds, err = fromMegaclite(log)
 	if err != nil {
-		return AMSCredentials{}, err
+		if errors.Is(err, ErrServiceNotFound) {
+			return nil, errors.New("cannot find authorization-enabled identity service")
+		}
+		return nil, fmt.Errorf("error trying to fallback to megaclite proxy to upload AMS DCLs and download AMS bundles: %w", err)
 	}
-	if amsCreds != nil {
-		return *amsCreds, nil
-	}
-	amsCreds, err = fromMegaclite()
-	if err != nil {
-		return AMSCredentials{}, err
-	}
-	if amsCreds != nil {
-		log.Info("using megaclite proxy to upload AMS DCLs and download AMS bundles")
-		return *amsCreds, nil
-	}
-	return AMSCredentials{}, errors.New("cannot find authorization-enabled identity service")
+
+	log.Info("using megaclite proxy to upload AMS DCLs and download AMS bundles")
+	return creds, nil
 }
