@@ -12,4 +12,7 @@ lint:
 build-image:
 	docker build -t buildpack-packager -f builder.Dockerfile .
 
+reuse-lint:
+	pipx run reuse lint
+
 .PHONY: build build-image lint test
