@@ -185,10 +185,7 @@ func (s *Supplier) writeProfileDFile(cfg env.Config) error {
 func (s *Supplier) writeOpaConfig(creds *services.IASCredentials, tlsCfg tlsConfig) error {
 	s.Log.Info("writing opa config..")
 
-	cfg, err := s.createBundleGatewayConfig(creds, tlsCfg)
-	if err != nil {
-		return fmt.Errorf("error creating bundle download config: %w", err)
-	}
+	cfg := s.createBundleGatewayConfig(creds, tlsCfg)
 	cfg.Plugins = map[string]bool{"dcl": true}
 	filePath := path.Join(s.Stager.DepDir(), "opa_config.yml")
 	bCfg, _ := json.Marshal(cfg)
@@ -196,7 +193,7 @@ func (s *Supplier) writeOpaConfig(creds *services.IASCredentials, tlsCfg tlsConf
 	return libbuildpack.NewJSON().Write(filePath, cfg)
 }
 
-func (s *Supplier) createBundleGatewayConfig(cred *services.IASCredentials, cfg tlsConfig) (OPAConfig, error) {
+func (s *Supplier) createBundleGatewayConfig(cred *services.IASCredentials, cfg tlsConfig) OPAConfig {
 	serviceKey := "bundle_storage"
 	bundles := make(map[string]*bundle.Source)
 	bundles[cred.AmsInstanceID] = &bundle.Source{
@@ -223,7 +220,7 @@ func (s *Supplier) createBundleGatewayConfig(cred *services.IASCredentials, cfg 
 	return OPAConfig{
 		Bundles:  bundles,
 		Services: svcs,
-	}, nil
+	}
 }
 
 func (s *Supplier) writeLaunchConfig(cfg env.Config) error {
