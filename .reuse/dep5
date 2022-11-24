@@ -29,6 +29,7 @@ Files:
     cmd/*
     fixtures/node_with_opa/*
     pkg/*
+    resources/testdata/*
     README.md
     .gitignore
     .golangci.yml
