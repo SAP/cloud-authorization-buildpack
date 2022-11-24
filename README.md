@@ -19,6 +19,8 @@ We discourage referencing a branch of this repo directly because:
 
 ### Services
 
+#### Identity Service
+
 This buildpack expects to find a bound identity service with Authorization Management Service activated. To find the
 service it parses the service bindings in the VCAP_SERVICES with service type `identity` or any user-provided services
 with the name or tag `identity`. Only one matching service binding is allowed. The service binding is expected to
