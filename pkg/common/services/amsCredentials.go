@@ -4,76 +4,78 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
-	"os"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 )
 
-func fromMegaclite() (*AMSCredentials, error) {
-	svcsString := os.Getenv("VCAP_SERVICES")
-	var svcs map[string][]MegacliteService
-	err := json.Unmarshal([]byte(svcsString), &svcs)
+func fromMegaclite(log Logger) (*IASCredentials, error) {
+	megacliteService, err := LoadService(log, "megaclite")
 	if err != nil {
-		return nil, fmt.Errorf("could not unmarshal VCAP_SERVICES: %w", err)
+		return nil, err
 	}
-	if ups, ok := svcs["user-provided"]; ok {
-		for _, up := range ups {
-			if up.Name == "megaclite" {
-				megacliteURL := up.Credentials.URL
-				if megacliteURL == "" {
-					return nil, fmt.Errorf("invalid megaclite URL: %q", megacliteURL)
-				}
-				return &AMSCredentials{
-					BundleURL:  megacliteURL + "/ams/bundle/",
-					URL:        megacliteURL + "/ams/proxy/",
-					InstanceID: MegacliteID,
-				}, nil
-			}
-		}
+
+	var megacliteCreds MegacliteCredentials
+	err = json.Unmarshal(megacliteService.Credentials, &megacliteCreds)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshaling identity credentials: %w", err)
 	}
-	return nil, nil
+
+	if megacliteCreds.URL == "" {
+		return nil, fmt.Errorf("invalid megaclite URL: %q", megacliteCreds.URL)
+	}
+
+	result := IASCredentials{AmsInstanceID: MegacliteID}
+	result.AmsServerURL, err = url.JoinPath(megacliteCreds.URL, MegacliteAmsServerPath)
+	if err != nil {
+		return nil, fmt.Errorf("error building ams server url: %w", err)
+	}
+	result.AmsBundleGatewayURL, err = url.JoinPath(megacliteCreds.URL, MegacliteAmsBundleGatewayPath)
+	if err != nil {
+		return nil, fmt.Errorf("error building bundle gateway url: %w", err)
+	}
+
+	return &result, nil
 }
 
-func fromIdentity(log Logger) (*AMSCredentials, error) {
-	identityCreds, err := loadIdentityCreds(log)
-	if identityCreds == nil {
-		return nil, nil
-	}
+func fromIdentity(log Logger) (*IASCredentials, error) {
+	iasService, err := LoadService(log, "identity")
 	if err != nil {
-		return nil, fmt.Errorf("could not load identity credentials: %w", err)
+		return nil, err
 	}
-	if identityCreds.AuthzInstanceID == "" {
-		return nil, nil
+	var creds IASCredentials
+	err = json.Unmarshal(iasService.Credentials, &creds)
+	if err != nil {
+		return nil, fmt.Errorf("error unmarshaling identity credentials: %w", err)
 	}
-	if identityCreds.Certificate == "" || identityCreds.Key == "" { // TODO: Remove the check for KEY once X509_PROVIDED bindings are supported
+
+	// explicit checks to improve error messages for consumer
+	if creds.AmsInstanceID == "" {
+		return nil, fmt.Errorf("identity service credentials found without activated authorization management service")
+	}
+
+	if creds.Certificate == "" || creds.Key == "" { // TODO: Remove the check for KEY once X509_PROVIDED bindings are supported
 		return nil, fmt.Errorf(`invalid bindings credentials for identity service with AMS enabled: service bindings must be created with {"credential-type": "X509_GENERATED"} (more information in the identity broker documentation)`)
 	}
+
+	if creds.CertificateExpiresAt.Before(time.Now()) {
+		return nil, fmt.Errorf("identity certificate has expired: %s. Please re-create your identity binding", creds.CertificateExpiresAt.String())
+	}
+
 	validate := validator.New()
-	err = validate.Struct(identityCreds)
+	err = validate.Struct(creds)
 	if err != nil {
 		return nil, fmt.Errorf("invalid binding credentials for identity service with AMS enabled: %w", err)
 	}
 
-	amsURL, err := url.Parse(identityCreds.URL)
+	creds.AmsServerURL, err = url.JoinPath(creds.URL, AmsServerPath)
 	if err != nil {
-		return nil, fmt.Errorf("invalid tenant URL in identity service %q", identityCreds.URL)
+		return nil, fmt.Errorf("error building ams server url: %w", err)
 	}
-	bundleURL := *amsURL // can safely be copied
-	bundleURL.Path = "/bundle-gateway"
-	amsURL.Path = "/authorization"
-	return &AMSCredentials{
-		BundleURL:  bundleURL.String(),
-		URL:        amsURL.String(),
-		InstanceID: identityCreds.AuthzInstanceID,
-	}, nil
-}
+	creds.AmsBundleGatewayURL, err = url.JoinPath(creds.URL, AmsBundleGatewayPath)
+	if err != nil {
+		return nil, fmt.Errorf("error building bundle gateway url: %w", err)
+	}
 
-func loadIdentityCreds(log Logger) (*UnifiedIdentityCredentials, error) {
-	iasService, err := LoadService(log, "identity")
-	if iasService == nil {
-		return nil, err
-	}
-	var iasCreds UnifiedIdentityCredentials
-	err = json.Unmarshal(iasService.Credentials, &iasCreds)
-	return &iasCreds, err
+	return &creds, nil
 }

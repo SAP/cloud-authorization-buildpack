@@ -77,11 +77,11 @@ func (s *Supplier) Run() error {
 	if err != nil {
 		return fmt.Errorf("could not load buildpack Config: %w", err)
 	}
-	amsCreds, err := services.LoadAMSCredentials(s.Log)
+	identityCreds, err := services.LoadServiceCredentials(s.Log)
 	if err != nil {
 		return fmt.Errorf("could not load AMSCredentials: %w", err)
 	}
-	tlsCfg, err := s.getTLSConfig(&amsCreds)
+	tlsCfg, err := s.getTLSConfig(identityCreds)
 	if err != nil {
 		return fmt.Errorf("could not load TLS credentials: %w", err)
 	}
@@ -94,14 +94,14 @@ func (s *Supplier) Run() error {
 	if err := s.writeLaunchConfig(cfg); err != nil {
 		return fmt.Errorf("could not write launch config: %w", err)
 	}
-	if err := s.writeOpaConfig(amsCreds, tlsCfg); err != nil {
+	if err := s.writeOpaConfig(identityCreds, tlsCfg); err != nil {
 		return fmt.Errorf("could not write opa config: %w", err)
 	}
 	if err := s.writeProfileDFile(cfg); err != nil {
 		return fmt.Errorf("could not write profileD file: %w", err)
 	}
 	if cfg.ShouldUpload {
-		if err := s.upload(amsCreds, tlsCfg, cfg.Root); err != nil {
+		if err := s.upload(identityCreds, tlsCfg, cfg.Root); err != nil {
 			return fmt.Errorf("error uploading policies: %w", err)
 		}
 	}
@@ -115,8 +115,8 @@ type tlsConfig struct {
 	Key      []byte
 }
 
-func (s *Supplier) getTLSConfig(amsCreds *services.AMSCredentials) (tlsConfig, error) {
-	if amsCreds.InstanceID == services.MegacliteID {
+func (s *Supplier) getTLSConfig(identityCreds *services.IASCredentials) (tlsConfig, error) {
+	if identityCreds.AmsInstanceID == services.MegacliteID {
 		cert, err := os.ReadFile(os.Getenv("CF_INSTANCE_CERT"))
 		if err != nil {
 			return tlsConfig{}, fmt.Errorf("unable to read CF_INSTANCE_CERT certificate: %s", err)
@@ -132,21 +132,14 @@ func (s *Supplier) getTLSConfig(amsCreds *services.AMSCredentials) (tlsConfig, e
 			Key:      key,
 		}, nil
 	}
-	cert, key, err := services.LoadIASClientCert(s.Log)
-	if err != nil {
-		return tlsConfig{}, fmt.Errorf("unable to load identity client certificate: %s", err)
-	}
+
 	// The identity cert is written to the deps directory during app startup by the separate app cert-to-disk.go
 	return tlsConfig{
 		CertPath: path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.crt"),
 		KeyPath:  path.Join("/home/vcap/deps/", s.Stager.DepsIdx(), "ias.key"),
-		Cert:     cert,
-		Key:      key,
-	}, err
-}
-
-type S3Signing struct {
-	AWSEnvCreds interface{} `json:"environment_credentials,omitempty"`
+		Cert:     []byte(identityCreds.Certificate),
+		Key:      []byte(identityCreds.Key),
+	}, nil
 }
 
 type ClientTLS struct {
@@ -155,11 +148,10 @@ type ClientTLS struct {
 }
 
 type Credentials struct {
-	S3Signing *S3Signing `json:"s3_signing,omitempty"` // old direct s3 bundle access
-	ClientTLS *ClientTLS `json:"client_tls,omitempty"` // new storage gateway bundle access
+	ClientTLS *ClientTLS `json:"client_tls,omitempty"` // storage gateway bundle access
 }
 
-type RestConfig struct {
+type OPARestConfig struct {
 	URL         string `json:"url"`
 	Headers     map[string]string
 	Credentials Credentials `json:"credentials"`
@@ -167,7 +159,7 @@ type RestConfig struct {
 
 type OPAConfig struct {
 	Bundles  map[string]*bundle.Source `json:"bundles"`
-	Services map[string]RestConfig     `json:"services"`
+	Services map[string]OPARestConfig  `json:"services"`
 	Plugins  map[string]bool           `json:"plugins,omitempty"`
 }
 
@@ -190,15 +182,10 @@ func (s *Supplier) writeProfileDFile(cfg env.Config) error {
 	return os.WriteFile(path.Join(s.Stager.ProfileDir(), "0000_opa_env.sh"), b.Bytes(), 0755) //nolint
 }
 
-func (s *Supplier) writeOpaConfig(cred services.AMSCredentials, tlsCfg tlsConfig) error {
+func (s *Supplier) writeOpaConfig(creds *services.IASCredentials, tlsCfg tlsConfig) error {
 	s.Log.Info("writing opa config..")
 
-	var cfg OPAConfig
-	if cred.BundleURL == "" {
-		cfg = s.createDirectS3OpaConfig(*cred.ObjectStore)
-	} else {
-		cfg = s.createStorageGatewayConfig(cred, tlsCfg)
-	}
+	cfg := s.createBundleGatewayConfig(creds, tlsCfg)
 	cfg.Plugins = map[string]bool{"dcl": true}
 	filePath := path.Join(s.Stager.DepDir(), "opa_config.yml")
 	bCfg, _ := json.Marshal(cfg)
@@ -206,35 +193,10 @@ func (s *Supplier) writeOpaConfig(cred services.AMSCredentials, tlsCfg tlsConfig
 	return libbuildpack.NewJSON().Write(filePath, cfg)
 }
 
-func (s *Supplier) createDirectS3OpaConfig(osCreds services.ObjectStoreCredentials) OPAConfig {
-	serviceKey := "s3"
-	bundles := make(map[string]*bundle.Source)
-	bundles["SAP"] = &bundle.Source{
-		Config: download.Config{
-			Polling: download.PollingConfig{
-				MinDelaySeconds: newInt64P(10),
-				MaxDelaySeconds: newInt64P(20),
-			},
-		},
-		Service:  serviceKey,
-		Resource: "SAP.tar.gz",
-	}
-	svcs := make(map[string]RestConfig)
-	svcs[serviceKey] = RestConfig{
-		URL:         fmt.Sprintf("https://%s/%s", osCreds.Host, osCreds.Bucket),
-		Credentials: Credentials{S3Signing: &S3Signing{AWSEnvCreds: struct{}{}}},
-	}
-
-	return OPAConfig{
-		Bundles:  bundles,
-		Services: svcs,
-	}
-}
-
-func (s *Supplier) createStorageGatewayConfig(cred services.AMSCredentials, cfg tlsConfig) OPAConfig {
+func (s *Supplier) createBundleGatewayConfig(cred *services.IASCredentials, cfg tlsConfig) OPAConfig {
 	serviceKey := "bundle_storage"
 	bundles := make(map[string]*bundle.Source)
-	bundles[cred.InstanceID] = &bundle.Source{
+	bundles[cred.AmsInstanceID] = &bundle.Source{
 		Config: download.Config{
 			Polling: download.PollingConfig{
 				MinDelaySeconds: newInt64P(10),
@@ -243,12 +205,12 @@ func (s *Supplier) createStorageGatewayConfig(cred services.AMSCredentials, cfg 
 		},
 		Service: serviceKey,
 
-		Resource: cred.InstanceID + ".tar.gz",
+		Resource: cred.AmsInstanceID + ".tar.gz",
 	}
-	svcs := make(map[string]RestConfig)
-	svcs[serviceKey] = RestConfig{
-		URL:     cred.BundleURL,
-		Headers: map[string]string{env.HeaderInstanceID: cred.InstanceID},
+	svcs := make(map[string]OPARestConfig)
+	svcs[serviceKey] = OPARestConfig{
+		URL:     cred.AmsBundleGatewayURL,
+		Headers: map[string]string{env.HeaderInstanceID: cred.AmsInstanceID},
 		Credentials: Credentials{ClientTLS: &ClientTLS{
 			Cert: cfg.CertPath,
 			Key:  cfg.KeyPath,
@@ -310,7 +272,7 @@ func (s *Supplier) supplyCertCopier() error {
 	return os.Chmod(destFile, 0755)
 }
 
-func (s *Supplier) upload(amsCreds services.AMSCredentials, tlsCfg tlsConfig, rootDir string) error {
+func (s *Supplier) upload(creds *services.IASCredentials, tlsCfg tlsConfig, rootDir string) error {
 	client, err := s.GetClient(tlsCfg.Cert, tlsCfg.Key)
 	if err != nil {
 		return fmt.Errorf("unable to create AMS client: %s", err)
@@ -319,7 +281,7 @@ func (s *Supplier) upload(amsCreds services.AMSCredentials, tlsCfg tlsConfig, ro
 		Log:           s.Log,
 		Root:          path.Join(s.Stager.BuildDir(), rootDir),
 		Client:        client,
-		AMSInstanceID: amsCreds.InstanceID,
+		AMSInstanceID: creds.AmsInstanceID,
 	}
-	return u.Do(context.Background(), amsCreds.URL)
+	return u.Do(context.Background(), creds.AmsServerURL)
 }

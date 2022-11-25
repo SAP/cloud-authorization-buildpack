@@ -19,21 +19,14 @@ We discourage referencing a branch of this repo directly because:
 
 ### Services
 
-#### Authorization Service (Legacy)
-
-This buildpack expects to find a bound identity service containing "cert" and "key" values in the credentials. This
-instance must have registered an authorization instance as consumed service instance. This authorization instance also
-needs to be bound to this app and will be identified as follows:   
-By default this buildpack expect to find an "authorization" service binding in the VCAP_SERVICES. It's also possible to
-bind a user-provided service instead, when it has same structure as the "authorization" binding and is tagged with "
-authorization". Another way to override this behavior is to provide the environment variable AMS_SERVICE to target
-another service than "authorization"(e.g. "authorization-dev")
-
 #### Identity Service
 
-The buildpack expects to find a bound identity service containing "cert" and "key" values in the credentials, as well as
-authorization values (e.g. "authorization_instance_id"). To create such an identity instance you need to provide the
-following provisioning parameters:
+This buildpack expects to find a bound identity service with Authorization Management Service activated. To find the
+service it parses the service bindings in the VCAP_SERVICES with service type `identity` or any user-provided services
+with the name or tag `identity`. Only one matching service binding is allowed. The service binding is expected to
+contain a "certificate", a "key", the identity tenant `url` and the `authorization_instance_id`.
+
+To create such an identity instance you need to provide the following provisioning parameters:
 
 ```json
 {
@@ -45,7 +38,7 @@ following provisioning parameters:
 
 When binding the service instance to your application or when creating service keys the following parameters must be
 provided in order to create certificate based credentials. These are used by the buildpack to upload the policies to
-your service instance.
+your service instance and to download the authorization bundle during runtime.
 
 ```json
 {

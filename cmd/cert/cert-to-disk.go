@@ -55,21 +55,16 @@ func copyCertToDisk(amsDependencyDir string, cert, key []byte) error {
 var ErrMegacliteMode = errors.New("AMS sidecar starting in megaclite mode: No cert-to-disk required")
 
 func loadCert() (cert, key []byte, err error) {
-	amsCreds, err := services.LoadAMSCredentials(log)
+	identityCreds, err := services.LoadServiceCredentials(log)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not load AMSCredentials: %w", err)
 	}
 
-	if amsCreds.InstanceID == services.MegacliteID {
+	if identityCreds.AmsInstanceID == services.MegacliteID {
 		return nil, nil, ErrMegacliteMode
 	}
 
-	cert, key, err = services.LoadIASClientCert(log)
-	if err != nil {
-		return nil, nil, fmt.Errorf("unable to load identity client certificate: %w", err)
-	}
-
-	return cert, key, nil
+	return []byte(identityCreds.Certificate), []byte(identityCreds.Key), nil
 }
 
 var _ services.Logger = &Logger{}
