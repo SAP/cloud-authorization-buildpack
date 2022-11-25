@@ -44,8 +44,8 @@ type IASCredentials struct {
 	AmsClientID   string `json:"authorization_client_id"`
 
 	// derived values
-	AmsServerURL        string
-	AmsBundleGatewayURL string
+	AmsServerURL        string    `json:"-"`
+	AmsBundleGatewayURL string    `json:"-"`
 }
 
 type MegacliteCredentials struct {
