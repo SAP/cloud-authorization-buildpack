@@ -70,6 +70,18 @@ Prerequisites:
 
 Run `make test` to run unit tests. Run `make build` to package the buildpack as a .zip file.
 
+### Updating SAP-OPA
+1. download latest linux-amd64 binary from repository: https://common.repositories.cloud.sap/ui/native/deploy.releases/com/sap/golang/github/wdf/sap/corp/cpsecurity/cas-opa-sap/ in an empty folder
+2. go to the folder where it was downloaded and run `tar -xf {}.tar.gz` to unzip archive
+3. go into the folder `cd linux-amd64`
+4. zip the binary `tar -czvf opa.tar.gz opa` 
+5. generate the SHA256 for the archive 
+   1. linux `cat opa.tar.gz | sha256sum` 
+   2. macOS `shasum -a 256 opa.tar.gz` 
+6. update the SHA256 checksum in [manifest.yml](/manifest.yml) dependencies->opa->sha256 
+7. and place `opa.tar.gz` in resources folder
+8. update the version [manifest.yml](/manifest.yml) dependencies->opa->version 
+
 ## Reporting Issues
 
 Open an issue on this project
