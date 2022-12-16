@@ -6,13 +6,13 @@
 language: opa
 default_versions:
   - name: opa
-    version: "0.2.9-sap-0.42.1"
+    version: "0.47.2-sap-0.3.0"
 dependency_deprecation_dates:
 dependencies:
   - name: opa
-    version: "0.2.9-sap-0.42.1"
+    version: "0.47.2-sap-0.3.0"
     file: "resources/opa.tar.gz"
-    sha256: cf2a7cb5100f4e5261b535e3ff7cd3c4da74de57f1d8b011d2b7ccb7a85355f0
+    sha256: 5fcbba3fc6301b63def1b2371b7d024170dcfa160aba306782b72c25054dd6a9
     uri: https://github.com/SAP/cloud-authorization-buildpack/raw/main/resources/opa.tar.gz
     cf_stacks: ["cflinuxfs3"]
 include_files:
