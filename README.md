@@ -87,11 +87,6 @@ Run `make test` to run unit tests. Run `make build` to package the buildpack as 
 2. execute make build to create a packed buildpack
 3. upload the packed buildpack as asset to the release
 
-### Release Process
-1. Use github to create a release
-2. execute make build to create a packed buildpack
-3. upload the packed buildpack as asset to the release
-
 ## Reporting Issues
 
 Open an issue on this project
