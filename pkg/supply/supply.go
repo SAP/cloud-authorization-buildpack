@@ -161,6 +161,7 @@ type OPAConfig struct {
 	Bundles  map[string]*bundle.Source `json:"bundles"`
 	Services map[string]OPARestConfig  `json:"services"`
 	Plugins  map[string]bool           `json:"plugins,omitempty"`
+	Status   map[string]string         `json:"status,omitempty"`
 }
 
 func (s *Supplier) writeProfileDFile(cfg env.Config) error {
@@ -187,6 +188,7 @@ func (s *Supplier) writeOpaConfig(creds *services.IASCredentials, tlsCfg tlsConf
 
 	cfg := s.createBundleGatewayConfig(creds, tlsCfg)
 	cfg.Plugins = map[string]bool{"dcl": true}
+	cfg.Status = map[string]string{"plugin": "dcl"}
 	filePath := path.Join(s.Stager.DepDir(), "opa_config.yml")
 	bCfg, _ := json.Marshal(cfg)
 	s.Log.Debug("OPA config: '%s'", string(bCfg))
