@@ -6,7 +6,7 @@
 language: opa
 default_versions:
   - name: opa
-    version: "0.47.2-sap-0.3.0"
+    version: "0.47.3-sap-0.3.1"
 dependency_deprecation_dates:
 dependencies:
   - name: opa
