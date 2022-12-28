@@ -213,6 +213,10 @@ var _ = Describe("Supply", func() {
 					Expect(ok).To(BeTrue())
 					Expect(string(enabled)).To(Equal(`true`))
 				})
+				By("enabling the OPA dcl status plugin", func() {
+					enabled := cfg.Status
+					Expect(string(enabled)).To(Equal(`{"plugin":"dcl"}`))
+				})
 			})
 			It("should configure access to the gateway", func() {
 				Expect(supplier.Run()).To(Succeed())
