@@ -83,9 +83,10 @@ Run `make test` to run unit tests. Run `make build` to package the buildpack as 
 8. update the version [manifest.yml](/manifest.yml) dependencies->opa->version & default_versions->opa->version
 
 ### Release Process
-1. Use github to create a release
+Use github to create a release
+1. upgrade [VERSION](/VERSION) file 
 2. execute make build to create a packed buildpack
-3. upload the packed buildpack as asset to the release
+3. upload the packed buildpack (opa_buildpack.zip) as asset to the release
 
 ## Reporting Issues
 
