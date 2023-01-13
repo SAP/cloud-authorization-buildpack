@@ -167,8 +167,8 @@ type OPAConfig struct {
 func (s *Supplier) writeProfileDFile(cfg env.Config) error {
 	s.Log.Info("writing profileD file..")
 	values := map[string]string{
-		"OPA_URL": fmt.Sprintf("http://localhost:%d/", cfg.Port),
-		"ADC_URL": fmt.Sprintf("http://localhost:%d/", cfg.Port),
+		"OPA_URL": fmt.Sprintf("http://127.0.0.1:%d/", cfg.Port),
+		"ADC_URL": fmt.Sprintf("http://127.0.0.1:%d/", cfg.Port),
 	}
 
 	var b bytes.Buffer
