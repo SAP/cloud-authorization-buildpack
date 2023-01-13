@@ -253,7 +253,7 @@ var _ = Describe("Supply", func() {
 				env, err := os.ReadFile(path.Join(buildDir, ".profile.d", "0000_opa_env.sh"))
 				Expect(err).NotTo(HaveOccurred())
 				expectIsExecutable(path.Join(buildDir, ".profile.d", "0000_opa_env.sh"))
-				Expect(string(env)).To(ContainSubstring(`export OPA_URL=http://localhost:9888`))
+				Expect(string(env)).To(ContainSubstring(`export OPA_URL=http://127.0.0.1:9888`))
 			})
 			It("provides the OPA executable", func() {
 				Expect(supplier.Run()).To(Succeed())

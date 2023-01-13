@@ -19,7 +19,7 @@ cf ssh node-opa
 ```
 and query the sidecar process using curl
 ```sh
-curl localhost:8999
+curl 127.0.0.1:8999
 ```
 
 
