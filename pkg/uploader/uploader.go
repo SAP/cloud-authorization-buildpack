@@ -63,21 +63,19 @@ func (up *Uploader) Do(ctx context.Context, dstURL string) error {
 	return up.logResponse(resp, u.String())
 }
 
-const maxRetries = 9
-
-var RetryPeriod = 10 * time.Second
+const maxRetries = 12 // max 3min
+var RetryPeriod = 15 * time.Second
 
 func (up *Uploader) DoWithRetries(ctx context.Context, dstURL string, body []byte, maxRetries int) (*http.Response, error) {
 	resp, err := up.do(ctx, dstURL, body)
 	if err != nil {
 		return nil, fmt.Errorf("DCL upload request unsuccessful: %w", err)
 	}
-	retries := 0
-	for resp.StatusCode == http.StatusUnauthorized && retries < maxRetries {
+	for retries := 0; resp.StatusCode == http.StatusUnauthorized && retries < maxRetries; retries++ {
 		if err := drainResponseBody(resp.Body); err != nil {
 			return nil, fmt.Errorf("cannot drain response body: %w", err)
 		}
-		up.Log.Info("certificate is not accepted (yet), retrying after  %s...", RetryPeriod.String())
+		up.Log.Info("certificate is not accepted (yet), retrying after %s...", RetryPeriod.String())
 		time.Sleep(RetryPeriod)
 		resp, err = up.do(ctx, dstURL, body)
 		if err != nil {
