@@ -8,6 +8,7 @@ import (
 )
 
 const HeaderInstanceID = "X-Ams-Instance-Id"
+const HeaderOpaVersion = "X-Opa-Version"
 
 type Config struct {
 	Root         string
