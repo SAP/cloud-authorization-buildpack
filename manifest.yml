@@ -6,11 +6,11 @@
 language: opa
 default_versions:
   - name: opa
-    version: "0.49.0-sap-0.3.2"
+    version: "0.47.3-sap-0.3.1"
 dependency_deprecation_dates:
 dependencies:
   - name: opa
-    version: "0.49.0-sap-0.3.2"
+    version: "0.47.3-sap-0.3.1"
     file: "resources/opa.tar.gz"
     sha256: 9beca30f8c6e1e9ce2a3985e414b0a4cd620f7365bf3269fe3108a14f208d54c
     uri: https://github.com/SAP/cloud-authorization-buildpack/raw/main/resources/opa.tar.gz
