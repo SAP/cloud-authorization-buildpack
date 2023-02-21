@@ -81,6 +81,7 @@ Run `make test` to run unit tests. Run `make build` to package the buildpack as 
 6. update the SHA256 checksum in [manifest.yml](/manifest.yml) dependencies->opa->sha256 
 7. and place `opa.tar.gz` in resources folder
 8. update the version [manifest.yml](/manifest.yml) dependencies->opa->version & default_versions->opa->version
+9. update the OPA version in [go.mod](go.mod) and run `go mod tidy`
 
 ### Release Process
 Use github to create a release
