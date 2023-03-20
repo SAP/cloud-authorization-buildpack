@@ -1,7 +1,3 @@
-# SPDX-FileCopyrightText: 2020 2020 SAP SE or an SAP affiliate company and Cloud Security Client Go contributors
-#
-# SPDX-License-Identifier: Apache-2.0
-
 ---
 applications:
 - name: node-opa
@@ -10,6 +6,7 @@ applications:
   buildpacks:
     - https://github.com/SAP/cloud-authorization-buildpack/releases/latest/download/opa_buildpack.zip
     - nodejs_buildpack
+#  stack: cflinuxfs3
   services:
     - name: ias-node-opa
       parameters: { "credential-type": "X509_GENERATED" }
