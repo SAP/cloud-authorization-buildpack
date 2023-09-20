@@ -13,6 +13,6 @@ applications:
   env:
     BP_DEBUG: "true"
     AMS_DCL_ROOT: "/"
-    AMS_LOG_LEVEL: "debug"
+    AMS_LOG_LEVEL: "debug" # info, error
   no-route: true
   
