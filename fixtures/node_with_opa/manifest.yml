@@ -8,11 +8,12 @@ applications:
     - nodejs_buildpack
 #  stack: cflinuxfs3
   services:
-    - name: ias-node-opa
+    - name: fbtest
       parameters: { "credential-type": "X509_GENERATED" }
   health-check-type: process
   env:
     BP_DEBUG: "true"
     AMS_DCL_ROOT: "/"
+    AMS_LOG_LEVEL: "debug"
   no-route: true
   
