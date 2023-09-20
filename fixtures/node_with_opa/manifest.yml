@@ -6,7 +6,6 @@ applications:
   buildpacks:
     - https://github.com/SAP/cloud-authorization-buildpack/releases/latest/download/opa_buildpack.zip # must not be supplied as the last/final buildpack, as it only supplies dependencies
     - nodejs_buildpack
-#  stack: cflinuxfs3
   services:
     - name: fbtest
       parameters: { "credential-type": "X509_GENERATED" }
