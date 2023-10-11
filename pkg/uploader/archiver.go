@@ -25,12 +25,13 @@ func CreateArchive(log *libbuildpack.Logger, root string) (*bytes.Buffer, error)
 	zr := gzip.NewWriter(&buf)
 	tw := tar.NewWriter(zr)
 
+	log.Debug("creating archive for the root=%s", root)
 	rootInfo, err := os.Lstat(root)
 	if err != nil {
 		return nil, err
 	}
 
-	content, err := crawlDCLs(rootInfo, root, root)
+	content, err := crawlDCLs(rootInfo, root, root, log)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +61,7 @@ func CreateArchive(log *libbuildpack.Logger, root string) (*bytes.Buffer, error)
 	return &buf, nil
 }
 
-func crawlDCLs(fi os.FileInfo, file, root string) (*[]archiveContent, error) {
+func crawlDCLs(fi os.FileInfo, file, root string, log *libbuildpack.Logger) (*[]archiveContent, error) {
 	var archive []archiveContent
 	if fi.IsDir() {
 		content, err := ioutil.ReadDir(file)
@@ -68,14 +69,14 @@ func crawlDCLs(fi os.FileInfo, file, root string) (*[]archiveContent, error) {
 			return nil, err
 		}
 		for _, cfi := range content {
-			carchive, err := crawlDCLs(cfi, path.Join(file, cfi.Name()), root)
+			carchive, err := crawlDCLs(cfi, path.Join(file, cfi.Name()), root, log)
 			if err != nil {
 				return nil, err
 			}
 			archive = append(archive, *carchive...)
 		}
 		if len(archive) > 0 && file != root {
-			ce, err := createContentEntry(fi, file, root)
+			ce, err := createContentEntry(fi, file, root, log)
 			if err != nil {
 				return nil, err
 			}
@@ -83,12 +84,13 @@ func crawlDCLs(fi os.FileInfo, file, root string) (*[]archiveContent, error) {
 		}
 		return &archive, nil
 	}
-	return createContentEntry(fi, file, root)
+	return createContentEntry(fi, file, root, log)
 }
 
-func createContentEntry(fi os.FileInfo, file, root string) (*[]archiveContent, error) {
+func createContentEntry(fi os.FileInfo, file, root string, log *libbuildpack.Logger) (*[]archiveContent, error) {
 	var result archiveContent
 	if !fi.IsDir() && !strings.HasSuffix(file, ".dcl") {
+		log.Debug("the file %s was not added to the archive - not a dcl file", file)
 		return &[]archiveContent{}, nil
 	}
 
