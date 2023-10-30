@@ -2,14 +2,14 @@
 language: opa
 default_versions:
   - name: opa
-    version: "0.49.2-sap-0.3.2"
+    version: "0.57.1-sap-0.3.5"
 dependency_deprecation_dates:
 dependencies:
   - name: opa
     # 0 patch versions don't work here, see https://github.com/cloudfoundry/libbuildpack/issues/181
-    version: "0.49.2-sap-0.3.2"
+    version: "0.57.1-sap-0.3.5"
     file: "resources/opa.tar.gz"
-    sha256: 28e766c28acb166d9745b1b25f26a365aabbd1463c0708d090499c3fe011ca89
+    sha256: 39b866c50fec38569a8e813949d62ee34438bf8d6ed1a45149846c442cf18c78
     uri: https://github.com/SAP/cloud-authorization-buildpack/raw/main/resources/opa.tar.gz
     cf_stacks:
       - cflinuxfs3
