@@ -18,8 +18,8 @@ import (
 	"code.cloudfoundry.org/buildpackapplifecycle/buildpackrunner/resources"
 	"github.com/cloudfoundry/libbuildpack"
 	"github.com/golang/mock/gomock"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	. "github.com/onsi/ginkgo" //nolint
+	. "github.com/onsi/gomega" //nolint
 	"github.com/open-policy-agent/opa/config"
 	"github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/plugins/rest"
