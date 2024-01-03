@@ -1,0 +1,29 @@
+{
+  "bundles": {
+	($instanceID): {
+	  "polling": {
+		"min_delay_seconds": 10,
+		"max_delay_seconds": 20
+	  },
+	  "service": "bundle_storage",
+	  "resource": $instanceResource,
+	  "signing": null,
+	  "persist": false,
+	  "size_limit_bytes": 0
+	}
+  },
+  "services": {
+	"bundle_storage": {
+	  "url": $bundleUrl,
+	  "credentials": {
+		"client_tls": {
+		  "cert": $iasCertPath,
+		  "private_key": $iasKeyPath
+		}
+	  }
+	}
+  },
+  "plugins": {
+	"dcl": true
+  }
+}
