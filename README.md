@@ -11,11 +11,14 @@ provides an upload mechanism for the applications base policy definitions to the
 Consume the latest released version of this buildpack with the following link in your manifest.yml or via the `-b` flag:
 
 https://github.com/SAP/cloud-authorization-buildpack/releases/latest/download/opa_buildpack.zip  
+
 We discourage referencing a branch of this repo directly because:
 
 - adds a start-up dependency to buildpacks.cloudfoundry.org, which should be avoided
 - staging time will be increased significantly
 - may contain potentially breaking changes
+
+>❗️ Add this buildpack as the first buildpack as shown in the [fixture manifest.yml](https://github.com/SAP/cloud-authorization-buildpack/blob/main/fixtures/node_with_opa/manifest.yml) as it only supplies dependencies. See also the [CF docs about multi-buildpack usage](https://docs.cloudfoundry.org/buildpacks/understand-buildpacks.html#:~:text=buildpack%20in%20the%20order%20is%20the%20final%20buildpack).
 
 ### Services
 

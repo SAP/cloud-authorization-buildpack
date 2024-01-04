@@ -39,5 +39,7 @@ Files:
     go.sum
     vars.json
     VERSION
+    manifest.yml
+    k8s-sidecar/*
 Copyright: 2020-2022 SAP SE or an SAP affiliate company and cloud-authorization-buildpack contributors
 License: Apache-2.0

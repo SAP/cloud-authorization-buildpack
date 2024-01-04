@@ -1,7 +1,5 @@
 {
-    "consumed-services": [
-        {
-            "service-instance-name": "ams-node-opa"
-        }
-    ]
+    "authorization": {
+        "product_label": "ams-node-opa"
+    }
 }
