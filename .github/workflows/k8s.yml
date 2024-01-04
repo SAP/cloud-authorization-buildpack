@@ -1,5 +1,7 @@
+# SPDX-FileCopyrightText: 2020 SAP SE or an SAP affiliate company and contributors.
 #
-name: Create and publish a Docker image
+# SPDX-License-Identifier: Apache-2.0
+name: Publish k8s sidecar image
 
 on:
   pull_request:
