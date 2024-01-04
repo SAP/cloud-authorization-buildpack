@@ -1,13 +1,13 @@
 package supply_test
 
 import (
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	"github.com/onsi/ginkgo"
+	"github.com/onsi/gomega"
 
 	"testing"
 )
 
 func TestSupply(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Supply Suite")
+	gomega.RegisterFailHandler(ginkgo.Fail)
+	ginkgo.RunSpecs(t, "Supply Suite")
 }
