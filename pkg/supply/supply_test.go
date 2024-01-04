@@ -18,8 +18,8 @@ import (
 	"code.cloudfoundry.org/buildpackapplifecycle/buildpackrunner/resources"
 	"github.com/cloudfoundry/libbuildpack"
 	"github.com/golang/mock/gomock"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	. "github.com/onsi/ginkgo" //nolint
+	. "github.com/onsi/gomega" //nolint
 	"github.com/open-policy-agent/opa/config"
 	"github.com/open-policy-agent/opa/plugins/bundle"
 	"github.com/open-policy-agent/opa/plugins/rest"
@@ -181,7 +181,7 @@ var _ = Describe("Supply", func() {
 					Expect(ld.Processes).To(HaveLen(1))
 					Expect(ld.Processes[0].Type).To(Equal("opa"))
 					Expect(ld.Processes[0].Platforms.Cloudfoundry.SidecarFor).To(Equal([]string{"web"}))
-					cmd := `"/home/vcap/deps/42/bin/cert-to-disk" "/home/vcap/deps/42" && "/home/vcap/deps/42/opa" run -s -c "/home/vcap/deps/42/opa_config.yml" -l 'error' -a '127.0.0.1:9888' --skip-version-check`
+					cmd := `"/home/vcap/deps/42/bin/cert-to-disk" "/home/vcap/deps/42" && "/home/vcap/deps/42/opa" run -s -c "/home/vcap/deps/42/opa_config.yml" -l 'error' -a '127.0.0.1:9888' --disable-telemetry`
 					Expect(ld.Processes[0].Command).To(Equal(cmd))
 					Expect(ld.Processes[0].Limits.Memory).To(Equal(100))
 					Expect(writtenLogs.String()).To(ContainSubstring("writing launch.yml"))
