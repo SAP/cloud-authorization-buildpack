@@ -228,7 +228,7 @@ func (s *Supplier) createBundleGatewayConfig(cred *services.IASCredentials, cfg 
 func (s *Supplier) writeLaunchConfig(cfg env.Config) error {
 	s.Log.Info("writing launch.yml..")
 	cmd := fmt.Sprintf(
-		`%q %q && %q run -s -c %q -l '%s' -a '127.0.0.1:%d' --skip-version-check`,
+		`%q %q && %q run -s -c %q -l '%s' -a '127.0.0.1:%d' --disable-telemetry`,
 		path.Join("/home", "vcap", "deps", s.Stager.DepsIdx(), "bin", "cert-to-disk"),
 		path.Join("/home", "vcap", "deps", s.Stager.DepsIdx()),
 		path.Join("/home", "vcap", "deps", s.Stager.DepsIdx(), "opa"),
