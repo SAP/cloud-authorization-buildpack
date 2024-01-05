@@ -3,12 +3,10 @@
 # SPDX-License-Identifier: Apache-2.0
 name: Publish k8s sidecar image
 
-#on:
-#  push:
-#    tags:
-#      - "*" # triggers only if push new tag version, like `0.8.4
 on:
-  pull_request:
+  push:
+    tags:
+      - "*" # triggers only if push new tag version, like `0.8.4
 
 # Defines two custom environment variables for the workflow. These are used for the Container registry domain, and a name for the Docker image that this workflow builds.
 env:
