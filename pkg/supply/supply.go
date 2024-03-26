@@ -209,10 +209,17 @@ func (s *Supplier) createBundleGatewayConfig(cred *services.IASCredentials, cfg 
 
 		Resource: cred.AmsInstanceID + ".tar.gz",
 	}
+	opaVersion, err := s.Manifest.DefaultVersion("opa")
+	if err != nil {
+		// this can only happen if someone seriously messes up the manifest file of this buildpack
+		panic("no opa dependency found in buildpack manifest")
+	}
 	svcs := make(map[string]OPARestConfig)
 	svcs[serviceKey] = OPARestConfig{
-		URL:     cred.AmsBundleGatewayURL,
-		Headers: map[string]string{env.HeaderInstanceID: cred.AmsInstanceID},
+		URL: cred.AmsBundleGatewayURL,
+		Headers: map[string]string{
+			env.HeaderInstanceID: cred.AmsInstanceID,
+			env.HeaderOpaVersion: opaVersion.Version},
 		Credentials: Credentials{ClientTLS: &ClientTLS{
 			Cert: cfg.CertPath,
 			Key:  cfg.KeyPath,

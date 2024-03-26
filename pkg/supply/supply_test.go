@@ -48,6 +48,7 @@ var _ = Describe("Supply", func() {
 		mockAMSClient   *MockAMSClient
 		writtenLogs     *bytes.Buffer
 		vcapServices    string
+		manifest        *libbuildpack.Manifest
 	)
 
 	BeforeEach(func() {
@@ -88,12 +89,12 @@ var _ = Describe("Supply", func() {
 
 		args := []string{buildDir, "", depsDir, depsIdx}
 		bps := libbuildpack.NewStager(args, logger, &libbuildpack.Manifest{})
-		m, err := libbuildpack.NewManifest(buildpackDir, logger, time.Now())
+		manifest, err = libbuildpack.NewManifest(buildpackDir, logger, time.Now())
 		Expect(err).NotTo(HaveOccurred())
 		supplier = &supply.Supplier{
 			Stager:              bps,
-			Manifest:            m,
-			Installer:           libbuildpack.NewInstaller(m),
+			Manifest:            manifest,
+			Installer:           libbuildpack.NewInstaller(manifest),
 			Log:                 logger,
 			BuildpackDir:        buildpackDir,
 			CertCopierSourceDir: certCopierDir,
@@ -150,6 +151,12 @@ var _ = Describe("Supply", func() {
 				By("extending the tenant host URL from the identity service", func() {
 					Expect(restConfig["bundle_storage"].URL).NotTo(ContainSubstring("megaclite.host"))
 					Expect(restConfig["bundle_storage"].URL).To(Equal("https://mytenant.accounts400.ondemand.com/bundle-gateway"))
+				})
+				By("sending the opa version as header with the bundle requests", func() {
+					Expect(restConfig["bundle_storage"].Headers).To(HaveKey(env.HeaderOpaVersion))
+					opaVersion, err := manifest.DefaultVersion("opa")
+					Expect(err).To(BeNil())
+					Expect(restConfig["bundle_storage"].Headers[env.HeaderOpaVersion]).To(Equal(opaVersion.Version))
 				})
 			})
 		})
