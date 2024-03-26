@@ -34,7 +34,7 @@ To create such an identity instance you need to provide the following provisioni
 ```json
 {
   "authorization": {
-    "product_label": "<some text for the UI>"
+      "enabled": "true"
   }
 }
 ```
