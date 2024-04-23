@@ -149,7 +149,7 @@ var _ = Describe("Supply", func() {
 				})
 				By("extending the tenant host URL from the identity service", func() {
 					Expect(restConfig["bundle_storage"].URL).NotTo(ContainSubstring("megaclite.host"))
-					Expect(restConfig["bundle_storage"].URL).To(Equal("https://mytenant.accounts400.ondemand.com/bundle-gateway"))
+					Expect(restConfig["bundle_storage"].URL).To(Equal("https://mytenant.accounts400.ondemand.com/sap/ams/v1/bundles"))
 				})
 			})
 		})
@@ -234,7 +234,7 @@ var _ = Describe("Supply", func() {
 					Expect(restConfig["bundle_storage"].Credentials.ClientTLS.PrivateKey).To(Equal("/home/vcap/deps/42/ias.key"))
 				})
 				By("extending the tenant host URL from the identity service", func() {
-					Expect(restConfig["bundle_storage"].URL).To(Equal("https://mytenant.accounts400.ondemand.com/bundle-gateway"))
+					Expect(restConfig["bundle_storage"].URL).To(Equal("https://mytenant.accounts400.ondemand.com/sap/ams/v1/bundles"))
 				})
 				By("making sure there's only one auth method", func() {
 					Expect(restConfig["bundle_storage"].Credentials.S3Signing).To(BeNil())
@@ -245,7 +245,7 @@ var _ = Describe("Supply", func() {
 					Expect(string(enabled)).To(Equal(`true`))
 				})
 				By("uploading to the correct URL", func() {
-					Expect(uploadReqSpy.URL.String()).To(Equal("https://mytenant.accounts400.ondemand.com/authorization/sap/ams/v1/ams-instances/00000000-3b4d-4c41-9e5b-9aee7bfa6348/dcl-upload"))
+					Expect(uploadReqSpy.URL.String()).To(Equal("https://mytenant.accounts400.ondemand.com/sap/ams/v1/ams-instances/00000000-3b4d-4c41-9e5b-9aee7bfa6348/dcl-upload"))
 				})
 			})
 			It("creates the correct env vars", func() {

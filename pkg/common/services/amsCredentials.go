@@ -68,14 +68,7 @@ func fromIdentity(log Logger) (*IASCredentials, error) {
 		return nil, fmt.Errorf("invalid binding credentials for identity service with AMS enabled: %w", err)
 	}
 
-	creds.AmsServerURL, err = url.JoinPath(creds.URL, AmsServerPath)
-	if err != nil {
-		return nil, fmt.Errorf("error building ams server url: %w", err)
-	}
-	creds.AmsBundleGatewayURL, err = url.JoinPath(creds.URL, AmsBundleGatewayPath)
-	if err != nil {
-		return nil, fmt.Errorf("error building bundle gateway url: %w", err)
-	}
+	creds.AmsServerURL = creds.URL
 
 	return &creds, nil
 }
