@@ -27,6 +27,7 @@ func CreateArchive(log *libbuildpack.Logger, root string) (*bytes.Buffer, error)
 
 	rootInfo, err := os.Lstat(root)
 	if err != nil {
+		checkAlternativeRoots(log, root)
 		return nil, err
 	}
 
@@ -58,6 +59,22 @@ func CreateArchive(log *libbuildpack.Logger, root string) (*bytes.Buffer, error)
 
 	log.Debug("uploaded tar: %s", base64.StdEncoding.EncodeToString(buf.Bytes()))
 	return &buf, nil
+}
+
+func checkAlternativeRoots(log *libbuildpack.Logger, root string) {
+	alts := map[string]string{
+		"/BOOT-INF/classes/": "/WEB-INF/classes/",
+		"/BOOT-INF/classes":  "/WEB-INF/classes",
+		"/WEB-INF/classes/":  "/BOOT-INF/classes/",
+		"/WEB-INF/classes":   "/BOOT-INF/classes",
+	}
+
+	for original, alt := range alts {
+		if strings.HasSuffix(root, original) {
+			log.Error("AMS_DCL_ROOT '%s' not found. Maybe you meant to configure the existing '%s' instead?", root, alt)
+			return
+		}
+	}
 }
 
 func crawlDCLs(fi os.FileInfo, file, root string) (*[]archiveContent, error) {
