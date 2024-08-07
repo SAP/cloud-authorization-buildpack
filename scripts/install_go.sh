@@ -23,8 +23,6 @@ function main() {
 
   if [[ ! -f "${dir}/bin/go" ]]; then
     local url
-    # TODO: use exact stack based dep, after go buildpack has cflinuxfs4 support
-    #url="https://buildpacks.cloudfoundry.org/dependencies/go/go_${version}_linux_x64_${CF_STACK}_${expected_sha:0:8}.tgz"
     url="https://buildpacks.cloudfoundry.org/dependencies/go/go_${version}_linux_x64_cflinuxfs4_${expected_sha:0:8}.tgz"
 
     echo "-----> Download go ${version}"
