@@ -15,7 +15,7 @@ function main() {
   fi
 
   local version expected_sha dir
-  version="1.22.2"
+  version="1.22.5"
   expected_sha="4dbc8e16ac679e5ba50b26d5f4fbd4fddd82d7a3612a3082ed33fb4472d2b3c3"
   dir="/tmp/go${version}"
 
