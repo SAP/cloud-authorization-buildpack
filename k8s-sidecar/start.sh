@@ -10,7 +10,7 @@ if [ ${#files[@]} -gt 1 ]; then
   exit 1
 fi
 
-bundle_url=$(cat "${files[0]}/url")/bundle-gateway
+bundle_url=$(cat "${files[0]}/authorization_bundle_url")
 instance_id=$(cat "${files[0]}/authorization_instance_id")
 ias_cert_path=$(pwd -P)/"${files[0]}/certificate"
 ias_key_path=$(pwd -P)/"${files[0]}/key"
