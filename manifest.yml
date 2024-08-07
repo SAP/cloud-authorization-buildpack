@@ -9,7 +9,7 @@ dependencies:
     # 0 patch versions don't work here, see https://github.com/cloudfoundry/libbuildpack/issues/181
     version: "0.60.0-sap-0.3.7"
     file: "resources/opa.tar.gz"
-    sha256: e7152379f86e7ca7365f60bd80e8d4e5da040f3072a9bb8249b2bee138d0e3e8
+    sha256: 74fdf4736efb7d9e204e9c0d972026cd18c8d083809a22c59c42207a73214034
     uri: https://github.com/SAP/cloud-authorization-buildpack/raw/main/resources/opa.tar.gz
     cf_stacks:
       - cflinuxfs3
