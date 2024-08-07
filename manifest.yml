@@ -12,7 +12,6 @@ dependencies:
     sha256: 74fdf4736efb7d9e204e9c0d972026cd18c8d083809a22c59c42207a73214034
     uri: https://github.com/SAP/cloud-authorization-buildpack/raw/main/resources/opa.tar.gz
     cf_stacks:
-      - cflinuxfs3
       - cflinuxfs4
 include_files:
   - README.md
