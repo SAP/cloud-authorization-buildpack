@@ -81,7 +81,7 @@ var _ = Describe("Supply", func() {
 
 	JustBeforeEach(func() {
 		Expect(os.Setenv("VCAP_SERVICES", vcapServices)).To(Succeed())
-		Expect(os.Setenv("CF_STACK", "cflinuxfs3")).To(Succeed())
+		Expect(os.Setenv("CF_STACK", "cflinuxfs4")).To(Succeed())
 		wd, err := os.Getwd()
 		Expect(err).NotTo(HaveOccurred())
 		buildpackDir := path.Join(filepath.Dir(filepath.Dir(wd)))
