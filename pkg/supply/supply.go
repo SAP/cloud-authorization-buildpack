@@ -251,7 +251,7 @@ func (s *Supplier) writeLaunchConfig(cfg env.Config) error {
 }
 
 func (s *Supplier) supplyOPABinary() error {
-	opaDep, err := s.Manifest.DefaultVersion("opa")
+	opaDep, err := s.Manifest.DefaultVersion("sap-opa")
 	if err != nil {
 		return err
 	}

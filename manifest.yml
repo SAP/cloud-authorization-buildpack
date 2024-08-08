@@ -1,11 +1,11 @@
 ---
 language: opa
 default_versions:
-  - name: opa
+  - name: sap-opa
     version: "0.3.7"
 dependency_deprecation_dates:
 dependencies:
-  - name: opa
+  - name: sap-opa
     # 0 patch versions don't work here, see https://github.com/cloudfoundry/libbuildpack/issues/181
     version: "0.3.7"
     file: "resources/opa.tar.gz"
