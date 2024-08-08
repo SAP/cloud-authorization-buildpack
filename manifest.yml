@@ -7,7 +7,7 @@ dependency_deprecation_dates:
 dependencies:
   - name: sap-opa
     # 0 patch versions don't work here, see https://github.com/cloudfoundry/libbuildpack/issues/181
-    version: "0.3.7"
+    version: "0.3.7" # Using the full version causes a warning like "**WARNING** You are using the pre-release version 0.60.0-sap-0.3.7 of opa"
     file: "resources/opa.tar.gz"
     sha256: 74fdf4736efb7d9e204e9c0d972026cd18c8d083809a22c59c42207a73214034
     uri: https://github.com/SAP/cloud-authorization-buildpack/raw/main/resources/opa.tar.gz

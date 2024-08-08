@@ -259,7 +259,7 @@ func (s *Supplier) supplyOPABinary() error {
 		return fmt.Errorf("couldn't install OPA dependency: %w", err)
 	}
 	// The packager overwrites the permissions, so we need to make it executable again
-	return os.Chmod(path.Join(s.Stager.DepDir(), opaDep.Name), 0755)
+	return os.Chmod(path.Join(s.Stager.DepDir(), "opa"), 0755)
 }
 
 func (s *Supplier) supplyCertCopier() error {
