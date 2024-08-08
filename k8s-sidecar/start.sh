@@ -19,4 +19,4 @@ jq -n --arg bundleUrl "$bundle_url" --arg iasCertPath "$ias_cert_path" --arg ias
 
 >&2 echo "INFO: " "$(cat config.yml)"
 
-opa run -s -c config.yml --set status.plugin=dcl --addr=[]:8181
+opa run -s -c config.yml --set status.plugin=dcl --addr=[]:8181 --disable-telemetry
