@@ -57,7 +57,7 @@ func CreateArchive(log *libbuildpack.Logger, root string) (*bytes.Buffer, error)
 		return nil, err
 	}
 
-	log.Debug("uploaded tar: %s", base64.StdEncoding.EncodeToString(buf.Bytes()))
+	log.Debug("built tar: %s", base64.StdEncoding.EncodeToString(buf.Bytes()))
 	return &buf, nil
 }
 
