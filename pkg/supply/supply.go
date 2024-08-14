@@ -45,6 +45,7 @@ type Supplier struct {
 	BuildpackDir        string
 	GetClient           func(cert, key []byte) (uploader.AMSClient, error)
 	CertCopierSourceDir string
+	BuildpackVersion    string
 }
 
 type Cloudfoundry struct {
@@ -101,7 +102,7 @@ func (s *Supplier) Run() error {
 		return fmt.Errorf("could not write profileD file: %w", err)
 	}
 	if cfg.ShouldUpload {
-		if err := s.upload(identityCreds, tlsCfg, cfg.Root); err != nil {
+		if err := s.upload(identityCreds, tlsCfg, cfg.Root, s.BuildpackVersion); err != nil {
 			return fmt.Errorf("error uploading policies: %w", err)
 		}
 	}
@@ -274,7 +275,7 @@ func (s *Supplier) supplyCertCopier() error {
 	return os.Chmod(destFile, 0755)
 }
 
-func (s *Supplier) upload(creds *services.IASCredentials, tlsCfg tlsConfig, rootDir string) error {
+func (s *Supplier) upload(creds *services.IASCredentials, tlsCfg tlsConfig, rootDir, buildpackVersion string) error {
 	client, err := s.GetClient(tlsCfg.Cert, tlsCfg.Key)
 	if err != nil {
 		return fmt.Errorf("unable to create AMS client: %s", err)
@@ -284,6 +285,7 @@ func (s *Supplier) upload(creds *services.IASCredentials, tlsCfg tlsConfig, root
 		Root:          path.Join(s.Stager.BuildDir(), rootDir),
 		Client:        client,
 		AMSInstanceID: creds.AmsInstanceID,
+		UserAgent:     fmt.Sprintf("cloud-authorization-buildpack/%s", buildpackVersion),
 	}
 	return u.Do(context.Background(), creds.AmsServerURL)
 }
