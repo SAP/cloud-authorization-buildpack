@@ -45,6 +45,7 @@ type Supplier struct {
 	BuildpackDir        string
 	GetClient           func(cert, key []byte) (uploader.AMSClient, error)
 	CertCopierSourceDir string
+	BuildpackVersion    string
 }
 
 type Cloudfoundry struct {
@@ -284,6 +285,7 @@ func (s *Supplier) upload(creds *services.IASCredentials, tlsCfg tlsConfig, root
 		Root:          path.Join(s.Stager.BuildDir(), rootDir),
 		Client:        client,
 		AMSInstanceID: creds.AmsInstanceID,
+		UserAgent:     fmt.Sprintf("cloud-authorization-buildpack/%s", s.BuildpackVersion),
 	}
 	return u.Do(context.Background(), creds.AmsServerURL)
 }

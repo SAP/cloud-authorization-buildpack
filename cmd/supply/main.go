@@ -26,6 +26,12 @@ func main() {
 		logger.Error("Unable to load buildpack manifest: %s", err)
 		os.Exit(10)
 	}
+	version, err := manifest.Version()
+	if err != nil {
+		logger.Error("Unable to load buildpack version: %s", err)
+		os.Exit(20)
+	}
+
 	installer := libbuildpack.NewInstaller(manifest)
 
 	stager := libbuildpack.NewStager(os.Args[1:], logger, manifest)
@@ -74,6 +80,7 @@ func main() {
 		BuildpackDir:        buildpackDir,
 		GetClient:           uploader.GetClient,
 		CertCopierSourceDir: path.Join(buildpackDir, "bin"),
+		BuildpackVersion:    version,
 	}
 
 	err = s.Run()
