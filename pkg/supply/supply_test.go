@@ -97,6 +97,7 @@ var _ = Describe("Supply", func() {
 			Log:                 logger,
 			BuildpackDir:        buildpackDir,
 			CertCopierSourceDir: certCopierDir,
+			BuildpackVersion:    "UNIT-TEST",
 			GetClient: func(cert, key []byte) (uploader.AMSClient, error) {
 				certSpy = cert
 				keySpy = key
@@ -168,6 +169,11 @@ var _ = Describe("Supply", func() {
 				Expect(supplier.Run()).To(Succeed())
 				expectedValue := []string{"00000000-3b4d-4c41-9e5b-9aee7bfa6348"}
 				Expect(uploadReqSpy.Header).Should(HaveKeyWithValue(env.HeaderInstanceID, expectedValue))
+			})
+			It("sets the buildpack version as User-Agent Header", func() {
+				Expect(supplier.Run()).To(Succeed())
+				expectedValue := []string{"cloud-authorization-buildpack/UNIT-TEST"}
+				Expect(uploadReqSpy.Header).Should(HaveKeyWithValue("User-Agent", expectedValue))
 			})
 			It("creates a valid launch.yml", func() {
 				Expect(supplier.Run()).To(Succeed())
