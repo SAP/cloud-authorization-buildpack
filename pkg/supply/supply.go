@@ -280,18 +280,16 @@ func (s *Supplier) upload(creds *services.IASCredentials, tlsCfg tlsConfig, root
 	if err != nil {
 		return fmt.Errorf("unable to create AMS client: %s", err)
 	}
-	vcapApp, err := env.LoadVcapApplication(s.Log)
-	if err != nil {
-		return err
-	}
+	vcapApp := env.LoadVcapApplication(s.Log)
+
 	u := uploader.Uploader{
 		Log:           s.Log,
 		Root:          path.Join(s.Stager.BuildDir(), rootDir),
 		Client:        client,
 		AMSInstanceID: creds.AmsInstanceID,
 		ExtraHeaders: map[string]string{
-			"User-Agent":   fmt.Sprintf("cloud-authorization-buildpack/%s", s.BuildpackVersion),
-			"X-Cf-Appname": vcapApp.ApplicationName,
+			"User-Agent": fmt.Sprintf("cloud-authorization-buildpack/%s", s.BuildpackVersion),
+			"X-Appname":  vcapApp.ApplicationName,
 		},
 	}
 	return u.Do(context.Background(), creds.AmsServerURL)

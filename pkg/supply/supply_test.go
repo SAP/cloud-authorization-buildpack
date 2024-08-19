@@ -179,7 +179,7 @@ var _ = Describe("Supply", func() {
 			It("sets the cf app name as upload header", func() {
 				Expect(supplier.Run()).To(Succeed())
 				expectedValue := []string{"unit-tests-appname"}
-				Expect(uploadReqSpy.Header).Should(HaveKeyWithValue("X-Cf-Appname", expectedValue))
+				Expect(uploadReqSpy.Header).Should(HaveKeyWithValue("X-Appname", expectedValue))
 			})
 			It("creates a valid launch.yml", func() {
 				Expect(supplier.Run()).To(Succeed())

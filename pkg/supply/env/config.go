@@ -21,23 +21,10 @@ type amsDataDeprecated struct {
 }
 
 type VcapApplication struct {
-	ApplicationID   string   `json:"application_id"`
-	ApplicationName string   `json:"application_name"`
-	ApplicationUris []string `json:"application_uris"`
-	CfAPI           string   `json:"cf_api"`
-	Limits          struct {
-		Fds int `json:"fds"`
-	} `json:"limits"`
-	Name             string   `json:"name"`
-	OrganizationID   string   `json:"organization_id"`
-	OrganizationName string   `json:"organization_name"`
-	SpaceID          string   `json:"space_id"`
-	SpaceName        string   `json:"space_name"`
-	Uris             []string `json:"uris"`
-	Users            any      `json:"users"`
+	ApplicationName string `json:"application_name"`
 }
 
-func LoadVcapApplication(log *libbuildpack.Logger) (VcapApplication, error) {
+func LoadVcapApplication(log *libbuildpack.Logger) VcapApplication {
 	vcapStr, vcapSet := os.LookupEnv("VCAP_APPLICATION")
 	var result VcapApplication
 	if vcapSet {
@@ -46,7 +33,7 @@ func LoadVcapApplication(log *libbuildpack.Logger) (VcapApplication, error) {
 			log.Error("error parsing VCAP_APPLICATION value %s : %v", vcapStr, err)
 		}
 	}
-	return result, nil
+	return result
 }
 
 func LoadBuildpackConfig(log *libbuildpack.Logger) (Config, error) {
