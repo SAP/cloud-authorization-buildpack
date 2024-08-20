@@ -20,6 +20,22 @@ type amsDataDeprecated struct {
 	Root string `json:"root"`
 }
 
+type VcapApplication struct {
+	ApplicationName string `json:"application_name"`
+}
+
+func LoadVcapApplication(log *libbuildpack.Logger) VcapApplication {
+	vcapStr, vcapSet := os.LookupEnv("VCAP_APPLICATION")
+	var result VcapApplication
+	if vcapSet {
+		err := json.Unmarshal([]byte(vcapStr), &result)
+		if err != nil {
+			log.Error("error parsing VCAP_APPLICATION value %s : %v", vcapStr, err)
+		}
+	}
+	return result
+}
+
 func LoadBuildpackConfig(log *libbuildpack.Logger) (Config, error) {
 	// Deprecated compatibility coding to support AMS_DATA for now (AMS_DATA.serviceNname will be ignored, because its not supposed to be supported by stakeholders)
 	amsData, amsDataSet := os.LookupEnv("AMS_DATA")

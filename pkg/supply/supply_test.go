@@ -158,6 +158,7 @@ var _ = Describe("Supply", func() {
 			BeforeEach(func() {
 				vcapServices = testdata.EnvWithIASAuthX509
 				os.Setenv("AMS_DCL_ROOT", "/policies")
+				os.Setenv("VCAP_APPLICATION", "{\"application_name\":\"unit-tests-appname\"}")
 			})
 			It("should succeed", func() {
 				Expect(supplier.Run()).To(Succeed())
@@ -174,6 +175,11 @@ var _ = Describe("Supply", func() {
 				Expect(supplier.Run()).To(Succeed())
 				expectedValue := []string{"cloud-authorization-buildpack/UNIT-TEST"}
 				Expect(uploadReqSpy.Header).Should(HaveKeyWithValue("User-Agent", expectedValue))
+			})
+			It("sets the cf app name as upload header", func() {
+				Expect(supplier.Run()).To(Succeed())
+				expectedValue := []string{"unit-tests-appname"}
+				Expect(uploadReqSpy.Header).Should(HaveKeyWithValue("X-Appname", expectedValue))
 			})
 			It("creates a valid launch.yml", func() {
 				Expect(supplier.Run()).To(Succeed())
