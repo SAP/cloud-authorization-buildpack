@@ -96,10 +96,6 @@ Use github to create a release
 
 Open an issue on this project
 
-## Disclaimer
-
-This buildpack is experimental and not yet intended for production use.
-
 ## Licensing
 
 Copyright 2020-2022 SAP SE or an SAP affiliate company and cloud-authorization-buildpack contributors. Please see
