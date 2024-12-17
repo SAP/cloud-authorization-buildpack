@@ -1,5 +1,5 @@
 {
     "authorization": {
-        "product_label": "ams-node-opa"
+        "enabled": true
     }
 }
