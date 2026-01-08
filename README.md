@@ -1,3 +1,11 @@
+# ⚠️ Deprecation warning ⚠️
+
+This repository is deprecated. 
+
+- For the base policy upload please use [the dedicated policies deployer](https://sap.github.io/cloud-identity-developer-guide/Authorization/DeployDCL.html) going foward
+- As a policy decision engine please upgrade to [our latest official client libraries](https://sap.github.io/cloud-identity-developer-guide/Libraries/java/spring-ams/spring-ams.html) which have in-memory evaluations and no longer need the sidecar provided by this buildpack
+- To get support please use [our official support channels](https://sap.github.io/cloud-identity-developer-guide/Support.html)
+
 # Buildpack User Documentation
 
 [![REUSE status](https://api.reuse.software/badge/github.com/SAP/cloud-authorization-buildpack)](https://api.reuse.software/info/github.com/SAP/cloud-authorization-buildpack)
