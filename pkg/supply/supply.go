@@ -19,9 +19,10 @@ import (
 const DeprecationBanner = `================================================================================
   cloud-authorization-buildpack is DEPRECATED
 
-  The OPA sidecar has been removed. This buildpack is now in maintenance-only
-  mode and only performs base DCL policy upload. The Authorization Management
-  Service will discontinue serving .rego policy bundles soon.
+  The OPA sidecar has been removed. This final version only performs
+  base DCL policy upload to ease migration away from the buildpack. 
+  The Authorization Management Service does no longer serve .rego 
+  policy bundles anymore.
 
   Please migrate now:
     * Base policy upload  -> use the dedicated policies-deployer task:
