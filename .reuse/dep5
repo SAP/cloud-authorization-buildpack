@@ -27,7 +27,7 @@ Disclaimer: The code in this project may include calls to APIs (“API Calls”)
 Files:
     bin/supply
     cmd/*
-    fixtures/node_with_opa/*
+    fixtures/node_with_buildpack/*
     pkg/*
     resources/testdata/*
     README.md
