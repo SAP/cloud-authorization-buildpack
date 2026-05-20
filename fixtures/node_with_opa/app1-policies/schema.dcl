@@ -1,3 +1,0 @@
-SCHEMA {
-	salesOrderId: String
-}
