@@ -7,7 +7,7 @@ applications:
       - https://github.com/SAP/cloud-authorization-buildpack/releases/latest/download/opa_buildpack.zip # must not be supplied as the last/final buildpack, as it only supplies dependencies
       - nodejs_buildpack
     services:
-      - name: fbtest
+      - name: ias-node-buildpack
         parameters: { "credential-type": "X509_GENERATED" }
     health-check-type: process
     env:
