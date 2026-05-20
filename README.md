@@ -1,21 +1,10 @@
-# DEPRECATED — final maintenance release
+# ⚠️ Deprecation warning ⚠️
 
-> **This buildpack is DEPRECATED.** The OPA sidecar has been removed. This is a
-> final, maintenance-only release that performs **base DCL policy upload** only.
-> The Authorization Management Service will discontinue serving `.rego` policy
-> bundles soon. Please migrate now.
+This repository is deprecated. Please migrate now.
 
-- **Base policy upload** → use the dedicated [policies-deployer task](https://sap.github.io/cloud-identity-developer-guide/Authorization/DeployDCL.html)
-- **Authorization decisions** → use the latest in-memory [client libraries](https://sap.github.io/cloud-identity-developer-guide/Authorization/GettingStarted.html#dependency-setup); they no longer need a sidecar
-- **Support** → use the [official support channels](https://sap.github.io/cloud-identity-developer-guide/Support.html)
-
-What changed in this release:
-
-- The OPA sidecar process is gone. The buildpack no longer ships the `opa` binary, no longer writes `opa_config.yml` / `launch.yml`, no longer exports `OPA_URL` / `ADC_URL`, and no longer writes the `cert-to-disk` helper.
-- Only the base DCL policy upload (driven by `AMS_DCL_ROOT`) remains.
-- Every staging run prints a deprecation warning. Every app start also prints the deprecation warning via a generated `profile.d` script. There is no way to silence them — that is intentional.
-
-This repository will be archived after the AMS service drops `.rego` bundle delivery.
+- **Policy Upload**: For the base policy upload please use [the dedicated policies deployer](https://sap.github.io/cloud-identity-developer-guide/Authorization/DeployDCL.html) going foward
+- **Policy decision engine**: As a policy decision engine please upgrade to [our latest official client libraries](https://sap.github.io/cloud-identity-developer-guide/Authorization/GettingStarted.html#dependency-setup) which have in-memory evaluations and no longer need the sidecar provided by this buildpack
+- **Support**: To get support please use [our official support channels](https://sap.github.io/cloud-identity-developer-guide/Support.html)
 
 # Buildpack User Documentation
 
