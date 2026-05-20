@@ -27,7 +27,7 @@ Disclaimer: The code in this project may include calls to APIs (“API Calls”)
 Files:
     bin/supply
     cmd/*
-    fixtures/node_with_opa/*
+    fixtures/node_with_buildpack/*
     pkg/*
     resources/testdata/*
     README.md
@@ -40,6 +40,5 @@ Files:
     vars.json
     VERSION
     manifest.yml
-    k8s-sidecar/*
 Copyright: 2020-2022 SAP SE or an SAP affiliate company and cloud-authorization-buildpack contributors
 License: Apache-2.0

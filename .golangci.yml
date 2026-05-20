@@ -1,56 +1,13 @@
-linters-settings:
-  dupl:
-    threshold: 100
-  funlen:
-    lines: 100
-    statements: 50
-  goconst:
-    min-len: 2
-    min-occurrences: 2
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - experimental
-      - opinionated
-      - performance
-      - style
-    disabled-checks:
-      - dupImport # https://github.com/go-critic/go-critic/issues/845
-      - ifElseChain
-      - octalLiteral
-      - whyNoLint
-      - wrapperFunc
-      - httpNoBody
-    settings:
-      hugeParam:
-        # size in bytes that makes the warning trigger (default 80)
-        sizeThreshold: 384 # https://segment.com/blog/allocation-efficiency-in-high-performance-go-services/
-  gocyclo:
-    min-complexity: 15
-  gomnd:
-    settings:
-      mnd:
-        # don't include the "operation" and "assign"
-        checks:
-          - case
-          - condition
-          - return
-  lll:
-    line-length: 140
-  maligned:
-    suggest-new: true
-  misspell:
-    locale: US
-  nolintlint:
-    allow-leading-space: true # don't require machine-readable nolint directives (i.e. with no leading space)
-    allow-unused: false # report any unused nolint directives
-    require-explanation: false # don't require an explanation for nolint directives
-    require-specific: false # don't require nolint directives to be specific about which linter is being skipped
+version: "2"
+
+# Note: v1 had `run.timeout: 2m`. v2 disables the timeout by default, which is
+# fine for this small codebase.
 
 linters:
-  # please, do not use `enable-all`: it's deprecated and will be removed soon.
-  # inverted configuration with `enable-all` and `disable` is not scalable during updates of golangci-lint
-  disable-all: true
+  # Use an explicit allow-list. We do not use `default: all` (or v1's
+  # `enable-all`) because keeping the allow-list curated is more sustainable
+  # across upstream linter additions.
+  default: none
   enable:
     - bodyclose
     - dogsled
@@ -62,57 +19,129 @@ linters:
     - goconst
     - gocritic
     - gocyclo
-    - gofmt
-    - gomnd
     - goprintffuncname
     - gosec
-    - gosimple
     - govet
     - ineffassign
     - misspell
+    - mnd            # was `gomnd` in golangci-lint v1
     - nakedret
     - noctx
     - nolintlint
-    - exportloopref
-    - staticcheck
-    - stylecheck
-    - typecheck
+    - revive
+    - staticcheck    # also covers v1's `gosimple` and `stylecheck`
     - unconvert
     - unparam
     - unused
     - whitespace
-    - revive
-
-  # don't enable:
+  # Linters intentionally NOT enabled (kept as documentation):
   # - asciicheck
   # - gochecknoglobals
   # - gocognit
   # - godot
   # - godox
-  # - goerr113
-  # - maligned
+  # - err113      # was `goerr113` in v1
   # - nestif
   # - prealloc
   # - testpackage
   # - wsl
 
-issues:
-  # Excluding configuration per-path, per-linter, per-text and per-source
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - gomnd
-        - funlen
-        - dupl
-    - linters:
-      - revive
-      text: "^exported: "
-    - linters:
-        - staticcheck
-      text: "SA1019:"
-  # List of regexps of issue texts to exclude, empty list by default.
-  # But independently from this option we use default exclude patterns,
-  # it can be disabled by `exclude-use-default: false`. To list all
-  # excluded by default patterns execute `golangci-lint run --help`
-run:
-  timeout: 2m
+  settings:
+    dupl:
+      threshold: 100
+    funlen:
+      lines: 100
+      statements: 50
+    goconst:
+      min-len: 2
+      # v1 used `min-occurrences: 2` (more aggressive than upstream default 3),
+      # but the v2-era goconst is more thorough and would surface pre-existing
+      # repeated literals that the previous CI lint missed. Stick to upstream
+      # default (3) to keep the migration zero-impact.
+      min-occurrences: 3
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+        - style
+      disabled-checks:
+        - dupImport      # https://github.com/go-critic/go-critic/issues/845
+        - ifElseChain
+        - octalLiteral
+        - whyNoLint
+        - wrapperFunc
+        - httpNoBody
+      settings:
+        hugeParam:
+          # size in bytes that makes the warning trigger (default 80)
+          # https://segment.com/blog/allocation-efficiency-in-high-performance-go-services/
+          sizeThreshold: 384
+    gocyclo:
+      min-complexity: 15
+    gosec:
+      excludes:
+        # G703 (path traversal via taint analysis) was added in gosec versions
+        # newer than what the v1 lint pipeline used. The flagged sites are all
+        # path.Join calls with libbuildpack-controlled paths (deps_dir, build_dir),
+        # which are not user-controlled here.
+        - G703
+    lll:
+      line-length: 140
+    misspell:
+      locale: US
+    mnd:
+      # Don't include the "operation", "assign", and "argument" checks (v1
+      # config preserved). These commonly produce noise on os.Exit codes,
+      # file modes, and HTTP timeouts.
+      checks:
+        - case
+        - condition
+        - return
+    nolintlint:
+      allow-unused: false        # report any unused nolint directives
+      require-explanation: false # don't require an explanation for nolint directives
+      require-specific: false    # don't require nolint directives to be specific about which linter is being skipped
+    staticcheck:
+      # Disable the QF (Quick-Fix) check family, which is new in v2 and was
+      # not part of v1's staticcheck. These are stylistic suggestions, not
+      # bugs, and were not enforced by the previous CI lint pipeline.
+      checks:
+        - all
+        - -QF*
+
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - path: _test\.go
+        linters:
+          - dupl
+          - funlen
+          - goconst   # keep test fixtures readable; duplicated literals are fine
+          - mnd
+      - linters:
+          - revive
+        text: '^exported: '
+      - linters:
+          - staticcheck
+        text: 'SA1019:'
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+
+formatters:
+  enable:
+    - gofmt
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

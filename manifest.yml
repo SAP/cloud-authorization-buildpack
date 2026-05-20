@@ -1,23 +1,15 @@
 ---
+# This buildpack is DEPRECATED.
+# It no longer ships an OPA sidecar. Only base DCL policy upload is performed.
+# Migrate to the dedicated policies-deployer:
+#   https://sap.github.io/cloud-identity-developer-guide/Authorization/DeployDCL.html
 language: opa
-default_versions:
-  - name: sap-opa
-    version: "0.3.7"
 dependency_deprecation_dates:
-dependencies:
-  - name: sap-opa
-    # 0 patch versions don't work here, see https://github.com/cloudfoundry/libbuildpack/issues/181
-    version: "0.3.7" # Using the full version causes a warning like "**WARNING** You are using the pre-release version 0.60.0-sap-0.3.7 of opa"
-    file: "resources/opa.tar.gz"
-    sha256: 74fdf4736efb7d9e204e9c0d972026cd18c8d083809a22c59c42207a73214034
-    uri: https://github.com/SAP/cloud-authorization-buildpack/raw/main/resources/opa.tar.gz
-    cf_stacks:
-      - cflinuxfs4
+dependencies: []
 include_files:
   - README.md
   - VERSION
   - bin/supply
-  - bin/cert-to-disk
   - manifest.yml
   - LICENSE
 pre_package: scripts/build.sh

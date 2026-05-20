@@ -1,5 +1,5 @@
 {
-  "name": "node_with_opa",
+  "name": "node_with_buildpack",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",

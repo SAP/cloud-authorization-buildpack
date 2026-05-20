@@ -30,10 +30,6 @@ func fromMegaclite(log Logger) (*IASCredentials, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error building ams server url: %w", err)
 	}
-	result.AmsBundleGatewayURL, err = url.JoinPath(megacliteCreds.URL, MegacliteAmsBundleGatewayPath)
-	if err != nil {
-		return nil, fmt.Errorf("error building bundle gateway url: %w", err)
-	}
 
 	return &result, nil
 }
