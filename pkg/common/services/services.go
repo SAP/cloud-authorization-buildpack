@@ -9,9 +9,8 @@ import (
 )
 
 const (
-	MegacliteID                   = "dwc-megaclite-ams-instance-id"
-	MegacliteAmsServerPath        = "/ams/proxy/"
-	MegacliteAmsBundleGatewayPath = "/ams/bundle/"
+	MegacliteID            = "dwc-megaclite-ams-instance-id"
+	MegacliteAmsServerPath = "/ams/proxy/"
 )
 
 var (
@@ -37,9 +36,8 @@ type IASCredentials struct {
 	URL                  string    `json:"url"`
 	ZoneUUID             string    `json:"zone_uuid"`
 
-	AmsInstanceID       string `json:"authorization_instance_id"  validate:"required"`
-	AmsClientID         string `json:"authorization_client_id"`
-	AmsBundleGatewayURL string `json:"authorization_bundle_url"`
+	AmsInstanceID string `json:"authorization_instance_id"  validate:"required"`
+	AmsClientID   string `json:"authorization_client_id"`
 
 	// derived values
 	AmsServerURL string `json:"-"`

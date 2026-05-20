@@ -1,0 +1,9 @@
+{
+    "user2policy": {
+        "zone-a": {
+            "Alice_readAll@test.com": [
+                "salesOrderRead"
+            ]
+        }
+    }
+}

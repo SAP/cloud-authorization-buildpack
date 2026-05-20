@@ -1,18 +1,36 @@
 ---
 applications:
-- name: node-opa
+- name: node-opa-app1
+  memory: 128M
+  instances: 1
+  buildpacks:
+    - https://github.com/SAP/cloud-authorization-buildpack/releases/latest/download/opa_buildpack.zip # must not be supplied as the last/final buildpack, as it only supplies dependencies
+#    - https://github.com/SAP/cloud-authorization-buildpack#v0.5.5
+#    - https://github.com/SAP/cloud-authorization-buildpack#version-header
+#    - https://www.dropbox.com/scl/fi/1a4iqd30fxnzywufvf4bh/opa_buildpack.zip?rlkey=65i09w6rs6yiyk1t71j7j4633&st=uzqmqxlh&dl=1
+    - nodejs_buildpack
+  services:
+    - name: ams4reuse-demo-app1-identity
+      parameters: { "credential-type": "X509_GENERATED", "app-identifier": "node-opa" }
+  health-check-type: process
+  env:
+    BP_DEBUG: "true"
+    AMS_DCL_ROOT: "/app1-policies/"
+    AMS_LOG_LEVEL: "debug" # info, error
+  no-route: true
+- name: node-opa-rs1
   memory: 128M
   instances: 1
   buildpacks:
     - https://github.com/SAP/cloud-authorization-buildpack/releases/latest/download/opa_buildpack.zip # must not be supplied as the last/final buildpack, as it only supplies dependencies
     - nodejs_buildpack
   services:
-    - name: fbtest
-      parameters: { "credential-type": "X509_GENERATED" }
+    - name: ams4reuse-demo-rs1-identity
+      parameters: { "credential-type": "X509_GENERATED", "app-identifier": "node-opa" }
   health-check-type: process
   env:
     BP_DEBUG: "true"
-    AMS_DCL_ROOT: "/"
+    AMS_DCL_ROOT: "/rs1-policies/"
     AMS_LOG_LEVEL: "debug" # info, error
   no-route: true
   

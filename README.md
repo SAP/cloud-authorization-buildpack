@@ -1,55 +1,72 @@
-# ⚠️ Deprecation warning ⚠️
+# DEPRECATED — final maintenance release
 
-This repository is deprecated. 
+> **This buildpack is DEPRECATED.** The OPA sidecar has been removed. This is a
+> final, maintenance-only release that performs **base DCL policy upload** only.
+> The Authorization Management Service will discontinue serving `.rego` policy
+> bundles soon. Please migrate now.
 
-- For the base policy upload please use [the dedicated policies deployer](https://sap.github.io/cloud-identity-developer-guide/Authorization/DeployDCL.html) going foward
-- As a policy decision engine please upgrade to [our latest official client libraries](https://sap.github.io/cloud-identity-developer-guide/Authorization/GettingStarted.html#dependency-setup) which have in-memory evaluations and no longer need the sidecar provided by this buildpack
-- To get support please use [our official support channels](https://sap.github.io/cloud-identity-developer-guide/Support.html)
+- **Base policy upload** → use the dedicated [policies-deployer task](https://sap.github.io/cloud-identity-developer-guide/Authorization/DeployDCL.html)
+- **Authorization decisions** → use the latest in-memory [client libraries](https://sap.github.io/cloud-identity-developer-guide/Authorization/GettingStarted.html#dependency-setup); they no longer need a sidecar
+- **Support** → use the [official support channels](https://sap.github.io/cloud-identity-developer-guide/Support.html)
+
+What changed in this release:
+
+- The OPA sidecar process is gone. The buildpack no longer ships the `opa` binary, no longer writes `opa_config.yml` / `launch.yml`, no longer exports `OPA_URL` / `ADC_URL`, and no longer writes the `cert-to-disk` helper.
+- Only the base DCL policy upload (driven by `AMS_DCL_ROOT`) remains.
+- Every staging run prints a deprecation warning. Every app start also prints the deprecation warning via a generated `profile.d` script. There is no way to silence them — that is intentional.
+
+This repository will be archived after the AMS service drops `.rego` bundle delivery.
 
 # Buildpack User Documentation
 
 [![REUSE status](https://api.reuse.software/badge/github.com/SAP/cloud-authorization-buildpack)](https://api.reuse.software/info/github.com/SAP/cloud-authorization-buildpack)
 
-This is a supply/sidecar buildpack which can't be used stand-alone. It has two major purposes. It defines a sidecar
-process which handles the authorization decisions. This sidecar is queried by the security client libraries. And it
-provides an upload mechanism for the applications base policy definitions to the Authorization Management Service.
+A supply buildpack which uploads an application's base DCL policies to the
+Authorization Management Service of a bound Identity Service instance. It does
+not run stand-alone; combine it with a regular application buildpack (Java,
+Node.js, …) as the *first* buildpack in the chain.
 
 ## Usage
 
-Consume the latest released version of this buildpack with the following link in your manifest.yml or via the `-b` flag:
+Reference the latest released buildpack from your `manifest.yml` or the `-b` flag:
 
-https://github.com/SAP/cloud-authorization-buildpack/releases/latest/download/opa_buildpack.zip  
+```
+https://github.com/SAP/cloud-authorization-buildpack/releases/latest/download/opa_buildpack.zip
+```
 
-We discourage referencing a branch of this repo directly because:
+Avoid referencing a branch of this repo directly; doing so:
 
-- adds a start-up dependency to buildpacks.cloudfoundry.org, which should be avoided
-- staging time will be increased significantly
-- may contain potentially breaking changes
+- adds a start-up dependency to `buildpacks.cloudfoundry.org`,
+- significantly increases staging time, and
+- may pull in unreleased breaking changes.
 
->❗️ Add this buildpack as the first buildpack as shown in the [fixture manifest.yml](https://github.com/SAP/cloud-authorization-buildpack/blob/main/fixtures/node_with_opa/manifest.yml) as it only supplies dependencies. See also the [CF docs about multi-buildpack usage](https://docs.cloudfoundry.org/buildpacks/understand-buildpacks.html#:~:text=buildpack%20in%20the%20order%20is%20the%20final%20buildpack).
+> ❗ Add this buildpack as the **first** buildpack (see the [fixture manifest.yml](https://github.com/SAP/cloud-authorization-buildpack/blob/main/fixtures/node_with_opa/manifest.yml)) — it is a supply buildpack and only contributes to the staging process. See also the [CF docs about multi-buildpack usage](https://docs.cloudfoundry.org/buildpacks/understand-buildpacks.html#:~:text=buildpack%20in%20the%20order%20is%20the%20final%20buildpack).
 
-### Services
+### Service binding
 
-#### Identity Service
+The buildpack expects exactly one bound Identity service instance with the
+Authorization Management Service activated. It is found by parsing
+`VCAP_SERVICES` for an entry with service type `identity`, or for any
+user-provided service whose name or tag is `identity`.
 
-This buildpack expects to find a bound identity service with Authorization Management Service activated. To find the
-service it parses the service bindings in the VCAP_SERVICES with service type `identity` or any user-provided services
-with the name or tag `identity`. Only one matching service binding is allowed. The service binding is expected to
-contain a "certificate", a "key", the identity tenant `url` and the `authorization_instance_id`.
+The binding must contain a `certificate`, a `key`, the identity tenant `url`
+and an `authorization_instance_id`.
 
-To create such an identity instance you need to provide the following provisioning parameters:
+To create such an identity instance, provide the following provisioning
+parameters:
 
 ```json
 {
   "authorization": {
-      "enabled": true
+    "enabled": true
   }
 }
 ```
 
-When binding the service instance to your application or when creating service keys the following parameters must be
-provided in order to create certificate based credentials. These are used by the buildpack to upload the policies to
-your service instance and to download the authorization bundle during runtime.
+When binding the service instance to your application (or creating service
+keys) the following parameters must be provided to obtain X.509 credentials.
+The buildpack uses these to authenticate the policy upload to the AMS
+service:
 
 ```json
 {
@@ -57,18 +74,22 @@ your service instance and to download the authorization bundle during runtime.
 }
 ```
 
-#### Support for DeployWithConfidence (DwC)
+#### DeployWithConfidence (DwC) support
 
-There is also DwC support, where no services are bound directly to the app. All communication will be proxied by the
-megaclite component of DwC. Therefor a user-provided service with name "megaclite" is expected, containing its "url".
+DwC support is preserved. Where no Identity service is bound directly to the
+app, the buildpack falls back to a user-provided service named `megaclite`
+(containing its `url`) and uses the CF instance certificate for authentication.
 
 ### Base Policy Upload
 
-By default this buildpack doesn't upload any policies. To upload the base policies you need to provide the environment
-variable AMS_DCL_ROOT with the value of the path that contains the schema.dcl and the DCL packages. (For example in
-Spring
-`/BOOT-INF/classes/` or `/WEB-INF/classes/` in Java; For other main buildpacks just the absolute folder relative to the
-project root). The buildpack will then upload all DCL files in all subfolders at the app staging.
+By default the buildpack does **not** upload anything. To enable upload set the
+environment variable `AMS_DCL_ROOT` to the path containing your `schema.dcl`
+and DCL packages (relative to the application root). For example, in Spring
+that is typically `/BOOT-INF/classes/`, in Java often `/WEB-INF/classes/`. The
+buildpack uploads all `.dcl` files in all subfolders during staging.
+
+If `AMS_DCL_ROOT` is unset, the buildpack only prints the deprecation warning
+and otherwise does nothing.
 
 ## Development
 
@@ -79,30 +100,20 @@ Prerequisites:
 * Make
 * Docker
 
-Run `make test` to run unit tests. Run `make build` to package the buildpack as a .zip file.
+Run `make test` to run unit tests. Run `make build` to package the buildpack as a `.zip` file.
 
-### Updating SAP-OPA
-1. download latest linux-amd64 binary from repository: https://common.repositories.cloud.sap/ui/native/deploy.releases/com/sap/golang/github/wdf/sap/corp/cpsecurity/cas-opa-sap/ in an empty folder
-2. go to the folder where it was downloaded and run `tar -xf {}.tar.gz` to unzip archive
-3. go into the folder `cd linux-amd64`
-4. zip the binary `tar -czvf opa.tar.gz opa` 
-5. generate the SHA256 for the archive 
-   1. linux `cat opa.tar.gz | sha256sum` 
-   2. macOS `shasum -a 256 opa.tar.gz` 
-6. update the SHA256 checksum in [manifest.yml](/manifest.yml) dependencies->opa->sha256 
-7. and place `opa.tar.gz` in resources folder
-8. update the version [manifest.yml](/manifest.yml) dependencies->opa->version & default_versions->opa->version
-9. update the OPA version in [go.mod](go.mod) and run `go mod tidy`
+### Release process
 
-### Release Process
-Use github to create a release
-1. upgrade [VERSION](/VERSION) file 
-2. execute make build to create a packed buildpack
-3. upload the packed buildpack (opa_buildpack.zip) as asset to the release
+Use GitHub to create a release:
 
-## Reporting Issues
+1. Bump the [VERSION](/VERSION) file.
+2. Run `make build` to create the packed buildpack.
+3. Upload the resulting `opa_buildpack.zip` as a release asset.
 
-Open an issue on this project
+## Reporting issues
+
+Open an issue on this project. Note that this buildpack is in maintenance-only
+mode; please direct authorization questions to the [official support channels](https://sap.github.io/cloud-identity-developer-guide/Support.html).
 
 ## Contributing
 

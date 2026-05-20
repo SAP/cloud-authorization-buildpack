@@ -2,7 +2,6 @@ package main
 
 import (
 	"os"
-	"path"
 	"path/filepath"
 	"time"
 
@@ -14,6 +13,10 @@ import (
 
 func main() {
 	logger := libbuildpack.NewLogger(os.Stdout)
+
+	// Print the deprecation banner as the very first thing so it is impossible
+	// to miss in the CF staging logs.
+	supply.PrintDeprecation(logger)
 
 	buildpackDir, err := libbuildpack.GetBuildpackDir()
 	if err != nil {
@@ -32,8 +35,6 @@ func main() {
 		os.Exit(20)
 	}
 
-	installer := libbuildpack.NewInstaller(manifest)
-
 	stager := libbuildpack.NewStager(os.Args[1:], logger, manifest)
 	if err := stager.CheckBuildpackValid(); err != nil {
 		os.Exit(11)
@@ -46,10 +47,6 @@ func main() {
 		os.Exit(11)
 	}
 
-	if err = installer.SetAppCacheDir(stager.CacheDir()); err != nil {
-		logger.Error("Unable to setup app cache dir: %s", err)
-		os.Exit(18)
-	}
 	if err = manifest.ApplyOverride(stager.DepsDir()); err != nil {
 		logger.Error("Unable to apply override.yml files: %s", err)
 		os.Exit(17)
@@ -61,26 +58,17 @@ func main() {
 		os.Exit(12)
 	}
 
-	if err := os.MkdirAll(filepath.Join(stager.DepDir(), "bin"), 0755); err != nil {
-		logger.Error("Unable to create bin directory: %s", err)
-		os.Exit(13)
-	}
-
 	err = stager.SetStagingEnvironment()
 	if err != nil {
 		logger.Error("Unable to setup environment variables: %s", err)
 		os.Exit(14)
 	}
 	s := supply.Supplier{
-		Manifest:            manifest,
-		Installer:           installer,
-		Stager:              stager,
-		Command:             &libbuildpack.Command{},
-		Log:                 logger,
-		BuildpackDir:        buildpackDir,
-		GetClient:           uploader.GetClient,
-		CertCopierSourceDir: path.Join(buildpackDir, "bin"),
-		BuildpackVersion:    version,
+		Stager:           stager,
+		Log:              logger,
+		BuildpackDir:     buildpackDir,
+		GetClient:        uploader.GetClient,
+		BuildpackVersion: version,
 	}
 
 	err = s.Run()
@@ -93,8 +81,8 @@ func main() {
 		logger.Error("Error writing config.yml: %s", err)
 		os.Exit(16)
 	}
-	if err = installer.CleanupAppCache(); err != nil {
-		logger.Error("Unable clean up app cache: %s", err)
-		os.Exit(19)
-	}
+
+	// Re-print the deprecation banner at the very end of supply, so it is
+	// also the last thing visible in the staging logs.
+	supply.PrintDeprecation(logger)
 }

@@ -1,0 +1,3 @@
+SCHEMA {
+	destinationCountry: String
+}
