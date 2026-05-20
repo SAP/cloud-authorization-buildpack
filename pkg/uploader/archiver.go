@@ -62,6 +62,7 @@ func CreateArchive(log *libbuildpack.Logger, root string) (*bytes.Buffer, error)
 }
 
 func checkAlternativeRoots(log *libbuildpack.Logger, root string) {
+	//nolint:goconst
 	alts := map[string]string{
 		"/BOOT-INF/classes/": "/WEB-INF/classes/",
 		"/BOOT-INF/classes":  "/WEB-INF/classes",
