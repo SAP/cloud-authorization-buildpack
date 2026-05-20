@@ -8,15 +8,17 @@ set -u
 set -o pipefail
 
 function main() {
-  if [[ "${CF_STACK:-}" != "cflinuxfs3" && "${CF_STACK:-}" != "cflinuxfs4" ]]; then
-    echo "       **ERROR** Unsupported stack"
+  if [[ "${CF_STACK:-}" != "cflinuxfs4" ]]; then
+    echo "       **ERROR** Unsupported stack ('${CF_STACK:-}'). This buildpack only supports 'cflinuxfs4'."
     echo "                 See https://docs.cloudfoundry.org/devguide/deploy-apps/stacks.html for more info"
     exit 1
   fi
 
   local version expected_sha dir
-  version="1.22.5"
-  expected_sha="063266c4419d82d5310a928d8b255c29249ffedc2042ef9dd3fc580ccfb9ae5c"
+  # Versions tracked from cloudfoundry/go-buildpack release manifest:
+  # https://github.com/cloudfoundry/go-buildpack/releases
+  version="1.26.2"
+  expected_sha="95ecb6a3354688e1fc1ee1a9e5498657a26fc819e777a840160578cd4ca17452"
   dir="/tmp/go${version}"
 
   mkdir -p "${dir}"
