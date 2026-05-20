@@ -1,6 +1,6 @@
 ---
 applications:
-  - name: node-opa
+  - name: node-with-buildpack
     memory: 128M
     instances: 1
     buildpacks:
